@@ -1,0 +1,132 @@
+-----------------------------util
+
+notification factory -> contacts node correspondents using email client
+
+email client -> reads/parses email html templates, inits email client and sends emails
+
+node statistics factory -> calculates the age of last write operation on aktin node,
+just time calculation
+
+aktin node entry util -> calculates error rate/returns oldest/newest entry from a 
+list of aktin node entries
+
+calendar util -> calculates day intervales/distances, checks dates, parses dates
+
+node service -> processes xml based node entries from broker/gets child nodes 
+and context as a map
+
+rest client -> gets nodes from aktin broker, auth on aktin broker
+
+-----------------------------model
+
+notification type -> enum type of email
+
+aktin node entry -> stats for connected broker node (current temporary info from broker)
+
+aktin node -> stats for connected broker node (global info with error rate etc)
+
+aktin email contact -> email contacts with notification flags
+
+-----------------------------spring node controller
+
+aktin node controller -> overall master controller/main class, reads properties file
+maps endpoints of application
+
+----------------------------- task
+
+scheduled task -> repetead task to monitor broker nodes and save information, checks stats of node params, 
+sends/triggers notification emails, read properties file
+
+----------------------------- service -> just a wrapper for dao interface
+aktin email contact service 
+aktin node service
+aktin node entry
+
+----------------------------- dao -> database operators for models (hibernate cruds)
+aktin email contact dao
+aktin node dao
+aktin node entry dao
+-----------------------------
+
+
+jeden tag abfrage 
+
+welche dwhs sind online?
+wie viele daten haben sie importiert seit Neustart/täglich?
+
+wie hoch ist die fehlerquote hinsichtlich invalid/errors?
+
+was sind die fehler die seit dem neustart aufgetreten sind?
+
+wie viele daten/fehler kamen seit der letzten Woche hinzu (prozentual)
+fehler ampel automatisch
+
+
+historie for node status
+
+
+overall status ampelsystem
+
+link zum support ticket
+
+information aus confluence auf broker-monitor abbilden
+KIS
+Schntitstelle
+NA-Leiter mit Tele/Email
+IT-Kontakt mit Tele/Email
+
+Root patient
+root fall
+root episode
+
+format???
+
+notizen hinzufügen
+tags hinzufügen
+
+overall status ampelsystem
+
+email schreiben / schnittstelle zum email-server
+
+
+
+https://confluence-imi.ukaachen.de/display/AKTIN/Broker+Monitoring
+
+
+	
+Anforderungskatalog:
+
+1)      Grundsätzliche Optionen in Config-Datei o.ä. einstellbar:
+
+Häufigkeit des Datenabgleichs mit dem Broker
+Broker URL
+Zugangsdaten
+2)      E-Mail-Benachrichtigung nach Benutzergruppen Konfigurierbar (idealerweise per GUI):
+
+Adressen pro Gruppe (Broker-Admin, Notaufnahme-Leiter, Notaufnahme-IT)
+Benachrichtigungstypen pro Gruppe an/aus (Broker Down, DWH Down, Keine Importe, Fehlerschwellwert überschritten)
+Karenzzeit pro Benachrichtigungstyp einstellbar (Benachrichtigung nach x Stunden down bzw. kein Import, Bei Fehler: Zeitraum, über den der Schwellwert gebildet wird)
+An/Aus Schalter für jeden Typ pro Gruppe (Matrix von Checkboxen?)
+3)      Status-Anzeige in Webinterface
+
+24h/Wochen/Monats/Jahres-Statistik (Importe, Updates, Invalid, Failed)
+2 Ampeln: Grün/Gelb/Rot
+1. Ampel: Rot=Down oder Keine Importe; Gelb = deutlich weniger Importe
+2. Ampel: Rot=Viele Fehler; Gelb= leicht erhöhte Fehlerzahl
+Soll-Wert (Erfahrungswert Importe/Tag pro Standort einstellbar)
+Gelb/Rot-Schwellwerte einstellbar für Fehler-Prozentzahl
+
+
+
+
+
++ täglich/regelmäßig import statistiken aller nodes abgreifen und tägliche imports/fehlerrate berechnen
++ automatisch emails an korrespondenten versenden, wenn hohe fehlerrate oder stark abweichende imports
++ automatisches ampelsystem für importstatistiken
+
++ möglichkeit um korrospondenten von nodes mit email adresse zu hinterlegen
++ möglichkeit information aus confluence, wie versionen oder root-ids zu hinterlegen
++ möglichkeit, fehler vom broker-server einzusehen (auch ältere/nicht nur aktuelle)
++ möglichkeit, auch älteere statistiken einzusehen/nicht nur aktuelle
++ möglichkeit, installierte r-pakete/python-pakete etc. einzusehen
++ möglichkeit, kommentare zu hinterlegen und zu taggen

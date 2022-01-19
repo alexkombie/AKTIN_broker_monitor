@@ -1,0 +1,115 @@
+@startuml
+hide circle
+hide methods
+
+title __Diagram of Broker-Monitor__\n
+
+package DB <<Database>> {
+}
+
+package org.broker.monitor.db <<Package>> {
+  entity "db.access.****" as db.access {
+    * Connection to the database
+    * CRUD operations for tables
+  }
+  entity db.interface {
+    * Interfaces for database access
+  }
+}
+
+map org.broker.monitor.model {
+    **DAO** => **Description**
+    User => Application user
+    Role => Role of User
+    Permission => Permission for Role (Enum)
+    NodeEntry => Information compound of clinical node
+    NodeInfo => Information about the clinic
+    HospitalInformationSystem => Vendor of HIS
+    ClinicalDataInterface => Vendor of CDA interface
+    EmailContact => Correspondent of a node
+    ContactType => Category of EmailContact (Enum)
+    NodeError => Tracked node errors from broker-server
+    NodeComment => User comments on NodeEntry
+    NodeStats => Tracked imports stats for node from broker-server
+    NodeTag => User-created categories for NodeEntry
+    NodeStatus => Automatically computed status of NodeEntry (Enum)
+}
+
+entity org.broker.monitor.security {
+    * Hashes passwords
+    * Authentificates User
+    * Checks authorization of User
+    * Logs all actions of User
+}
+
+package org.broker.monitor.connection <<Package>> {
+  entity connection.aktin {
+    * Connection to the AKTIN Broker
+    * Calls the AKTIN Broker Endpoints
+  }
+  entity connection.interface {
+    * Interfaces for a broker connection
+  }
+}
+
+entity org.broker.monitor.api {
+    * Endpoint of application
+    * CRUD for DAOs
+}
+
+entity org.broker.monitor.scheduler {
+    * Grabs periodically node information from broker-server
+    * Extracts import and error information from broker-server node
+    and stores them in database
+    * Computes daily/weekly imports and error rates from import information
+    * Changes status of NodeEntry on appereance of anomalies
+    * Contacts correspondants of NodeEntry on appereance of anomalies via
+    messaging service
+}
+
+package org.broker.monitor.messaging <<Package>> {
+    entity messaging.email {
+        * Connection to mailing server
+        * Initializes email client
+        * Sends emails
+    }
+
+    entity messaging.interface {
+        * Interfaces for messaging service
+    }
+}
+
+entity "Frontend of Broker-Monitor" as Frontend
+entity Frontend #aliceblue;line:blue;text:blue
+hide Frontend members
+
+entity "AKTIN Broker" as Broker
+entity Broker #aliceblue;line:blue;text:blue
+hide Broker members
+
+entity "Email Server" as Email
+entity Email #aliceblue;line:blue;text:blue
+hide Email members
+
+db.access -u-> DB
+db.access -u|> db.interface
+
+org.broker.monitor.security -d-> db.interface
+db.access -d-> org.broker.monitor.security
+
+org.broker.monitor.api -l-> db.interface
+org.broker.monitor.api -d-> org.broker.monitor.security
+Frontend --> org.broker.monitor.api
+
+org.broker.monitor.scheduler -d-> connection.interface
+ org.broker.monitor.scheduler -u-> messaging.interface
+org.broker.monitor.scheduler -l-> db.interface
+
+connection.aktin -r-|> connection.interface
+connection.aktin -d-> Broker
+
+messaging.email -l-|> messaging.interface
+messaging.email -u-> Email
+
+note top of org.broker.monitor.model : Used by every package
+@enduml
