@@ -30,6 +30,7 @@ import traceback
 from abc import ABC, abstractmethod
 from bisect import bisect
 from datetime import datetime
+from datetime import timedelta
 
 import lxml.etree as ET
 import chardet
@@ -55,23 +56,18 @@ class PropertiesJsonReader:
             os.environ[key] = dict_config.get(key)
 
 
-# operations for reading and wirting csv files
-# contains configuraiton variables for reading csv files
-# gets the encoding of a csv file
-class CSVHandler(ABC):
-    CSV_SEPARATOR: str = ';'
-    CSV_NAME: str
+class CSVManager:
+    __CSV_SEPARATOR: str = ';'
+    __CSV_ENCODING: str = 'UTF-8'
 
-    def __init__(self, path_folder: str):
-        self.PATH_CSV = os.path.join(path_folder, self.CSV_NAME)
+    def __init__(self, path_csv: str):
+        self.__PATH_CSV = path_csv
 
-    @staticmethod
-    def get_csv_encoding(path_csv: str) -> str:
-        with open(path_csv, 'rb') as csv:
-            encoding = chardet.detect(csv.read(5120))['encoding']
-        return encoding
+    def save_df_as_csv(self, df: pd.DataFrame):
+        df.to_csv(self.__PATH_CSV, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, index=False)
 
-    # autocloseable?
+    def read_csv_as_df(self) -> pd.DataFrame:
+        return pd.read_csv(self.__PATH_CSV, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, dtype=str)
 
 
 class SingletonMeta(type):
@@ -102,25 +98,6 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         for item in items:
             url = '{}/{}'.format(url, item)
         return url
-
-    def __create_basic_header(self) -> dict:
-        return {'Authorization': ' '.join(['Bearer', self.__ADMIN_API_KEY]), 'Connection': 'keep-alive', 'Accept': 'application/xml'}
-
-    @staticmethod
-    def __remove_namespace_from_tree(tree: ET._ElementTree) -> ET._ElementTree:
-        for elem in tree.getiterator():
-            if not hasattr(elem.tag, 'find'):
-                continue
-            i = elem.tag.find('}')
-            if i >= 0:
-                elem.tag = elem.tag[i + 1:]
-        return tree
-
-    def __get_processed_response(self, url: str) -> ET._ElementTree:
-        response = requests.get(url, headers=self.__create_basic_header())
-        response.raise_for_status()
-        tree = ET.fromstring(response.content)
-        return self.__remove_namespace_from_tree(tree)
 
     def get_broker_node_list(self) -> list[str]:
         url = self.__append_to_broker_url('broker', 'node')
@@ -161,6 +138,25 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
                     elem.text)
             errors.append(error)
         return errors
+
+    def __get_processed_response(self, url: str) -> ET._ElementTree:
+        response = requests.get(url, headers=self.__create_basic_header())
+        response.raise_for_status()
+        tree = ET.fromstring(response.content)
+        return self.__remove_namespace_from_tree(tree)
+
+    def __create_basic_header(self) -> dict:
+        return {'Authorization': ' '.join(['Bearer', self.__ADMIN_API_KEY]), 'Connection': 'keep-alive', 'Accept': 'application/xml'}
+
+    @staticmethod
+    def __remove_namespace_from_tree(tree: ET._ElementTree) -> ET._ElementTree:
+        for elem in tree.getiterator():
+            if not hasattr(elem.tag, 'find'):
+                continue
+            i = elem.tag.find('}')
+            if i >= 0:
+                elem.tag = elem.tag[i + 1:]
+        return tree
 
     @dataclass()
     class BrokerNode:
@@ -242,8 +238,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
 
 # ordner : 003
 # utf-8
-# csv file : 003_stats_2022-01.csv
-# error file : 003_errors_2022-01.csv
+# csv file : 003_stats_2022.csv
+# error file : 003_errors_2022.csv
 
 # get information of broker nodes and saves them in a csv file
 # each node hsa a corresponding csv file
@@ -275,57 +271,115 @@ class BrokerNodeFetcherFactory:
             os.makedirs(dir_working)
         return dir_working
 
-    @staticmethod
-    def __get_current_date():
-        month_current = str(datetime.now().month)
-        month_current = month_current.rjust(2, '0')
-        return '-'.join([datetime.now().year, month_current])
 
-
-# fetchers broker node contact and startup
-# fetcher broker node import stats
-# computes daily imports from differecnes to previous days
-# computes daily error rate
-# each column in dsv file stands for one day
 class NodeInfoFetcher:
 
-    def __int__(self):
-        self.__ID_NODE = ''
-        self.__CURRENT_DATE = ''
-        self.__PATH_CSV = ''
+    def __init__(self, dir_working: str, id_node: str):
+        self.__ID_NODE = id_node
+        self.__DIR_WORKING = dir_working
+        self.__CURRENT_DATE = datetime.now()
+        self.__NAME_CSV = self.__generate_csv_name(self.__ID_NODE, self.__CURRENT_DATE)
+        self.__PATH_CSV = os.path.join(self.__DIR_WORKING, self.__NAME_CSV)
+        self.__CSV_MANAGER = CSVManager(self.__PATH_CSV)
         self.__BROKER_NODE_CONNECTION = BrokerNodeConnection()
+
+    @staticmethod
+    def __generate_csv_name(id_node: str, date: datetime):
+        id_node = id_node.rjust(3, '0')
+        name_csv = '_'.join([id_node, 'stats', str(date.year)])
+        return ''.join([name_csv, '.csv'])
 
     def init_new_csv(self):
         if not os.path.isfile(self.__PATH_CSV):
-            df = pd.DataFrame(columns=['date', 'last-contact', 'start', 'last-write',
-                                       'last-reject', 'imported', 'updated', 'invalid',
-                                       'failed', 'daily_imports', 'daily_updates', 'daily_invalids',
-                                       'daily_failed', 'error_rate'])
-            df.to_csv(self.__PATH_CSV, index=False, sep=';', encoding='UTF-8')
+            df = pd.DataFrame(columns=['date', 'last_contact', 'start', 'last_write', 'last_reject',
+                                       'imported', 'updated', 'invalid', 'failed',
+                                       'daily_imported', 'daily_updated', 'daily_invalid', 'daily_failed', 'error_rate'])
+            self.__CSV_MANAGER.save_df_as_csv(df)
 
-    def add_column_to_csv(self):
-        df = pd.read_csv(self.__PATH_CSV, sep=';', encoding='UTF-8', dtype=str)
+    def fetch_to_csv(self):
+        row_reference = pd.Series(dtype=str)
         node = self.__BROKER_NODE_CONNECTION.get_broker_node(self.__ID_NODE)
         stats = self.__BROKER_NODE_CONNECTION.get_broker_node_stats(self.__ID_NODE)
-
-        new_row = {'date':           self.__CURRENT_DATE,
-                   'last-contact':   node.last_contact,
-                   'start':          stats.dwh_start,
-                   'last-write':     stats.last_write,
-                   'last-reject':    stats.last_reject,
-                   'imported':       stats.imported,
-                   'updated':        stats.updated,
-                   'invalid':        stats.invalid,
-                   'failed':         stats.failed,
-                   'daily_imports':  stats.daily_imports,
-                   'daily_updates':  stats.daily_updates,
-                   'daily_invalids': stats.daily_invalids,
-                   'daily_failed':   stats.daily_failed,
-                   'error_rate':     stats.error_rate,
-                   }
-
+        df = self.__CSV_MANAGER.read_csv_as_df()
+        df = self.__delete_todays_row_if_exists(df)
+        if df.empty:
+            path_csv_last_year = self.__get_last_years_csv_path()
+            if os.path.isfile(path_csv_last_year):
+                csv_manager = CSVManager(path_csv_last_year)
+                df_last_year = csv_manager.read_csv_as_df()
+                last_row = df_last_year.iloc[-1]
+                if self.__check_end_of_year_transition(last_row.date):
+                    row_reference = last_row
+        else:
+            row_reference = df.iloc[-1]
+        if row_reference.empty:
+            map_daily = self.__generate_empty_daily_stats()
+        else:
+            map_daily = self.__compute_daily_stats(row_reference, stats)
+        new_row = {'date':         self.__extract_year_month_day(self.__CURRENT_DATE),
+                   'last_contact': node.last_contact,
+                   'start':        stats.dwh_start,
+                   'last_write':   stats.last_write,
+                   'last_reject':  stats.last_reject,
+                   'imported':     stats.imported,
+                   'updated':      stats.updated,
+                   'invalid':      stats.invalid,
+                   'failed':       stats.failed}
+        new_row.update(map_daily)
         df = df.append(new_row, ignore_index=True)
-        df.to_csv(self.__PATH_CSV, index=False, sep=';', encoding='UTF-8')
+        self.__CSV_MANAGER.save_df_as_csv(df)
+
+    def __delete_todays_row_if_exists(self, df: pd.DataFrame) -> pd.DataFrame:
+        if not df.empty:
+            current_date = self.__extract_year_month_day(self.__CURRENT_DATE)
+            last_row = df.iloc[-1]
+            if last_row.date == current_date:
+                df = df.head(-1)
+            if any(df['date'] == current_date):
+                raise SystemExit('Date of today was found in past!!')
+        return df
+
+    @staticmethod
+    def __extract_year_month_day(date: datetime):
+        month = str(date.month)
+        month = month.rjust(2, '0')
+        day = str(date.day)
+        day = day.rjust(2, '0')
+        return '-'.join([str(date.year), month, day])
+
+    def __get_last_years_csv_path(self):
+        date_last_year = self.__CURRENT_DATE.replace(year=self.__CURRENT_DATE.year - 1)
+        name_csv = self.__generate_csv_name(self.__ID_NODE, date_last_year)
+        return os.path.join(self.__DIR_WORKING, name_csv)
+
+    def __check_end_of_year_transition(self, date_end_of_year: str) -> bool:
+        date_yesterday = self.__extract_year_month_day(self.__CURRENT_DATE - timedelta(days=1))
+        return date_end_of_year == date_yesterday
+
+    @staticmethod
+    def __generate_empty_daily_stats() -> dict:
+        return {'daily_imported': '-',
+                'daily_updated':  '-',
+                'daily_invalid':  '-',
+                'daily_failed':   '-',
+                'error_rate':     '-'}
+
+    @staticmethod
+    def __compute_daily_stats(stats_previous, stats_current) -> dict:
+        daily_imported = int(stats_current.imported) - int(stats_previous.imported)
+        daily_updated = int(stats_current.updated) - int(stats_previous.updated)
+        daily_invalid = int(stats_current.invalid) - int(stats_previous.invalid)
+        daily_failed = int(stats_current.failed) - int(stats_previous.failed)
+        if (daily_imported + daily_updated) > 0:
+            error_rate = (daily_failed + daily_invalid) / (daily_imported + daily_updated)
+            error_rate = round(error_rate, 2)
+        else:
+            error_rate = '-'
+        return {'daily_imported': daily_imported,
+                'daily_updated':  daily_updated,
+                'daily_invalid':  daily_invalid,
+                'daily_failed':   daily_failed,
+                'error_rate':     error_rate}
 
 
 # fetchers broker node errors
@@ -349,15 +403,9 @@ def main(path_config: str):
     try:
         __init_logger()
         PropertiesJsonReader(path_config)
-        a = BrokerNodeFetcher('1')
-        b = BrokerNodeFetcher('2')
-        c = BrokerNodeFetcher('3')
-        d = BrokerNodeFetcher('4')
-
-        print(id(a.BROKER_NODE_CONNECTION))
-        print(id(b.BROKER_NODE_CONNECTION))
-        print(id(c.BROKER_NODE_CONNECTION))
-        print(id(d.BROKER_NODE_CONNECTION))
+        a = NodeInfoFetcher('', '1')
+        a.init_new_csv()
+        a.add_column_to_csv()
 
     except Exception as e:
         logging.exception(e)
