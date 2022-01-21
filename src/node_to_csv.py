@@ -248,6 +248,7 @@ class BrokerNodeFetcher(ABC):
 
 
 # TODO global error_rate
+# TODO What if 1 < days no contact?
 class NodeInfoFetcher(BrokerNodeFetcher):
     _CSV_CATEGORY = 'stats'
     _CSV_COLUMNS = ['date', 'last_contact', 'start', 'last_write', 'last_reject',
