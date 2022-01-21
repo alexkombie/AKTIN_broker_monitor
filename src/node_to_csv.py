@@ -34,7 +34,7 @@ import pandas as pd
 import requests
 
 
-class CSVManager:
+class CSVHandler:
     __CSV_SEPARATOR: str = ';'
     __CSV_ENCODING: str = 'UTF-8'
 
@@ -224,7 +224,7 @@ class BrokerNodeFetcher(ABC):
         self._CURRENT_DATE = datetime.now()
         self._NAME_CSV = self._generate_csv_name(self._ID_NODE, self._CURRENT_DATE)
         self._PATH_CSV = os.path.join(self._DIR_WORKING, self._NAME_CSV)
-        self._CSV_MANAGER = CSVManager(self._PATH_CSV)
+        self._CSV_HANDLER = CSVHandler(self._PATH_CSV)
         self._BROKER_NODE_CONNECTION = BrokerNodeConnection()
 
     def _generate_csv_name(self, id_node: str, date: datetime):
@@ -235,7 +235,7 @@ class BrokerNodeFetcher(ABC):
     def init_working_csv(self):
         if not os.path.isfile(self._PATH_CSV):
             df = pd.DataFrame(columns=self._CSV_COLUMNS)
-            self._CSV_MANAGER.save_df_as_csv(df)
+            self._CSV_HANDLER.save_df_as_csv(df)
 
     @staticmethod
     def _convert_broker_time_to_local(date: str):
@@ -257,13 +257,13 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         row_reference = pd.Series(dtype=str)
         node = self._BROKER_NODE_CONNECTION.get_broker_node(self._ID_NODE)
         stats = self._BROKER_NODE_CONNECTION.get_broker_node_stats(self._ID_NODE)
-        df = self._CSV_MANAGER.read_csv_as_df()
+        df = self._CSV_HANDLER.read_csv_as_df()
         df = self.__delete_todays_row_if_exists(df)
         if df.empty:
             path_csv_last_year = self.__get_last_years_csv_path()
             if os.path.isfile(path_csv_last_year):
-                csv_manager = CSVManager(path_csv_last_year)
-                df_last_year = csv_manager.read_csv_as_df()
+                tmp_csv_manager = CSVHandler(path_csv_last_year)
+                df_last_year = tmp_csv_manager.read_csv_as_df()
                 last_row = df_last_year.iloc[-1]
                 if self.__check_end_of_year_transition(last_row.date):
                     row_reference = last_row
@@ -284,7 +284,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
                    'failed':       stats.failed}
         new_row.update(map_daily)
         df = df.append(new_row, ignore_index=True)
-        self._CSV_MANAGER.save_df_as_csv(df)
+        self._CSV_HANDLER.save_df_as_csv(df)
 
     def __delete_todays_row_if_exists(self, df: pd.DataFrame) -> pd.DataFrame:
         if not df.empty:
