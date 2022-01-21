@@ -111,8 +111,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         errors = []
         for elem in tree.find('last-errors').getchildren():
             error = self.BrokerNodeError(
-                    elem.get('repeats'),
                     elem.get('timestamp'),
+                    elem.get('repeats'),
                     elem.text)
             errors.append(error)
         return errors
@@ -197,8 +197,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     @dataclass()
     class BrokerNodeError:
 
-        __REPEATS: str
         __TIMESTAMP: str
+        __REPEATS: str
         __CONTENT: str
 
         @property
@@ -238,7 +238,7 @@ class BrokerNodeFetcher(ABC):
             self._CSV_HANDLER.save_df_as_csv(df)
 
     @staticmethod
-    def _convert_broker_time_to_local(date: str):
+    def _convert_broker_time_to_local(date: str) -> str:
         ts = pd.Timestamp(date).tz_convert('Europe/Berlin')
         return ts.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -247,6 +247,7 @@ class BrokerNodeFetcher(ABC):
         pass
 
 
+# TODO global error_rate
 class NodeInfoFetcher(BrokerNodeFetcher):
     _CSV_CATEGORY = 'stats'
     _CSV_COLUMNS = ['date', 'last_contact', 'start', 'last_write', 'last_reject',
@@ -344,18 +345,40 @@ class NodeErrorFetcher(BrokerNodeFetcher):
     _CSV_COLUMNS = ['timestamp', 'repeats', 'content']
 
     def fetch_to_csv(self):
-        pass
-        """
-        errors = self.__BROKER_NODE_CONNECTION.get_broker_node_errors(self.__ID_NODE)
-        df = self.__CSV_MANAGER.read_csv_as_df()
+        errors = self._BROKER_NODE_CONNECTION.get_broker_node_errors(self._ID_NODE)
+        df = self._CSV_HANDLER.read_csv_as_df()
         for error in errors:
-            new_row = {
-                'timestamp': error.timestamp,
-                'repeats':   error.repeats if error.repeats is not None else '1',
-                'content':   error.content}
-            df = df.append(new_row, ignore_index=True)
-        self.__CSV_MANAGER.save_df_as_csv(df)
-        """
+            if self.__check_if_error_appeared_this_year(error.timestamp):
+                new_row = {
+                    'timestamp': self._convert_broker_time_to_local(error.timestamp),
+                    'repeats':   error.repeats if error.repeats is not None else '1',
+                    'content':   error.content}
+                if self.__check_if_error_already_logged(df, error.content):
+                    if self.__check_if_error_repeats_changed(df, error):
+                        df = self.__delete_old_row(df, error.content)
+                        df = df.append(new_row, ignore_index=True)
+                else:
+                    df = df.append(new_row, ignore_index=True)
+        df = df.sort_values(by='timestamp')
+        self._CSV_HANDLER.save_df_as_csv(df)
+
+    def __check_if_error_appeared_this_year(self, date_error: str) -> bool:
+        date_local = pd.Timestamp(date_error).tz_convert('Europe/Berlin')
+        return self._CURRENT_DATE.year == date_local.year
+
+    @staticmethod
+    def __check_if_error_already_logged(df: pd.DataFrame, error_content: str) -> bool:
+        return any(df['content'] == error_content)
+
+    @staticmethod
+    def __check_if_error_repeats_changed(df: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError):
+        idx = df.index[df['content'] == error.content][0]
+        return df['repeats'][idx] == error.repeats
+
+    @staticmethod
+    def __delete_old_row(df: pd.DataFrame, error_content: str) -> pd.DataFrame:
+        idx = df.index[df['content'] == error_content][0]
+        return df.drop(index=idx)
 
 
 class BrokerNodeFetcherManager:
