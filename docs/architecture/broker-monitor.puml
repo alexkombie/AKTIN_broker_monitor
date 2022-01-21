@@ -10,12 +10,12 @@ class "read_properties_file()" as r {
 }
 hide r circle
 
-abstract class CSVHandler {
+class CSVHandler {
 * operations for reading and writing a csv file
 * contains configuration variables for reading csv file
 }
 
-abstract BrokerNodeConnection {
+class BrokerNodeConnection {
 * uses REST endpoint of broker-server to get
 information about connected broker nodes
 }
@@ -41,12 +41,16 @@ class BrokerNodeFetcherManager {
 * initializes and executes fetcher
 }
 
+note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
+NodeErrorFetcher .. N1
+NodeInfoFetcher .. N1
+
 BrokerNodeFetcher --> CSVHandler
 BrokerNodeFetcher --> BrokerNodeConnection
 NodeErrorFetcher --|> BrokerNodeFetcher
 NodeInfoFetcher --|> BrokerNodeFetcher
-BrokerNodeFetcherManager .u.> NodeInfoFetcher
-BrokerNodeFetcherManager .u.> NodeErrorFetcher
+BrokerNodeFetcherManager .d.> NodeInfoFetcher
+BrokerNodeFetcherManager .d.> NodeErrorFetcher
 }
 
 entity "AKTIN Broker" as broker
@@ -66,10 +70,6 @@ entity "JSON file with configuration" as settings {
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle
-
-note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
-NodeErrorFetcher .u. N1
-NodeInfoFetcher .u. N1
 
 BrokerNodeConnection -d-> broker
 CSVHandler -d-> csv
