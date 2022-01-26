@@ -24,10 +24,10 @@ import json
 import logging
 import os
 import sys
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
-from datetime import timedelta
+from functools import singledispatchmethod
 
 import lxml.etree as ET
 import pandas as pd
@@ -49,6 +49,9 @@ class CSVHandler:
 
 
 class SingletonMeta(type):
+    """
+    Meta class to make BrokerNodeConnection a Singleton
+    """
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -118,16 +121,25 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         return errors
 
     def __get_processed_response(self, url: str) -> ET._ElementTree:
+        """
+        Returns processed XML tree object without namespace from GET request
+        """
         response = requests.get(url, headers=self.__create_basic_header())
         response.raise_for_status()
         tree = ET.fromstring(response.content)
         return self.__remove_namespace_from_tree(tree)
 
     def __create_basic_header(self) -> dict:
+        """
+        HTTP header for requests to AKTIN Broker
+        """
         return {'Authorization': ' '.join(['Bearer', self.__ADMIN_API_KEY]), 'Connection': 'keep-alive', 'Accept': 'application/xml'}
 
     @staticmethod
     def __remove_namespace_from_tree(tree: ET._ElementTree) -> ET._ElementTree:
+        """
+        To enable search via xpath
+        """
         for elem in tree.getiterator():
             if not hasattr(elem.tag, 'find'):
                 continue
@@ -221,13 +233,14 @@ class BrokerNodeFetcher(ABC):
     def __init__(self, id_node: str, dir_working=''):
         self._ID_NODE = id_node
         self._DIR_WORKING = dir_working
-        self._CURRENT_DATE = datetime.now()
+        self._TIMEZONE = 'Europe/Berlin'
+        self._CURRENT_DATE = pd.Timestamp.now().tz_localize(self._TIMEZONE)
         self._NAME_CSV = self._generate_csv_name(self._ID_NODE, self._CURRENT_DATE)
         self._PATH_CSV = os.path.join(self._DIR_WORKING, self._NAME_CSV)
         self._CSV_HANDLER = CSVHandler(self._PATH_CSV)
         self._BROKER_NODE_CONNECTION = BrokerNodeConnection()
 
-    def _generate_csv_name(self, id_node: str, date: datetime):
+    def _generate_csv_name(self, id_node: str, date: pd.Timestamp) -> str:
         id_node = id_node.rjust(3, '0')
         name_csv = '_'.join([id_node, self._CSV_CATEGORY, str(date.year)])
         return ''.join([name_csv, '.csv'])
@@ -237,108 +250,162 @@ class BrokerNodeFetcher(ABC):
             df = pd.DataFrame(columns=self._CSV_COLUMNS)
             self._CSV_HANDLER.save_df_as_csv(df)
 
-    @staticmethod
-    def _convert_broker_time_to_local(date: str) -> str:
-        ts = pd.Timestamp(date).tz_convert('Europe/Berlin')
+    @singledispatchmethod
+    def _extract_YMD_HMS(self, date) -> str:
+        pass
+
+    @_extract_YMD_HMS.register
+    def _(self, date: pd.Timestamp) -> str:
+        ts = date.tz_convert(self._TIMEZONE)
         return ts.strftime("%Y-%m-%d %H:%M:%S")
+
+    @_extract_YMD_HMS.register
+    def _(self, date: str) -> str:
+        ts = pd.Timestamp(date).tz_convert(self._TIMEZONE)
+        return ts.strftime("%Y-%m-%d %H:%M:%S")
+
+    @singledispatchmethod
+    def _extract_YMD(self, date) -> str:
+        pass
+
+    @_extract_YMD.register
+    def _(self, date: pd.Timestamp) -> str:
+        ts = date.tz_convert(self._TIMEZONE)
+        return ts.strftime("%Y-%m-%d")
+
+    @_extract_YMD.register
+    def _(self, date: str) -> str:
+        ts = pd.Timestamp(date).tz_convert(self._TIMEZONE)
+        return ts.strftime("%Y-%m-%d")
 
     @abstractmethod
     def fetch_to_csv(self):
         pass
 
 
-# TODO global error_rate
-# TODO What if 1 < days no contact?
 class NodeInfoFetcher(BrokerNodeFetcher):
     _CSV_CATEGORY = 'stats'
     _CSV_COLUMNS = ['date', 'last_contact', 'start', 'last_write', 'last_reject',
-                    'imported', 'updated', 'invalid', 'failed',
-                    'daily_imported', 'daily_updated', 'daily_invalid', 'daily_failed', 'error_rate']
+                    'imported', 'updated', 'invalid', 'failed', 'error_rate',
+                    'daily_imported', 'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
 
     def fetch_to_csv(self):
-        row_reference = pd.Series(dtype=str)
+        """
+        Calls AKTIN Broker Endpoints to get import statistics of connected node and writes response in csv file.
+        One row in csv file equals the status of one day. Running the method multiple times will overwrite the row
+        of the current day each time. Computes differences to last row in csv file (assuming it contains the
+        import statistic of yesterday). If the csv file is empty or newly created, the existence of last years csv
+        file is checked as csv files are rotated each year. Missing/Not computable values are added as '-'.
+        All date information from response is converted into a local, human-readable format. The vars 'last-reject'
+        and 'last-write' from broker response can be None if no data was imported/no error occured.
+        """
         node = self._BROKER_NODE_CONNECTION.get_broker_node(self._ID_NODE)
         stats = self._BROKER_NODE_CONNECTION.get_broker_node_stats(self._ID_NODE)
         df = self._CSV_HANDLER.read_csv_as_df()
         df = self.__delete_todays_row_if_exists(df)
         if df.empty:
-            path_csv_last_year = self.__get_last_years_csv_path()
-            if os.path.isfile(path_csv_last_year):
-                tmp_csv_manager = CSVHandler(path_csv_last_year)
-                df_last_year = tmp_csv_manager.read_csv_as_df()
-                last_row = df_last_year.iloc[-1]
-                if self.__check_end_of_year_transition(last_row.date):
-                    row_reference = last_row
+            row_reference = self.__get_last_row_of_last_years_csv_if_exists()
         else:
             row_reference = df.iloc[-1]
-        if row_reference.empty:
-            map_daily = self.__generate_empty_daily_stats()
+        if row_reference is not None:
+            if self.__was_csv_date_yesterday(row_reference.date) and self.__are_dwh_start_date_equal(row_reference, stats):
+                map_daily = self.__compute_daily_stats(row_reference, stats)
+            else:
+                map_daily = self.__generate_empty_daily_stats()
         else:
-            map_daily = self.__compute_daily_stats(row_reference, stats)
-        new_row = {'date':         self.__extract_year_month_day(self._CURRENT_DATE),
-                   'last_contact': self._convert_broker_time_to_local(node.last_contact),
-                   'start':        self._convert_broker_time_to_local(stats.dwh_start),
-                   'last_write':   self._convert_broker_time_to_local(stats.last_write) if stats.last_write else '-',
-                   'last_reject':  self._convert_broker_time_to_local(stats.last_reject) if stats.last_reject else '-',
-                   'imported':     stats.imported,
-                   'updated':      stats.updated,
-                   'invalid':      stats.invalid,
-                   'failed':       stats.failed}
-        new_row.update(map_daily)
-        df = df.append(new_row, ignore_index=True)
+            map_daily = self.__generate_empty_daily_stats()
+        map_stats = self.__generate_row_stats(node, stats)
+        map_stats.update(map_daily)
+        df = df.append(map_stats, ignore_index=True)
         self._CSV_HANDLER.save_df_as_csv(df)
 
     def __delete_todays_row_if_exists(self, df: pd.DataFrame) -> pd.DataFrame:
         if not df.empty:
-            current_date = self.__extract_year_month_day(self._CURRENT_DATE)
-            last_row = df.iloc[-1]
-            if last_row.date == current_date:
+            current_date = self._extract_YMD(self._CURRENT_DATE)
+            last_date = df.iloc[-1].date
+            if not re.match(r"\d{4}-\d{2}-\d{2}", last_date):
+                raise SystemExit("invalid date of date_csv")
+            if last_date == current_date:
                 df = df.head(-1)
             if any(df['date'] == current_date):
-                raise SystemExit('Date of today was found in multiple rows!!')
+                raise SystemExit('date of today was found in multiple rows!!')
         return df
 
-    @staticmethod
-    def __extract_year_month_day(date: datetime):
-        month = str(date.month)
-        month = month.rjust(2, '0')
-        day = str(date.day)
-        day = day.rjust(2, '0')
-        return '-'.join([str(date.year), month, day])
+    def __get_last_row_of_last_years_csv_if_exists(self) -> pd.Series | None:
+        path_csv_last_year = self.__get_last_years_csv_path()
+        if os.path.isfile(path_csv_last_year):
+            tmp_csv_manager = CSVHandler(path_csv_last_year)
+            df_last_year = tmp_csv_manager.read_csv_as_df()
+            last_row = df_last_year.iloc[-1]
+            if self.__was_csv_date_yesterday(last_row.date):
+                return last_row
+        return None
 
-    def __get_last_years_csv_path(self):
+    def __get_last_years_csv_path(self) -> str:
         date_last_year = self._CURRENT_DATE.replace(year=self._CURRENT_DATE.year - 1)
         name_csv = self._generate_csv_name(self._ID_NODE, date_last_year)
         return os.path.join(self._DIR_WORKING, name_csv)
 
-    def __check_end_of_year_transition(self, date_end_of_year: str) -> bool:
-        date_yesterday = self.__extract_year_month_day(self._CURRENT_DATE - timedelta(days=1))
-        return date_end_of_year == date_yesterday
+    def __was_csv_date_yesterday(self, date_csv: str) -> bool:
+        if not re.match(r"\d{4}-\d{2}-\d{2}", date_csv):
+            raise SystemExit("invalid date format of date_csv")
+        date_yesterday = self._extract_YMD(self._CURRENT_DATE - pd.Timedelta(days=1))
+        return date_csv == date_yesterday
+
+    def __are_dwh_start_date_equal(self, reference: pd.Series, stats: BrokerNodeConnection.BrokerNodeStats):
+        start_reference = reference.start
+        if not re.match(r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}", start_reference):
+            raise SystemExit("invalid date format of date_csv")
+        start_dwh = self._extract_YMD_HMS(stats.dwh_start)
+        return start_reference == start_dwh
 
     @staticmethod
     def __generate_empty_daily_stats() -> dict:
-        return {'daily_imported': '-',
-                'daily_updated':  '-',
-                'daily_invalid':  '-',
-                'daily_failed':   '-',
-                'error_rate':     '-'}
+        return {'daily_imported':   '-',
+                'daily_updated':    '-',
+                'daily_invalid':    '-',
+                'daily_failed':     '-',
+                'daily_error_rate': '-'}
 
-    @staticmethod
-    def __compute_daily_stats(stats_previous, stats_current) -> dict:
+    def __compute_daily_stats(self, stats_previous, stats_current) -> dict:
         daily_imported = int(stats_current.imported) - int(stats_previous.imported)
         daily_updated = int(stats_current.updated) - int(stats_previous.updated)
         daily_invalid = int(stats_current.invalid) - int(stats_previous.invalid)
         daily_failed = int(stats_current.failed) - int(stats_previous.failed)
-        if (daily_imported + daily_updated) > 0:
-            error_rate = (daily_failed + daily_invalid) / (daily_imported + daily_updated)
-            error_rate = round(error_rate * 100, 2)
+        daily_error_rate = self.__compute_error_rate(daily_imported, daily_updated, daily_invalid, daily_failed)
+        return {'daily_imported':   daily_imported,
+                'daily_updated':    daily_updated,
+                'daily_invalid':    daily_invalid,
+                'daily_failed':     daily_failed,
+                'daily_error_rate': daily_error_rate}
+
+    def __generate_row_stats(self, node, stats) -> dict:
+        imported = int(stats.imported)
+        updated = int(stats.updated)
+        invalid = int(stats.invalid)
+        failed = int(stats.failed)
+        return {'date':         self._extract_YMD(self._CURRENT_DATE),
+                'last_contact': self._extract_YMD_HMS(node.last_contact),
+                'start':        self._extract_YMD_HMS(stats.dwh_start),
+                'last_write':   self._extract_YMD_HMS(stats.last_write) if stats.last_write else '-',
+                'last_reject':  self._extract_YMD_HMS(stats.last_reject) if stats.last_reject else '-',
+                'imported':     imported,
+                'updated':      updated,
+                'invalid':      invalid,
+                'failed':       failed,
+                'error_rate':   self.__compute_error_rate(imported, updated, invalid, failed)}
+
+    @staticmethod
+    def __compute_error_rate(imported: int, updated: int, invalid: int, failed: int) -> str:
+        if (imported + updated) > 0:
+            error_rate = (invalid + failed) / (imported + updated)
+            error_rate = str(round(error_rate * 100, 2))
         else:
-            error_rate = '-'
-        return {'daily_imported': daily_imported,
-                'daily_updated':  daily_updated,
-                'daily_invalid':  daily_invalid,
-                'daily_failed':   daily_failed,
-                'error_rate':     error_rate}
+            if (invalid + failed) > 0:
+                error_rate = '100.0'
+            else:
+                error_rate = '-'
+        return error_rate
 
 
 class NodeErrorFetcher(BrokerNodeFetcher):
@@ -346,49 +413,60 @@ class NodeErrorFetcher(BrokerNodeFetcher):
     _CSV_COLUMNS = ['timestamp', 'repeats', 'content']
 
     def fetch_to_csv(self):
+        """
+        Calls AKTIN Broker Endpoints to get noted errors of connected node and writes response in csv file.
+        One row in csv file equals one occured error. Logged Errors can be updated on the broker side, in
+        which the var 'timestamp' is updated and 'repeats' is incremented. Updates in csv are done by deleting
+        and re-appending corresponding row. Only errors of the current year are tracked in the csv file
+        to limit file size. Csv file is rotated each year.
+        """
         errors = self._BROKER_NODE_CONNECTION.get_broker_node_errors(self._ID_NODE)
         df = self._CSV_HANDLER.read_csv_as_df()
         for error in errors:
-            if self.__check_if_error_appeared_this_year(error.timestamp):
+            if self.__did_error_appear_this_year(error):
                 new_row = {
-                    'timestamp': self._convert_broker_time_to_local(error.timestamp),
+                    'timestamp': self._extract_YMD_HMS(error.timestamp),
                     'repeats':   error.repeats if error.repeats is not None else '1',
                     'content':   error.content}
-                if self.__check_if_error_already_logged(df, error.content):
-                    if self.__check_if_error_repeats_changed(df, error):
-                        df = self.__delete_old_row(df, error.content)
+                if self.__is_error_already_logged(df, error):
+                    if self.__did_error_repeats_change(df, error):
+                        df = self.__delete_old_error_row(df, error)
                         df = df.append(new_row, ignore_index=True)
                 else:
                     df = df.append(new_row, ignore_index=True)
         df = df.sort_values(by='timestamp')
         self._CSV_HANDLER.save_df_as_csv(df)
 
-    def __check_if_error_appeared_this_year(self, date_error: str) -> bool:
-        date_local = pd.Timestamp(date_error).tz_convert('Europe/Berlin')
+    def __did_error_appear_this_year(self, error: BrokerNodeConnection.BrokerNodeError) -> bool:
+        date_local = pd.Timestamp(error.timestamp).tz_convert(self._TIMEZONE)
         return self._CURRENT_DATE.year == date_local.year
 
     @staticmethod
-    def __check_if_error_already_logged(df: pd.DataFrame, error_content: str) -> bool:
-        return any(df['content'] == error_content)
+    def __is_error_already_logged(df: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError) -> bool:
+        return any(df['content'] == error.content)
 
     @staticmethod
-    def __check_if_error_repeats_changed(df: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError):
+    def __did_error_repeats_change(df: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError) -> bool:
         idx = df.index[df['content'] == error.content][0]
-        return df['repeats'][idx] == error.repeats
+        return df['repeats'][idx] != error.repeats
 
     @staticmethod
-    def __delete_old_row(df: pd.DataFrame, error_content: str) -> pd.DataFrame:
-        idx = df.index[df['content'] == error_content][0]
+    def __delete_old_error_row(df: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError) -> pd.DataFrame:
+        idx = df.index[df['content'] == error.content][0]
         return df.drop(index=idx)
 
 
 class BrokerNodeFetcherManager:
+    """
+    Main class to run broker information fetching. Creates working dir for each connected node
+    (if necessary) and initializes fetcher. Creates csv files for fetcher if necessary.
+    """
 
     def __init__(self):
-        self.__LIST_NODE_IDS = BrokerNodeConnection().get_broker_nodes_list()
+        self.LIST_NODE_IDS = BrokerNodeConnection().get_broker_nodes_list()
 
     def fetch_broker_node_information(self):
-        for id_node in self.__LIST_NODE_IDS:
+        for id_node in self.LIST_NODE_IDS:
             name_folder = id_node.rjust(3, '0')
             dir_working = self.__init_working_dir_for_node(name_folder)
             self.__fetch_broker_node_stats(id_node, dir_working)
