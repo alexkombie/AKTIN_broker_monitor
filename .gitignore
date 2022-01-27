@@ -136,3 +136,5 @@ profiling_stats.txt
 status.xml
 __pycache__
 venv
+test/local/settings.json
+test/resources
