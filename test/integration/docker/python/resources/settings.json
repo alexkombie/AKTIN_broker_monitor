@@ -1,0 +1,5 @@
+{
+    "BROKER_URL": "http://localhost:8080",
+    "ADMIN_API_KEY": "xxxAdmin1234",
+    "ROOT_DIR": ""
+}

@@ -1,0 +1,9 @@
+FROM python:3.9
+
+WORKDIR /opt
+
+RUN python -m pip install --upgrade pip
+RUN python -m pip install pytest requests
+
+ADD scripts/* ./
+ADD resources/* ./

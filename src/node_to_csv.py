@@ -71,8 +71,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     def __check_broker_server_availability(self) -> None:
         url = self.__append_to_broker_url('broker', 'status')
         response = requests.head(url)
-        if response.status_code != 200:
-            raise ConnectionError('Could not connect to AKTIN Broker')
+        response.raise_for_status()
 
     def __append_to_broker_url(self, *items: str) -> str:
         url = self.__BROKER_URL
@@ -152,7 +151,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     class BrokerNode:
 
         __ID: str
-        __CERT: str
+        __DOMAIN_NAME: str
         __LAST_CONTACT: str
 
         @property
@@ -160,8 +159,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             return self.__ID
 
         @property
-        def cert(self) -> str:
-            return self.__CERT
+        def domain_name(self) -> str:
+            return self.__DOMAIN_NAME
 
         @property
         def last_contact(self) -> str:
@@ -468,9 +467,17 @@ class BrokerNodeFetcherManager:
     def fetch_broker_node_information(self):
         for id_node in self.LIST_NODE_IDS:
             name_folder = id_node.rjust(3, '0')
-            dir_working = self.__init_working_dir_for_node(name_folder)
+            dir_working = self.init_working_dir_for_node(name_folder)
             self.__fetch_broker_node_stats(id_node, dir_working)
             self.__fetch_broker_node_errors(id_node, dir_working)
+
+    @staticmethod
+    def init_working_dir_for_node(name_folder: str) -> str:
+        dir_root = os.environ['ROOT_DIR']
+        dir_working = os.path.join(dir_root, name_folder)
+        if not os.path.isdir(dir_working):
+            os.makedirs(dir_working)
+        return dir_working
 
     @staticmethod
     def __fetch_broker_node_stats(id_node: str, dir_working: str):
@@ -484,14 +491,6 @@ class BrokerNodeFetcherManager:
         error.init_working_csv()
         error.fetch_to_csv()
 
-    @staticmethod
-    def __init_working_dir_for_node(name_folder: str) -> str:
-        dir_root = os.environ['ROOT_DIR']
-        dir_working = os.path.join(dir_root, name_folder)
-        if not os.path.isdir(dir_working):
-            os.makedirs(dir_working)
-        return dir_working
-
 
 def __init_logger():
     logging.basicConfig(level=logging.INFO,
@@ -504,7 +503,7 @@ def __stop_logger():
     logging.shutdown()
 
 
-def __load_properties_file_as_environment(path: str):
+def load_properties_file_as_environment(path: str):
     set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR'}
     if not os.path.isfile(path):
         raise SystemExit('invalid config file path')
@@ -521,7 +520,7 @@ def __load_properties_file_as_environment(path: str):
 def main(path_config: str):
     try:
         __init_logger()
-        __load_properties_file_as_environment(path_config)
+        load_properties_file_as_environment(path_config)
         fetcher = BrokerNodeFetcherManager()
         fetcher.fetch_broker_node_information()
     except Exception as e:
