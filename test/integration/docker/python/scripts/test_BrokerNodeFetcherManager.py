@@ -31,12 +31,12 @@ class TestBrokerNodeFetcherManager(unittest.TestCase):
     @staticmethod
     def __count_folder_in_current_directory():
         """
-        Excludes folder __pycache__
+        Excludes folder __pycache__ and .pytest_cache
         Case differentation as os.listdir() tries to read from ROOT instead of current folder if input is empty/('')
         """
         dir_working = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
         list_name_folders = [name for name in os.listdir(dir_working) if os.path.isdir(os.path.join(os.getcwd(), name))]
-        return len(list_name_folders) - 1
+        return len(list_name_folders) - 2
 
 
 if __name__ == '__main__':

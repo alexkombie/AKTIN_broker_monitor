@@ -17,7 +17,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
         cls.__init_new_dummy_and_put_payload_on_node('xxxApiKey890', stats)
         cls.__BROKER_NODE_CONNECTION = BrokerNodeConnection()
         cls.__DEFAULT_API_KEY = 'xxxApiKey123'
-        cls.__DEFAULT_NODE_ID = '2'
+        cls.__DEFAULT_NODE_ID = '0'
 
     def tearDown(self):
         stats = self.__create_default_broker_import_stats()

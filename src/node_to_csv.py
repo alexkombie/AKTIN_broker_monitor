@@ -331,7 +331,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
                 raise SystemExit('date of today was found in multiple rows!!')
         return df
 
-    def __get_last_row_of_last_years_csv_if_exists(self) -> pd.Series | None:
+    def __get_last_row_of_last_years_csv_if_exists(self):
         path_csv_last_year = self.__get_last_years_csv_path()
         if os.path.isfile(path_csv_last_year):
             tmp_csv_manager = CSVHandler(path_csv_last_year)

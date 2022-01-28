@@ -19,7 +19,7 @@ class TestNodeErrorFetcher(unittest.TestCase):
         BrokerNodeDummy('xxxApiKey890').reset_stats_on_broker()
         cls.__DIR_WORKING = os.environ['ROOT_DIR']
         cls.__DEFAULT_API_KEY = 'xxxApiKey123'
-        cls.__DEFAULT_NODE_ID = '2'
+        cls.__DEFAULT_NODE_ID = '0'
 
     def tearDown(self):
         [os.remove(name) for name in os.listdir(os.getcwd()) if '.csv' in name]
