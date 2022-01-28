@@ -55,10 +55,10 @@ class TestNodeErrorFetcher(unittest.TestCase):
         path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
         df = self.__load_csv_as_dataframe(path_csv)
         header = list(df.columns)
-        self.assertTrue(3, len(header))
-        self.assertTrue('timestamp' in header)
-        self.assertTrue('repeats' in header)
-        self.assertTrue('content' in header)
+        expected_columns = ['timestamp', 'repeats', 'content']
+        self.assertTrue(len(expected_columns), len(header))
+        for column in expected_columns:
+            self.assertTrue(column in header)
 
     def test_fetch_default_error_to_csv(self):
         error = self.__create_error1()

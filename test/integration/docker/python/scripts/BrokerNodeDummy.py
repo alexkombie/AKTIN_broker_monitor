@@ -27,6 +27,13 @@ class BrokerNodeDummy:
         response = requests.put(self.__BROKER_CLIENT_URL, data=payload.to_xml_string(), headers=self.__create_basic_header())
         response.raise_for_status()
 
+    def reset_stats_on_broker(self):
+        payload = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
+                  "<start>2020-01-01T00:00:00+01:00</start><imported>0</imported><updated>0</updated>" + \
+                  "<invalid>0</invalid><failed>0</failed><last-errors></last-errors></import-statistics>"
+        response = requests.put(self.__BROKER_CLIENT_URL, data=payload, headers=self.__create_basic_header())
+        response.raise_for_status()
+
 
 @dataclass()
 class BrokerImportStats:
