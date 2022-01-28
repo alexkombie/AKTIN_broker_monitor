@@ -244,10 +244,11 @@ class BrokerNodeFetcher(ABC):
         name_csv = '_'.join([id_node, self._CSV_CATEGORY, str(date.year)])
         return ''.join([name_csv, '.csv'])
 
-    def init_working_csv(self):
+    def init_working_csv(self) -> str:
         if not os.path.isfile(self._PATH_CSV):
             df = pd.DataFrame(columns=self._CSV_COLUMNS)
             self._CSV_HANDLER.save_df_as_csv(df)
+        return self._PATH_CSV
 
     @singledispatchmethod
     def _extract_YMD_HMS(self, date) -> str:
@@ -467,12 +468,12 @@ class BrokerNodeFetcherManager:
     def fetch_broker_node_information(self):
         for id_node in self.LIST_NODE_IDS:
             name_folder = id_node.rjust(3, '0')
-            dir_working = self.init_working_dir_for_node(name_folder)
+            dir_working = self.init_working_directory(name_folder)
             self.__fetch_broker_node_stats(id_node, dir_working)
             self.__fetch_broker_node_errors(id_node, dir_working)
 
     @staticmethod
-    def init_working_dir_for_node(name_folder: str) -> str:
+    def init_working_directory(name_folder: str) -> str:
         dir_root = os.environ['ROOT_DIR']
         dir_working = os.path.join(dir_root, name_folder)
         if not os.path.isdir(dir_working):
