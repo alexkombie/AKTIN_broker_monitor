@@ -1,9 +1,9 @@
 import unittest
 from node_to_csv import BrokerNodeConnection
 from node_to_csv import load_properties_file_as_environment
-from test.integration.docker.python.scripts.BrokerNodeDummy import BrokerNodeDummy
-from test.integration.docker.python.scripts.BrokerNodeDummy import BrokerImportStats
-from test.integration.docker.python.scripts.BrokerNodeDummy import BrokerNodeError
+from BrokerNodeDummy import BrokerNodeDummy
+from BrokerNodeDummy import BrokerImportStats
+from BrokerNodeDummy import BrokerNodeError
 
 
 class TestBrokerNodeConnection(unittest.TestCase):
