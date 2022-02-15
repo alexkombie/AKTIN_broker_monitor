@@ -22,9 +22,18 @@ entity "JSON file with configuration" as settings {
 * URL broker-server
 * API Key broker-server
 * Working directory
+* URL Confluence
+* Token Confluence
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle
+
+entity "JSON file with node mapping" as mapping {
+* maps id of a node to its common name
+and label for jira tickets
+}
+entity mapping #aliceblue;line:blue;text:blue
+hide mapping circle
 
 package "node_to_csv.py" as node_to_csv <<Package>> {
 class BrokerNodeFetcherManager {
@@ -47,16 +56,6 @@ class NodeInfoFetcher {
 * computes daily imports and error rate from differences to previous day
 * each column in csv file stands for one day
 }
-
-note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
-NodeErrorFetcher .. N1
-NodeInfoFetcher .. N1
-
-NodeErrorFetcher --|> BrokerNodeFetcher
-NodeInfoFetcher --|> BrokerNodeFetcher
-BrokerNodeFetcherManager ..> settings
-BrokerNodeFetcherManager ..> NodeInfoFetcher
-BrokerNodeFetcherManager ..> NodeErrorFetcher
 }
 
 package "common.py" as common <<Package>> {
@@ -75,15 +74,78 @@ class CSVHandler {
 * operations for reading and writing a csv file
 * contains configuration variables for reading csv file
 }
-
-read_properties -u-> settings
-CSVHandler -d-> csv
-BrokerNodeConnection -d-> broker
-BrokerNodeConnection ..> settings
 }
 
-node_to_csv -r-> read_properties
-BrokerNodeFetcher --> CSVHandler
-BrokerNodeFetcher --> BrokerNodeConnection
+package "csv_to_confluence.py" as csv_to_confluence {
+abstract class CSVExtractor {
+* helper functions and variables to extract node
+information from csv file
+}
+
+class CSVStatsExtractor {
+* extracts node import stats from csv file
+}
+
+class CSVErrorExtractor {
+* extracts node errors from csv file
+}
+
+class CSVBackupManager {
+* uploads broker node csv files as attachement
+to confluence page
+* deletes csv attachements from confluence
+}
+
+class NodeResourceFetcher {
+* intermediate class to extract node
+resources from broker-server
+}
+
+class ConfluencePageHandler {
+* creates new pages for broker nodes on confluence
+* updates existing broker node pages
+* fetches node information from csv and broker-server
+to confluence
+}
+
+class ConfluenceHandlerManager {
+* creates working environment
+* initializes and executes confluence handler
+* creates csv backups on confluence
+}
+}
+
+note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
+NodeErrorFetcher .u.. N1
+NodeInfoFetcher .u.. N1
+
+BrokerNodeFetcherManager ..> settings
+BrokerNodeFetcherManager --> NodeInfoFetcher
+BrokerNodeFetcherManager --> NodeErrorFetcher
+NodeInfoFetcher --|> BrokerNodeFetcher
+NodeErrorFetcher --|> BrokerNodeFetcher
+BrokerNodeFetcher ---> CSVHandler
+BrokerNodeFetcher ---> BrokerNodeConnection
+
+ConfluenceHandlerManager --> CSVBackupManager
+ConfluenceHandlerManager --> ConfluencePageHandler
+ConfluenceHandlerManager --> mapping
+CSVBackupManager --> CSVHandler
+CSVBackupManager -u--> confluence
+CSVBackupManager ..> settings
+ConfluencePageHandler -u--> confluence
+ConfluencePageHandler ..> settings
+ConfluencePageHandler ---> NodeResourceFetcher
+NodeResourceFetcher ---> BrokerNodeConnection
+ConfluencePageHandler --> CSVErrorExtractor
+ConfluencePageHandler --> CSVStatsExtractor
+CSVStatsExtractor --|> CSVExtractor
+CSVErrorExtractor --|> CSVExtractor
+CSVExtractor --> CSVHandler
+
+read_properties -u-> settings
+CSVHandler --> csv
+BrokerNodeConnection --> broker
+BrokerNodeConnection .u.> settings
 
 @enduml
