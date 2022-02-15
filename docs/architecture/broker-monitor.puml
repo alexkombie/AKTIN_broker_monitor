@@ -3,21 +3,33 @@ hide methods
 
 title __Diagram of Broker-Monitor__\n
 
-package "node_to_csv.py" <<Package>> {
-class "read_properties_file()" as r {
-* validates settings file
-* loads settings as python environment variables
-}
-hide r circle
+entity "<size:18>AKTIN Broker</size>" as broker
+entity broker #aliceblue;line:blue;text:blue
+hide broker members
+hide broker circle
 
-class CSVHandler {
-* operations for reading and writing a csv file
-* contains configuration variables for reading csv file
-}
+entity "<size:18>CSV</size>" as csv
+entity csv #aliceblue;line:blue;text:blue
+hide csv members
+hide csv circle
 
-class BrokerNodeConnection {
-* uses REST endpoint of broker-server to get
-information about connected broker nodes
+entity "<size:18>CONFLUENCE</size>" as confluence
+entity confluence #aliceblue;line:blue;text:blue
+hide confluence members
+hide confluence circle
+
+entity "JSON file with configuration" as settings {
+* URL broker-server
+* API Key broker-server
+* Working directory
+}
+entity settings #aliceblue;line:blue;text:blue
+hide settings circle
+
+package "node_to_csv.py" as node_to_csv <<Package>> {
+class BrokerNodeFetcherManager {
+* creates working directory for fetcher
+* initializes and executes fetcher
 }
 
 abstract class BrokerNodeFetcher {
@@ -36,45 +48,42 @@ class NodeInfoFetcher {
 * each column in csv file stands for one day
 }
 
-class BrokerNodeFetcherManager {
-* creates working directory for fetcher
-* initializes and executes fetcher
-}
-
 note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
 NodeErrorFetcher .. N1
 NodeInfoFetcher .. N1
 
-BrokerNodeFetcher --> CSVHandler
-BrokerNodeFetcher --> BrokerNodeConnection
 NodeErrorFetcher --|> BrokerNodeFetcher
 NodeInfoFetcher --|> BrokerNodeFetcher
-BrokerNodeFetcherManager .d.> NodeInfoFetcher
-BrokerNodeFetcherManager .d.> NodeErrorFetcher
+BrokerNodeFetcherManager ..> settings
+BrokerNodeFetcherManager ..> NodeInfoFetcher
+BrokerNodeFetcherManager ..> NodeErrorFetcher
 }
 
-entity "AKTIN Broker" as broker
-entity broker #aliceblue;line:blue;text:blue
-hide broker members
-hide broker circle
-
-entity "CSV" as csv
-entity csv #aliceblue;line:blue;text:blue
-hide csv members
-hide csv circle
-
-entity "JSON file with configuration" as settings {
-* URL broker-server
-* API Key broker-server
-* Working directory
+package "common.py" as common <<Package>> {
+class "read_properties_file()" as read_properties {
+* validates settings file
+* loads settings as python environment variables
 }
-entity settings #aliceblue;line:blue;text:blue
-hide settings circle
+hide read_properties circle
 
-BrokerNodeConnection -d-> broker
+class BrokerNodeConnection {
+* uses REST endpoint of broker-server to get
+information about connected broker nodes
+}
+
+class CSVHandler {
+* operations for reading and writing a csv file
+* contains configuration variables for reading csv file
+}
+
+read_properties -u-> settings
 CSVHandler -d-> csv
-r --> settings
-BrokerNodeConnection .l.> settings
-BrokerNodeFetcher .l.> settings
+BrokerNodeConnection -d-> broker
+BrokerNodeConnection ..> settings
+}
+
+node_to_csv -r-> read_properties
+BrokerNodeFetcher --> CSVHandler
+BrokerNodeFetcher --> BrokerNodeConnection
 
 @enduml
