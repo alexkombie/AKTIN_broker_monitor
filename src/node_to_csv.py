@@ -27,11 +27,11 @@ import sys
 from abc import ABC, abstractmethod
 from functools import singledispatchmethod
 
-from src.common import CSVHandler
-from src.common import BrokerNodeConnection
-from src.common import load_properties_file_as_environment
-from src.common import __init_logger
-from src.common import __stop_logger
+from common import CSVHandler
+from common import BrokerNodeConnection
+from common import load_properties_file_as_environment
+from common import __init_logger
+from common import __stop_logger
 
 import pandas as pd
 

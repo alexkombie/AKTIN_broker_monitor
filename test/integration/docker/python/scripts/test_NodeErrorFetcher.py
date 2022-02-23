@@ -2,8 +2,8 @@ import os
 import unittest
 import pandas as pd
 from node_to_csv import NodeErrorFetcher
-from node_to_csv import load_properties_file_as_environment
-from node_to_csv import CSVHandler
+from common import load_properties_file_as_environment
+from common import CSVHandler
 
 from BrokerNodeDummy import BrokerNodeDummy
 from BrokerNodeDummy import BrokerNodeError

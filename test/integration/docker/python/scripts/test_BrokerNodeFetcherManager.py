@@ -1,7 +1,7 @@
 import unittest
 import os
 from node_to_csv import BrokerNodeFetcherManager
-from node_to_csv import load_properties_file_as_environment
+from common import load_properties_file_as_environment
 
 
 class TestBrokerNodeFetcherManager(unittest.TestCase):

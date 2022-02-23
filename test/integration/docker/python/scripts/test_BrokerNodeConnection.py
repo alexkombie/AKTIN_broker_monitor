@@ -1,6 +1,6 @@
 import unittest
-from node_to_csv import BrokerNodeConnection
-from node_to_csv import load_properties_file_as_environment
+from common import BrokerNodeConnection
+from common import load_properties_file_as_environment
 from BrokerNodeDummy import BrokerNodeDummy
 from BrokerNodeDummy import BrokerImportStats
 from BrokerNodeDummy import BrokerNodeError
