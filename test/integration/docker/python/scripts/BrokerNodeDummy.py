@@ -7,7 +7,6 @@ import requests
 class BrokerNodeDummy:
 
     def __init__(self, api_key: str):
-        self.__BROKER_CLIENT_URL = self.__append_to_broker_url('broker', 'my', 'node', 'stats')
         self.__API_KEY = api_key
 
     def __create_basic_header(self) -> dict:
@@ -24,14 +23,24 @@ class BrokerNodeDummy:
         """
         Payload must be either BrokerImportStats or BrokerImportError
         """
-        response = requests.put(self.__BROKER_CLIENT_URL, data=payload.to_xml_string(), headers=self.__create_basic_header())
+        url = self.__append_to_broker_url('broker', 'my', 'node', 'stats')
+        response = requests.put(url, data=payload.to_xml_string(), headers=self.__create_basic_header())
         response.raise_for_status()
 
     def reset_stats_on_broker(self):
+        url = self.__append_to_broker_url('broker', 'my', 'node', 'stats')
         payload = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
                   "<start>2020-01-01T00:00:00+01:00</start><imported>0</imported><updated>0</updated>" + \
                   "<invalid>0</invalid><failed>0</failed><last-errors></last-errors></import-statistics>"
-        response = requests.put(self.__BROKER_CLIENT_URL, data=payload, headers=self.__create_basic_header())
+        response = requests.put(url, data=payload, headers=self.__create_basic_header())
+        response.raise_for_status()
+
+    def put_resource_object_on_broker(self, payload, type_resource: str):
+        """
+        Payload must be BrokerNodeVersions, BrokerNodeRscript, BrokerNodePyhton or BrokerNodeImportScripts
+        """
+        url = self.__append_to_broker_url('broker', 'my', 'node', type_resource)
+        response = requests.put(url, data=payload.to_xml_string(), headers=self.__create_basic_header())
         response.raise_for_status()
 
 
@@ -44,34 +53,6 @@ class BrokerImportStats:
     __UPDATED: str
     __INVALID: str
     __FAILED: str
-
-    @property
-    def dwh_start(self) -> str:
-        return self.__DWH_START
-
-    @property
-    def last_write(self) -> str:
-        return self.__LAST_WRITE
-
-    @property
-    def last_reject(self) -> str:
-        return self.__LAST_REJECT
-
-    @property
-    def imported(self) -> str:
-        return self.__IMPORTED
-
-    @property
-    def updated(self) -> str:
-        return self.__UPDATED
-
-    @property
-    def invalid(self) -> str:
-        return self.__INVALID
-
-    @property
-    def failed(self) -> str:
-        return self.__FAILED
 
     def to_xml_string(self) -> str:
         last_write = "<last-write>" + self.__LAST_WRITE + "</last-write>" if self.__LAST_WRITE else ""
@@ -93,19 +74,61 @@ class BrokerNodeError:
     __REPEATS: str
     __CONTENT: str
 
-    @property
-    def repeats(self) -> str:
-        return self.__REPEATS
-
-    @property
-    def timestamp(self) -> str:
-        return self.__TIMESTAMP
-
-    @property
-    def content(self) -> str:
-        return self.__CONTENT
-
     def to_xml_string(self) -> str:
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
                "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\" repeats=\"" + self.__REPEATS + "\">" + self.__CONTENT + "</error></last-errors>" + \
                "</import-statistics>"
+
+
+@dataclass()
+class BrokerNodeVersions:
+    __JAVA: str
+    __OS: str
+    __APACHE2: str
+    __POSTGRES: str
+
+    def to_xml_string(self) -> str:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>versions</comment>" + \
+               "<entry key=\"java\">" + self.__JAVA + "</entry>" + \
+               "<entry key=\"os\">" + self.__OS + "</entry>" + \
+               "<entry key=\"apache2\">" + self.__APACHE2 + "</entry>" + \
+               "<entry key=\"postgres\">" + self.__POSTGRES + "</entry>" + \
+               "</properties>"
+
+
+@dataclass()
+class BrokerNodeRscript:
+    __CORE: str
+    __TIDYVERSE: str
+    __LATTICE: str
+
+    def to_xml_string(self) -> str:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>rscript</comment>" + \
+               "<entry key=\"r-base-core\">" + self.__CORE + "</entry>" + \
+               "<entry key=\"r-cran-tidyverse\">" + self.__TIDYVERSE + "</entry>" + \
+               "<entry key=\"r-cran-lattice\">" + self.__LATTICE + "</entry>" + \
+               "</properties>"
+
+
+@dataclass()
+class BrokerNodePython:
+    __CORE: str
+    __NUMPY: str
+    __PANDAS: str
+
+    def to_xml_string(self) -> str:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>python</comment>" + \
+               "<entry key=\"python3\">" + self.__CORE + "</entry>" + \
+               "<entry key=\"python3-numpy\">" + self.__NUMPY + "</entry>" + \
+               "<entry key=\"python3-pandas\">" + self.__PANDAS + "</entry>" + \
+               "</properties>"
+
+
+@dataclass()
+class BrokerNodeImportScripts:
+    __P21: str
+
+    def to_xml_string(self) -> str:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>import-scripts</comment>" + \
+               "<entry key=\"p21\">" + self.__P21 + "</entry>" + \
+               "</properties>"
