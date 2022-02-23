@@ -115,6 +115,17 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             errors.append(error)
         return errors
 
+    def get_broker_node_resource(self, id_node: str, resource: str) -> dict:
+        """
+        Possible resources are 'versions', 'rscript', 'python', 'import-scripts'
+        """
+        url = self.__append_to_broker_url('broker', 'node', id_node, resource)
+        tree = self.__get_processed_response(url)
+        resources = {}
+        for elem in tree.findall('entry'):
+            resources[elem.get('key')] = elem.text
+        return resources
+
     def __get_processed_response(self, url: str) -> ET._ElementTree:
         """
         Returns processed XML tree object without namespace from GET request

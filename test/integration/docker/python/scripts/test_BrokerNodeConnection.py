@@ -4,6 +4,10 @@ from common import load_properties_file_as_environment
 from BrokerNodeDummy import BrokerNodeDummy
 from BrokerNodeDummy import BrokerImportStats
 from BrokerNodeDummy import BrokerNodeError
+from BrokerNodeDummy import BrokerNodeVersions
+from BrokerNodeDummy import BrokerNodeRscript
+from BrokerNodeDummy import BrokerNodePython
+from BrokerNodeDummy import BrokerNodeImportScripts
 
 
 class TestBrokerNodeConnection(unittest.TestCase):
@@ -89,6 +93,45 @@ class TestBrokerNodeConnection(unittest.TestCase):
     def __init_new_dummy_and_put_payload_on_node(api_key: str, payload):
         dummy = BrokerNodeDummy(api_key)
         dummy.put_stats_object_on_broker(payload)
+
+    def test_get_broker_node_versions(self):
+        dummy = BrokerNodeDummy(self.__DEFAULT_API_KEY)
+        versions = BrokerNodeVersions('Ubuntu/11.0.13', 'Ubuntu 20.04.1 LTS', '2.4.41-4ubuntu3.9', '12.9-0ubuntu0.20.04.1')
+        dummy.put_resource_object_on_broker(versions, 'versions')
+        resource = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'versions')
+        print(resource)
+        self.assertEqual(resource.get('java'), 'Ubuntu/11.0.13')
+        self.assertEqual(resource.get('os'), 'Ubuntu 20.04.1 LTS')
+        self.assertEqual(resource.get('apache2'), '2.4.41-4ubuntu3.9')
+        self.assertEqual(resource.get('postgres'), '12.9-0ubuntu0.20.04.1')
+
+    def test_get_broker_node_rscript(self):
+        dummy = BrokerNodeDummy(self.__DEFAULT_API_KEY)
+        rscript = BrokerNodeRscript('3.6.3-2', '1.3.0-1', '0.20-40-1')
+        dummy.put_resource_object_on_broker(rscript, 'rscript')
+        resource = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'rscript')
+        print(resource)
+        self.assertEqual(resource.get('r-base-core'), '3.6.3-2')
+        self.assertEqual(resource.get('r-cran-tidyverse'), '1.3.0-1')
+        self.assertEqual(resource.get('r-cran-lattice'), '0.20-40-1')
+
+    def test_get_broker_node_python(self):
+        dummy = BrokerNodeDummy(self.__DEFAULT_API_KEY)
+        python = BrokerNodePython('3.8.2-0ubuntu2', '1:1.17.4-5ubuntu3', '')
+        dummy.put_resource_object_on_broker(python, 'python')
+        resource = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'python')
+        print(resource)
+        self.assertEqual(resource.get('python3'), '3.8.2-0ubuntu2')
+        self.assertEqual(resource.get('python3-numpy'), '1:1.17.4-5ubuntu3')
+        self.assertIsNone(resource.get('python3-pandas'))
+
+    def test_get_broker_node_import_scripts(self):
+        dummy = BrokerNodeDummy(self.__DEFAULT_API_KEY)
+        scripts = BrokerNodeImportScripts('1.5')
+        dummy.put_resource_object_on_broker(scripts, 'import-scripts')
+        resource = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'import-scripts')
+        print(resource)
+        self.assertEqual(resource.get('p21'), '1.5')
 
 
 if __name__ == '__main__':
