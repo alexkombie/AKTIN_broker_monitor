@@ -103,7 +103,8 @@ resources from broker-server
 
 class ConfluencePageHandler {
 * creates new pages for broker nodes on confluence
-* updates existing broker node pages
+* updates content on existing broker node pages
+* updates template of broker node pages
 * fetches node information from csv and broker-server
 to confluence
 }
