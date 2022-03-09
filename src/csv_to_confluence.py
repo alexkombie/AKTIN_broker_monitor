@@ -14,7 +14,7 @@ import requests
 from bs4 import BeautifulSoup as bs
 import os
 import re
-
+import json
 import pprint
 
 from common import CSVHandler
@@ -22,16 +22,12 @@ from common import BrokerNodeConnection
 from common import load_properties_file_as_environment
 from common import __init_logger
 from common import __stop_logger
+from common import ConfluenceConnection
+from common import load_mapping_table_as_dict
 
-from atlassian import Confluence
 
-SPACE = 'AKTIN'
-URL_CONFLUENCE = 'https://confluence-imi.ukaachen.de'
-TOKEN = 'CHANGEME'
+"""
 
-confluence = Confluence(
-        url=URL_CONFLUENCE,
-        token=TOKEN)
 
 
 # CREATE NEW PAGES BY MAPPING TABLE
@@ -39,42 +35,11 @@ confluence = Confluence(
 # CREATE BACKUP
 # confluence.page_exists(SPACE, 'Dummy Broker-Monitor')
 
-def get_page():
-    page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-    page = confluence.get_page_by_id(page_id, expand='body.storage')
-    content = page['body']['storage']['value']
-    print(content)
 
 
-def init_new_page():
-    page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-    page = confluence.get_page_by_id(page_id, expand='body.storage')
-    current_folder = os.getcwd()
-    path_html = os.path.join(current_folder, 'resources', 'template_page.html')
-    with open(path_html, 'r') as file:
-        html = file.read()
-    page['body']['storage']['value'] = html
-    confluence.update_page(page_id, page['title'], html)
 
 
-def update_page():
-    page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-    page = confluence.get_page_by_id(page_id, expand='body.storage')
-    content = page['body']['storage']['value']
-    html = bs(content, 'html.parser')
-    confluence.update_page(page_id, page['title'], str(html))
-
-
-def upload_attachement():
-    page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-    current_folder = os.getcwd()
-    path_html = os.path.join(current_folder, 'resources', 'template_page.html')
-    confluence.attach_file(path_html, content_type='text/html', page_id=page_id)
-
-
-def delete_attachement():
-    page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-    confluence.delete_attachment(page_id, 'template_page.html')
+"""
 
 
 # upload_attachement()
@@ -126,18 +91,12 @@ class NodeResourceFetcher:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
 
-def load_mapping_table_as_global_json(path_mapping: str):
-    global json_mapping
-    with open(path_mapping) as json_file:
-        json_mapping = json.load(json_file)
-
-
 def main(path_config: str, path_mapping: str):
     try:
         __init_logger()
         load_properties_file_as_environment(path_config)
-        load_mapping_table_as_global_json(path_mapping)
-        # ToDo
+        global dict_mapping
+        dict_mapping = load_mapping_table_as_dict(path_mapping)
     except Exception as e:
         logging.exception(e)
     finally:

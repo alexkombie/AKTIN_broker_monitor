@@ -24,6 +24,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from atlassian import Confluence
 
 import lxml.etree as ET
 import pandas as pd
@@ -46,7 +47,7 @@ class CSVHandler:
 
 class SingletonMeta(type):
     """
-    Meta class to make BrokerNodeConnection a Singleton
+    Meta class to make python classes a Singleton
     """
     _instances = {}
 
@@ -232,6 +233,50 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             return self.__CONTENT
 
 
+class ConfluenceConnection(metaclass=SingletonMeta):
+
+    def __init__(self):
+        confluence_url = os.environ['CONFLUENCE_URL']
+        confluence_token = os.environ['CONFLUENCE_TOKEN']
+        self._CONFLUENCE = Confluence(url=confluence_url, token=confluence_token)
+
+
+"""
+    def upload_attachement():
+        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
+        current_folder = os.getcwd()
+        path_html = os.path.join(current_folder, 'resources', 'template_page.html')
+        confluence.attach_file(path_html, content_type='text/html', page_id=page_id)
+
+    def delete_attachement():
+        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
+        confluence.delete_attachment(page_id, 'template_page.html')
+
+    def get_page():
+        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
+        page = confluence.get_page_by_id(page_id, expand='body.storage')
+        content = page['body']['storage']['value']
+        print(content)
+
+    def init_new_page():
+        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
+        page = confluence.get_page_by_id(page_id, expand='body.storage')
+        current_folder = os.getcwd()
+        path_html = os.path.join(current_folder, 'resources', 'template_page.html')
+        with open(path_html, 'r') as file:
+            html = file.read()
+        page['body']['storage']['value'] = html
+        confluence.update_page(page_id, page['title'], html)
+
+    def update_page():
+        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
+        page = confluence.get_page_by_id(page_id, expand='body.storage')
+        content = page['body']['storage']['value']
+        html = bs(content, 'html.parser')
+        confluence.update_page(page_id, page['title'], str(html))
+"""
+
+
 def __init_logger():
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(levelname)s %(message)s',
@@ -255,3 +300,9 @@ def load_properties_file_as_environment(path: str):
         raise SystemExit('following keys are missing in config file: {0}'.format(set_required_keys.difference(set_matched_keys)))
     for key in set_required_keys:
         os.environ[key] = dict_config.get(key)
+
+
+def load_mapping_table_as_dict(path_mapping: str) -> dict:
+    with open(path_mapping) as json_file:
+        dict_mapping = json.load(json_file)
+    return dict_mapping

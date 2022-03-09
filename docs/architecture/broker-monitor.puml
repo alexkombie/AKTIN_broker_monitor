@@ -60,15 +60,26 @@ class NodeInfoFetcher {
 }
 
 package "common.py" as common <<Package>> {
-class "read_properties_file()" as read_properties {
+class "load_properties_file_as_environment()" as read_properties {
 * validates settings file
 * loads settings as python environment variables
 }
 hide read_properties circle
 
+class "load_mapping_table_as_dict()" as load_mapping {
+* loads json file with node mapping as
+python dictionary
+}
+hide load_mapping circle
+
 class BrokerNodeConnection {
 * uses REST endpoint of broker-server to get
 information about connected broker nodes
+}
+
+class ConfluenceConnection {
+* uses Atlassian Python API to execute
+operations in confluence
 }
 
 class CSVHandler {
@@ -126,28 +137,32 @@ BrokerNodeFetcherManager --> NodeInfoFetcher
 BrokerNodeFetcherManager --> NodeErrorFetcher
 NodeInfoFetcher --|> BrokerNodeFetcher
 NodeErrorFetcher --|> BrokerNodeFetcher
-BrokerNodeFetcher ---> CSVHandler
-BrokerNodeFetcher ---> BrokerNodeConnection
+BrokerNodeFetcher --> CSVHandler
+BrokerNodeFetcher --> BrokerNodeConnection
 
+load_mapping -u-> mapping
 ConfluenceHandlerManager --> CSVBackupManager
 ConfluenceHandlerManager --> ConfluencePageHandler
-ConfluenceHandlerManager --> mapping
-CSVBackupManager --> CSVHandler
-CSVBackupManager -u--> confluence
+ConfluenceHandlerManager ..> mapping
+CSVBackupManager ..> mapping
+CSVBackupManager --> ConfluenceConnection
 CSVBackupManager ..> settings
-ConfluencePageHandler -u--> confluence
+ConfluencePageHandler ..> mapping
+ConfluencePageHandler ---> ConfluenceConnection
 ConfluencePageHandler ..> settings
-ConfluencePageHandler ---> NodeResourceFetcher
-NodeResourceFetcher ---> BrokerNodeConnection
+ConfluencePageHandler -> NodeResourceFetcher
+NodeResourceFetcher --> BrokerNodeConnection
 ConfluencePageHandler --> CSVErrorExtractor
 ConfluencePageHandler --> CSVStatsExtractor
 CSVStatsExtractor --|> CSVExtractor
 CSVErrorExtractor --|> CSVExtractor
 CSVExtractor --> CSVHandler
 
-read_properties -u-> settings
+read_properties --> settings
 CSVHandler --> csv
 BrokerNodeConnection --> broker
-BrokerNodeConnection .u.> settings
+BrokerNodeConnection ..> settings
+ConfluenceConnection --> confluence
+ConfluenceConnection ..> settings
 
 @enduml
