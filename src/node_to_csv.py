@@ -317,6 +317,8 @@ def main(path_config: str):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        raise SystemExit('please give path to config file')
+    if len(sys.argv) == 1:
+        raise SystemExit('path to config file is missing')
+    if len(sys.argv) > 2:
+        raise SystemExit('invalid number of input arguments')
     main(sys.argv[1])

@@ -125,11 +125,14 @@ class NodeResourceFetcher:
     def fetch_broker_node_import_scripts(self) -> dict:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
+def load_mapping_table_as_environment(path_mapping):
+    pass
 
 def main(path_config: str):
     try:
         __init_logger()
         load_properties_file_as_environment(path_config)
+        load_mapping_table_as_environment(path_mapping)
         # TODO
     except Exception as e:
         logging.exception(e)
@@ -138,6 +141,10 @@ def main(path_config: str):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        raise SystemExit('please give path to config file')
-    main(sys.argv[1])
+    if len(sys.argv) == 1:
+        raise SystemExit('path to config file is missing')
+    if len(sys.argv) == 2:
+        raise SystemExit('path to mapping file is missing')
+    if len(sys.argv) > 3:
+        raise SystemExit('invalid number of input arguments')
+    main(sys.argv[1], sys.argv[2])
