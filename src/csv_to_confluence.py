@@ -125,15 +125,19 @@ class NodeResourceFetcher:
     def fetch_broker_node_import_scripts(self) -> dict:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
-def load_mapping_table_as_environment(path_mapping):
-    pass
 
-def main(path_config: str):
+def load_mapping_table_as_global_json(path_mapping: str):
+    global json_mapping
+    with open(path_mapping) as json_file:
+        json_mapping = json.load(json_file)
+
+
+def main(path_config: str, path_mapping: str):
     try:
         __init_logger()
         load_properties_file_as_environment(path_config)
-        load_mapping_table_as_environment(path_mapping)
-        # TODO
+        load_mapping_table_as_global_json(path_mapping)
+        # ToDo
     except Exception as e:
         logging.exception(e)
     finally:

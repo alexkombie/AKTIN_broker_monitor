@@ -10,6 +10,7 @@ sys.path.insert(0, path_src)
 import src.csv_to_confluence
 
 path_test_settings = os.path.join(path_parent, 'local', 'settings.json')
+path_test_mapping = os.path.join(path_parent, 'local', 'mapping.json')
 start_time = time.time()
-src.csv_to_confluence.main(path_test_settings)
+src.csv_to_confluence.main(path_test_settings, path_test_mapping)
 print("--- %s seconds ---" % (time.time() - start_time))

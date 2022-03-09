@@ -1,0 +1,10 @@
+{
+    "ID1": {
+      "CN": "commonname1",
+      "JIRA": ["jira-label1", "jira-label2"]
+    },
+  "ID2": {
+      "CN": "commonname2",
+      "JIRA": ["jira-lable3", "jira-label4", "jira-label5"]
+    }
+}
