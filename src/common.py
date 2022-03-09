@@ -238,26 +238,33 @@ class ConfluenceConnection(metaclass=SingletonMeta):
     def __init__(self):
         confluence_url = os.environ['CONFLUENCE_URL']
         confluence_token = os.environ['CONFLUENCE_TOKEN']
-        self._CONFLUENCE = Confluence(url=confluence_url, token=confluence_token)
+        self.__SPACE = os.environ['CONFLUENCE_SPACE']
+        self.__CONFLUENCE = Confluence(url=confluence_url, token=confluence_token)
+
+    def check_page_existence(self, name_page: str) -> bool:
+        return self.__CONFLUENCE.page_exists(self.__SPACE, name_page)
+
+    def get_page_content(self, name_page: str) -> str:
+        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
+        page = self.__CONFLUENCE.get_page_by_id(id_page, expand='body.storage')
+        content = page['body']['storage']['value']
+        return content
+
+    def upload_csv_as_attachement_to_page(self, name_page: str, path_csv: str):
+        """
+        Identical files are automatically replaced on confluence
+        """
+        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
+        self.__CONFLUENCE.attach_file(path_csv, content_type='text/csv', page_id=id_page)
+
+    def delete_attachement_from_page(self, name_page: str, name_attachement: str):
+        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
+        self.__CONFLUENCE.delete_attachment(id_page, name_attachement)
+
+
 
 
 """
-    def upload_attachement():
-        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-        current_folder = os.getcwd()
-        path_html = os.path.join(current_folder, 'resources', 'template_page.html')
-        confluence.attach_file(path_html, content_type='text/html', page_id=page_id)
-
-    def delete_attachement():
-        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-        confluence.delete_attachment(page_id, 'template_page.html')
-
-    def get_page():
-        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-        page = confluence.get_page_by_id(page_id, expand='body.storage')
-        content = page['body']['storage']['value']
-        print(content)
-
     def init_new_page():
         page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
         page = confluence.get_page_by_id(page_id, expand='body.storage')

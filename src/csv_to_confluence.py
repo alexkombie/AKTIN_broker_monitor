@@ -71,6 +71,26 @@ from common import load_mapping_table_as_dict
 # !!!!!!!!!!!!!!!!!! update template if different version
 
 
+class CSVBackupManager:
+
+    def __init__(self, id_node: str):
+        dir_root = os.environ['ROOT_DIR']
+        name_folder = id_node.rjust(3, '0')
+        self.__ID_NODE = id_node
+        self.__DIR_NODE = os.path.join(dir_root, name_folder)
+        global dict_mapping
+        self.__PAGE_CONFLUENCE = dict_mapping[id_node]['CN']
+        self.__CONFLUENCE = ConfluenceConnection()
+
+    def backup_csv_files(self):
+        list_csv_files = self.__get_all_csv_files_in_directory()
+        for name_csv in list_csv_files:
+            path_csv = os.path.join(self.__DIR_NODE, name_csv)
+            self.__CONFLUENCE.upload_csv_as_attachement_to_page(self.__PAGE_CONFLUENCE, path_csv)
+
+    def __get_all_csv_files_in_directory(self) -> list:
+        return [name_file for name_file in os.listdir(self.__DIR_NODE) if name_file.endswith('.csv')]
+
 
 class NodeResourceFetcher:
 

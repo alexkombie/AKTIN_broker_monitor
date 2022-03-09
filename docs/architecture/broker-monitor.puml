@@ -105,7 +105,6 @@ class CSVErrorExtractor {
 class CSVBackupManager {
 * uploads broker node csv files as attachement
 to confluence page
-* deletes csv attachements from confluence
 }
 
 class NodeResourceFetcher {
