@@ -23,6 +23,7 @@ entity "JSON file with configuration" as settings {
 * API Key broker-server
 * Working directory
 * URL Confluence
+* Space Confluence
 * Token Confluence
 }
 entity settings #aliceblue;line:blue;text:blue
