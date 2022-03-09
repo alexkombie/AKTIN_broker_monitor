@@ -89,17 +89,8 @@ class CSVHandler {
 }
 
 package "csv_to_confluence.py" as csv_to_confluence {
-abstract class CSVExtractor {
-* helper functions and variables to extract node
-information from csv file
-}
-
-class CSVStatsExtractor {
-* extracts node import stats from csv file
-}
-
-class CSVErrorExtractor {
-* extracts node errors from csv file
+class CSVExtractor {
+* extracts rows from csv file as dictionaries
 }
 
 class CSVBackupManager {
@@ -151,10 +142,7 @@ ConfluencePageHandler ---> ConfluenceConnection
 ConfluencePageHandler ..> settings
 ConfluencePageHandler -> NodeResourceFetcher
 NodeResourceFetcher --> BrokerNodeConnection
-ConfluencePageHandler --> CSVErrorExtractor
-ConfluencePageHandler --> CSVStatsExtractor
-CSVStatsExtractor --|> CSVExtractor
-CSVErrorExtractor --|> CSVExtractor
+ConfluencePageHandler --> CSVExtractor
 CSVExtractor --> CSVHandler
 
 read_properties --> settings

@@ -25,19 +25,11 @@ from common import __stop_logger
 from common import ConfluenceConnection
 from common import load_mapping_table_as_dict
 
-
 """
-
-
 
 # CREATE NEW PAGES BY MAPPING TABLE
 # UPDATE PAGES
 # CREATE BACKUP
-# confluence.page_exists(SPACE, 'Dummy Broker-Monitor')
-
-
-
-
 
 """
 
@@ -66,18 +58,13 @@ from common import load_mapping_table_as_dict
 # update own temp html with content
 # update confluence page
 
-# !!!!!!!!!!!!!!!!!! send csv as attachements
 
 # !!!!!!!!!!!!!!!!!! update template if different version
 
-
 class CSVBackupManager:
 
-    def __init__(self, id_node: str):
-        dir_root = os.environ['ROOT_DIR']
-        name_folder = id_node.rjust(3, '0')
-        self.__ID_NODE = id_node
-        self.__DIR_NODE = os.path.join(dir_root, name_folder)
+    def __init__(self, id_node: str, dir_working=''):
+        self.__DIR_WORKING = dir_working
         global dict_mapping
         self.__PAGE_CONFLUENCE = dict_mapping[id_node]['CN']
         self.__CONFLUENCE = ConfluenceConnection()
@@ -85,11 +72,11 @@ class CSVBackupManager:
     def backup_csv_files(self):
         list_csv_files = self.__get_all_csv_files_in_directory()
         for name_csv in list_csv_files:
-            path_csv = os.path.join(self.__DIR_NODE, name_csv)
+            path_csv = os.path.join(self.__DIR_WORKING, name_csv)
             self.__CONFLUENCE.upload_csv_as_attachement_to_page(self.__PAGE_CONFLUENCE, path_csv)
 
     def __get_all_csv_files_in_directory(self) -> list:
-        return [name_file for name_file in os.listdir(self.__DIR_NODE) if name_file.endswith('.csv')]
+        return [name_file for name_file in os.listdir(self.__DIR_WORKING) if name_file.endswith('.csv')]
 
 
 class NodeResourceFetcher:
@@ -109,6 +96,20 @@ class NodeResourceFetcher:
 
     def fetch_broker_node_import_scripts(self) -> dict:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
+
+
+class CSVExtractor(CSVHandler):
+
+    def __init__(self, path_csv: str):
+        super().__init__(path_csv)
+        self.__DF = self.read_csv_as_df()
+
+    def get_last_row_as_dict(self) -> dict:
+        return self.__DF.iloc[-1].to_dict()
+
+    def get_first_rows_as_list_of_dicts(self, num_rows: int) -> list[dict]:
+        df = self.__DF.head(num_rows)
+        return df.to_dict('records')
 
 
 def main(path_config: str, path_mapping: str):
