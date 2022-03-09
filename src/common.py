@@ -262,8 +262,6 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         self.__CONFLUENCE.delete_attachment(id_page, name_attachement)
 
 
-
-
 """
     def init_new_page():
         page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
@@ -296,7 +294,7 @@ def __stop_logger():
 
 
 def load_properties_file_as_environment(path: str):
-    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'CONFLUENCE_URL', 'CONFLUENCE_SPACE', 'CONFLUENCE_TOKEN'}
+    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'RESOURCES_DIR', 'CONFLUENCE_URL', 'CONFLUENCE_SPACE', 'CONFLUENCE_TOKEN'}
     if not os.path.isfile(path):
         raise SystemExit('invalid config file path')
     with open(path) as file_json:
