@@ -80,7 +80,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__load_csv_as_dataframe(path_csv)
         self.assertEqual(1, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-02-02 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '500', '400', '250', '200', '50.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '500', '400', '250', '200', '33.33')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
     def test_fetch_next_stats_in_csv(self):
@@ -98,8 +98,8 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__load_csv_as_dataframe(path_csv)
         self.assertEqual(2, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[1], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '25.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '1500', '0', '0', '150', '10.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '1500', '0', '0', '150', '9.09')
 
     def test_fetch_next_stats_in_csv_timegap(self):
         stats1 = self.__create_stats1()
@@ -116,7 +116,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__load_csv_as_dataframe(path_csv)
         self.assertEqual(2, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[1], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '25.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
     def test_fetch_next_stats_in_csv_with_dwh_restart(self):
@@ -134,7 +134,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__load_csv_as_dataframe(path_csv)
         self.assertEqual(2, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[1], self.__get_current_date_YMD(), '2020-01-01 12:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '25.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
     def test_fetch_new_stats_in_csv_after_year_change(self):
@@ -152,8 +152,8 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__load_csv_as_dataframe(path_csv)
         self.assertEqual(1, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '25.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '1500', '0', '0', '150', '10.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '1500', '0', '0', '150', '9.09')
 
     def test_fetch_new_stats_in_csv_after_year_change_timegap(self):
         stats1 = self.__create_stats1()
@@ -170,7 +170,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__load_csv_as_dataframe(path_csv)
         self.assertEqual(1, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '25.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
     def __check_date_stats_in_csv_row(self, row: pd.Series, date: str, start: str, last_write: str, last_reject: str):
