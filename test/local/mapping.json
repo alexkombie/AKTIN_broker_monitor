@@ -1,10 +1,15 @@
 {
-    "ID1": {
-      "CN": "commonname1",
-      "JIRA": ["jira-label1", "jira-label2"]
-    },
-  "ID2": {
-      "CN": "commonname2",
-      "JIRA": ["jira-lable3", "jira-label4", "jira-label5"]
-    }
+  "1": {
+    "CN": "Dummy Broker-Monitor",
+    "JIRA": [
+      "jira-label1",
+      "jira-label2"
+    ]
+  },
+  "2": {
+    "CN": "Dummy Broker-Monitor",
+    "JIRA": [
+      "jira-lable3"
+    ]
+  }
 }
