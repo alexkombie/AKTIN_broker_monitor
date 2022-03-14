@@ -209,14 +209,15 @@ class NodeInfoFetcher(BrokerNodeFetcher):
 
     @staticmethod
     def __compute_error_rate(imported: int, updated: int, invalid: int, failed: int) -> str:
-        if (imported + updated) > 0:
-            error_rate = (invalid + failed) / (imported + updated)
-            error_rate = str(round(error_rate * 100, 2))
+        sum_success = imported + updated
+        sum_failed = invalid + failed
+        if sum_failed > 0 and sum_success == 0:
+            error_rate = '100.0'
+        elif sum_failed == 0 and sum_success == 0:
+            error_rate = '-'
         else:
-            if (invalid + failed) > 0:
-                error_rate = ''.join([str(invalid + failed), '00.0'])
-            else:
-                error_rate = '-'
+            error_rate = sum_failed / (sum_success + sum_failed)
+            error_rate = str(round(error_rate * 100, 2))
         return error_rate
 
 
