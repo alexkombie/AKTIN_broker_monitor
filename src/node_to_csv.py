@@ -128,7 +128,8 @@ class NodeInfoFetcher(BrokerNodeFetcher):
             map_daily = self.__generate_empty_daily_stats()
         map_stats = self.__generate_row_stats(node, stats)
         map_stats.update(map_daily)
-        df = df.append(map_stats, ignore_index=True)
+        dict_stats = pd.DataFrame(map_stats, index=[0])
+        df = pd.concat([df, dict_stats])
         self._CSV_HANDLER.save_df_as_csv(df)
 
     def __delete_todays_row_if_exists(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -241,12 +242,13 @@ class NodeErrorFetcher(BrokerNodeFetcher):
                     'timestamp': self._extract_YMD_HMS(error.timestamp),
                     'repeats':   error.repeats if error.repeats is not None else '1',
                     'content':   error.content}
+                dict_new_row = pd.DataFrame(new_row, index=[0])
                 if self.__is_error_already_logged(df, error):
                     if self.__did_error_repeats_change(df, error):
                         df = self.__delete_old_error_row(df, error)
-                        df = df.append(new_row, ignore_index=True)
+                        df = pd.concat([df, dict_new_row])
                 else:
-                    df = df.append(new_row, ignore_index=True)
+                    df = pd.concat([df, dict_new_row])
         df = df.sort_values(by='timestamp')
         self._CSV_HANDLER.save_df_as_csv(df)
 
