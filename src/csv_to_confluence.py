@@ -78,7 +78,7 @@ class CSVBackupManager:
         return [name_file for name_file in os.listdir(self.__DIR_WORKING) if name_file.endswith('.csv')]
 
 
-class TemplatePageWriter(ABC):
+class TemplatePageLoader(ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup
 
     def _load_template_page_as_soup(self, page_template: str):
@@ -104,7 +104,7 @@ class NodeResourceFetcher:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
 
-class TemplatePageNodeResourceWriter(TemplatePageWriter):
+class TemplatePageNodeResourceWriter(TemplatePageLoader):
 
     def __init__(self, id_node: str):
         self.__ID_NODE = id_node
@@ -205,14 +205,15 @@ class TemplatePageCSVInfoWriter(TemplatePageWriter):
         self._PAGE_TEMPLATE.find(class_='error_rate_daily').string.replace_with(dict_row.get('daily_error_rate'))
 
 
-class TempaltePageCSVErrorWriter:
+class TemplatePageCSVErrorWriter(TemplatePageLoader):
 
     def __init__(self, path_csv: str):
         self.__EXTRACTOR = CSVExtractor(path_csv)
+        self.__NUM_ERRORS = 20
 
-    def add_node_stats_to_template_page(self, page_template: str) -> str:
+    def add_node_errors_to_template_page(self, page_template: str) -> str:
         self._load_template_page_as_soup(page_template)
-
+        self.__add_node_errors_to_template_soup()
         return str(self._PAGE_TEMPLATE)
 
     def __load_template_page_as_soup(self, page_template: str):
