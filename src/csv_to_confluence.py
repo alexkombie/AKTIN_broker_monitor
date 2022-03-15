@@ -97,52 +97,52 @@ class NodeResourceFetcher:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
 
-class ConfluencePageResourceHandler:
-    __PAGE_CONFLUENCE: bs4.BeautifulSoup
+class TemplatePageNodeResourceWriter:
+    __PAGE_TEMPLATE: bs4.BeautifulSoup
 
     def __init__(self, id_node: str):
         self.__ID_NODE = id_node
         self.__FETCHER = NodeResourceFetcher(id_node)
 
-    def add_resources_to_confluence_page(self, page_confluence: str) -> str:
-        self.__load_confluence_page_as_soup(page_confluence)
-        self.__add_versions_to_confluence_soup()
-        self.__add_rscript_to_confluence_soup()
-        self.__add_python_to_confluence_soup()
-        self.__add_import_scripts_to_confluence_soup()
-        return str(self.__PAGE_CONFLUENCE)
+    def add_resources_to_template_page(self, page_template: str) -> str:
+        self.__load_template_page_as_soup(page_template)
+        self.__add_versions_to_template_soup()
+        self.__add_rscript_to_template_soup()
+        self.__add_python_to_template_soup()
+        self.__add_import_scripts_to_template_soup()
+        return str(self.__PAGE_TEMPLATE)
 
-    def __load_confluence_page_as_soup(self, page_confluence: str):
-        self.__PAGE_CONFLUENCE = bs4.BeautifulSoup(page_confluence, 'html.parser')
+    def __load_template_page_as_soup(self, page_template: str):
+        self.__PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
 
-    def __add_versions_to_confluence_soup(self):
+    def __add_versions_to_template_soup(self):
         dict_versions = self.__FETCHER.fetch_broker_node_versions()
-        self.__PAGE_CONFLUENCE.find(class_='os').string.replace_with(dict_versions.get('os'))
-        self.__PAGE_CONFLUENCE.find(class_='kernel').string.replace_with(dict_versions.get('kernel'))
-        self.__PAGE_CONFLUENCE.find(class_='java').string.replace_with(dict_versions.get('java'))
-        self.__PAGE_CONFLUENCE.find(class_='wildfly').string.replace_with(dict_versions.get('j2ee-impl'))
-        self.__PAGE_CONFLUENCE.find(class_='apache2').string.replace_with(dict_versions.get('apache2'))
-        self.__PAGE_CONFLUENCE.find(class_='postgresql').string.replace_with(dict_versions.get('postgres'))
-        self.__PAGE_CONFLUENCE.find(class_='dwh_api').string.replace_with(dict_versions.get('dwh-api'))
-        self.__PAGE_CONFLUENCE.find(class_='dwh_j2ee').string.replace_with(dict_versions.get('dwh-j2ee'))
+        self.__PAGE_TEMPLATE.find(class_='os').string.replace_with(dict_versions.get('os'))
+        self.__PAGE_TEMPLATE.find(class_='kernel').string.replace_with(dict_versions.get('kernel'))
+        self.__PAGE_TEMPLATE.find(class_='java').string.replace_with(dict_versions.get('java'))
+        self.__PAGE_TEMPLATE.find(class_='wildfly').string.replace_with(dict_versions.get('j2ee-impl'))
+        self.__PAGE_TEMPLATE.find(class_='apache2').string.replace_with(dict_versions.get('apache2'))
+        self.__PAGE_TEMPLATE.find(class_='postgresql').string.replace_with(dict_versions.get('postgres'))
+        self.__PAGE_TEMPLATE.find(class_='dwh_api').string.replace_with(dict_versions.get('dwh-api'))
+        self.__PAGE_TEMPLATE.find(class_='dwh_j2ee').string.replace_with(dict_versions.get('dwh-j2ee'))
 
-    def __add_rscript_to_confluence_soup(self):
+    def __add_rscript_to_template_soup(self):
         dict_rscript = self.__FETCHER.fetch_broker_node_rscript()
-        rscript = self.__convert_dict_items_to_string(dict_rscript)
-        self.__PAGE_CONFLUENCE.find(class_='rscript').string.replace_with(rscript)
+        rscript = self.__concat_dict_items_as_string(dict_rscript)
+        self.__PAGE_TEMPLATE.find(class_='rscript').string.replace_with(rscript)
 
-    def __add_python_to_confluence_soup(self):
+    def __add_python_to_template_soup(self):
         dict_python = self.__FETCHER.fetch_broker_node_python()
-        python = self.__convert_dict_items_to_string(dict_python)
-        self.__PAGE_CONFLUENCE.find(class_='python').string.replace_with(python)
+        python = self.__concat_dict_items_as_string(dict_python)
+        self.__PAGE_TEMPLATE.find(class_='python').string.replace_with(python)
 
-    def __add_import_scripts_to_confluence_soup(self):
+    def __add_import_scripts_to_template_soup(self):
         dict_import_scripts = self.__FETCHER.fetch_broker_node_import_scripts()
-        import_scripts = self.__convert_dict_items_to_string(dict_import_scripts)
-        self.__PAGE_CONFLUENCE.find(class_='import_scripts').string.replace_with(import_scripts)
+        import_scripts = self.__concat_dict_items_as_string(dict_import_scripts)
+        self.__PAGE_TEMPLATE.find(class_='import_scripts').string.replace_with(import_scripts)
 
     @staticmethod
-    def __convert_dict_items_to_string(input_dict: dict) -> str:
+    def __concat_dict_items_as_string(input_dict: dict) -> str:
         tmp_list = []
         for key, value in input_dict.items():
             value = '?' if value is None else value

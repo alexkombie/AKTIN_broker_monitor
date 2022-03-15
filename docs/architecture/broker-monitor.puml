@@ -66,7 +66,7 @@ class "load_properties_file_as_environment()" as read_properties {
 }
 hide read_properties circle
 
-class "load_mapping_table_as_dict()" as load_mapping {
+class "load_json_file_as_dict()" as load_mapping {
 * loads json file with node mapping as
 python dictionary
 }
@@ -101,6 +101,11 @@ to confluence page
 class NodeResourceFetcher {
 * intermediate class to extract node
 resources from broker-server
+}
+
+class TemplatePageNodeResourceWriter {
+* writes fetched resources from broker node
+into template of confluence page
 }
 
 class ConfluencePageHandler {
@@ -140,7 +145,8 @@ CSVBackupManager ..> settings
 ConfluencePageHandler ..> mapping
 ConfluencePageHandler ---> ConfluenceConnection
 ConfluencePageHandler ..> settings
-ConfluencePageHandler -> NodeResourceFetcher
+ConfluencePageHandler -> TemplatePageNodeResourceWriter
+TemplatePageNodeResourceWriter -> NodeResourceFetcher
 NodeResourceFetcher --> BrokerNodeConnection
 ConfluencePageHandler --> CSVExtractor
 CSVExtractor --> CSVHandler
