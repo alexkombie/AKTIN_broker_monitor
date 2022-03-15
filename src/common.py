@@ -257,18 +257,13 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
         self.__CONFLUENCE.attach_file(path_csv, content_type='text/csv', page_id=id_page)
 
-    def delete_attachement_from_page(self, name_page: str, name_attachement: str):
-        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
-        self.__CONFLUENCE.delete_attachment(id_page, name_attachement)
-
     def create_confluence_page(self, name_page: str, name_parent: str, content: str):
         id_parent = self.__CONFLUENCE.get_page_id(self.__SPACE, name_parent)
         self.__CONFLUENCE.create_page(self.__SPACE, name_page, content, parent_id=id_parent)
 
     def update_confluence_page(self, name_page: str, content: str):
-        page_id = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
-        page = self.__CONFLUENCE.get_page_by_id(page_id, expand='body.storage')
-        self.__CONFLUENCE.update_page(page_id, page['title'], content)
+        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
+        self.__CONFLUENCE.update_page(id_page, name_page, content)
 
 
 def __init_logger():
@@ -296,7 +291,7 @@ def load_properties_file_as_environment(path: str):
         os.environ[key] = dict_config.get(key)
 
 
-def load_mapping_table_as_dict(path_mapping: str) -> dict:
-    with open(path_mapping) as json_file:
+def load_json_file_as_dict(path_file: str) -> dict:
+    with open(path_file) as json_file:
         dict_mapping = json.load(json_file)
     return dict_mapping
