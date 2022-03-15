@@ -78,6 +78,13 @@ class CSVBackupManager:
         return [name_file for name_file in os.listdir(self.__DIR_WORKING) if name_file.endswith('.csv')]
 
 
+class TemplatePageWriter(ABC):
+    _PAGE_TEMPLATE: bs4.BeautifulSoup
+
+    def _load_template_page_as_soup(self, page_template: str):
+        self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
+
+
 class NodeResourceFetcher:
 
     def __init__(self, id_node: str):
@@ -97,49 +104,45 @@ class NodeResourceFetcher:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
 
-class TemplatePageNodeResourceWriter:
-    __PAGE_TEMPLATE: bs4.BeautifulSoup
+class TemplatePageNodeResourceWriter(TemplatePageWriter):
 
     def __init__(self, id_node: str):
         self.__ID_NODE = id_node
         self.__FETCHER = NodeResourceFetcher(id_node)
 
     def add_resources_to_template_page(self, page_template: str) -> str:
-        self.__load_template_page_as_soup(page_template)
+        self._load_template_page_as_soup(page_template)
         self.__add_versions_to_template_soup()
         self.__add_rscript_to_template_soup()
         self.__add_python_to_template_soup()
         self.__add_import_scripts_to_template_soup()
-        return str(self.__PAGE_TEMPLATE)
-
-    def __load_template_page_as_soup(self, page_template: str):
-        self.__PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
+        return str(self._PAGE_TEMPLATE)
 
     def __add_versions_to_template_soup(self):
         dict_versions = self.__FETCHER.fetch_broker_node_versions()
-        self.__PAGE_TEMPLATE.find(class_='os').string.replace_with(dict_versions.get('os'))
-        self.__PAGE_TEMPLATE.find(class_='kernel').string.replace_with(dict_versions.get('kernel'))
-        self.__PAGE_TEMPLATE.find(class_='java').string.replace_with(dict_versions.get('java'))
-        self.__PAGE_TEMPLATE.find(class_='wildfly').string.replace_with(dict_versions.get('j2ee-impl'))
-        self.__PAGE_TEMPLATE.find(class_='apache2').string.replace_with(dict_versions.get('apache2'))
-        self.__PAGE_TEMPLATE.find(class_='postgresql').string.replace_with(dict_versions.get('postgres'))
-        self.__PAGE_TEMPLATE.find(class_='dwh_api').string.replace_with(dict_versions.get('dwh-api'))
-        self.__PAGE_TEMPLATE.find(class_='dwh_j2ee').string.replace_with(dict_versions.get('dwh-j2ee'))
+        self._PAGE_TEMPLATE.find(class_='os').string.replace_with(dict_versions.get('os'))
+        self._PAGE_TEMPLATE.find(class_='kernel').string.replace_with(dict_versions.get('kernel'))
+        self._PAGE_TEMPLATE.find(class_='java').string.replace_with(dict_versions.get('java'))
+        self._PAGE_TEMPLATE.find(class_='wildfly').string.replace_with(dict_versions.get('j2ee-impl'))
+        self._PAGE_TEMPLATE.find(class_='apache2').string.replace_with(dict_versions.get('apache2'))
+        self._PAGE_TEMPLATE.find(class_='postgresql').string.replace_with(dict_versions.get('postgres'))
+        self._PAGE_TEMPLATE.find(class_='dwh_api').string.replace_with(dict_versions.get('dwh-api'))
+        self._PAGE_TEMPLATE.find(class_='dwh_j2ee').string.replace_with(dict_versions.get('dwh-j2ee'))
 
     def __add_rscript_to_template_soup(self):
         dict_rscript = self.__FETCHER.fetch_broker_node_rscript()
         rscript = self.__concat_dict_items_as_string(dict_rscript)
-        self.__PAGE_TEMPLATE.find(class_='rscript').string.replace_with(rscript)
+        self._PAGE_TEMPLATE.find(class_='rscript').string.replace_with(rscript)
 
     def __add_python_to_template_soup(self):
         dict_python = self.__FETCHER.fetch_broker_node_python()
         python = self.__concat_dict_items_as_string(dict_python)
-        self.__PAGE_TEMPLATE.find(class_='python').string.replace_with(python)
+        self._PAGE_TEMPLATE.find(class_='python').string.replace_with(python)
 
     def __add_import_scripts_to_template_soup(self):
         dict_import_scripts = self.__FETCHER.fetch_broker_node_import_scripts()
         import_scripts = self.__concat_dict_items_as_string(dict_import_scripts)
-        self.__PAGE_TEMPLATE.find(class_='import_scripts').string.replace_with(import_scripts)
+        self._PAGE_TEMPLATE.find(class_='import_scripts').string.replace_with(import_scripts)
 
     @staticmethod
     def __concat_dict_items_as_string(input_dict: dict) -> str:
@@ -165,6 +168,61 @@ class CSVExtractor(CSVHandler):
         return df.to_dict('records')
 
 
+class TemplatePageCSVInfoWriter(TemplatePageWriter):
+
+    def __init__(self, path_csv: str):
+        self.__EXTRACTOR = CSVExtractor(path_csv)
+
+    def add_node_stats_to_template_page(self, page_template: str) -> str:
+        self._load_template_page_as_soup(page_template)
+        self.__add_dates_to_template_soup()
+        self.__add_global_imports_to_template_soup()
+        self.__add_daily_imports_to_template_soup()
+        return str(self._PAGE_TEMPLATE)
+
+    def __add_dates_to_template_soup(self):
+        dict_row = self.__EXTRACTOR.get_last_row_as_dict()
+        self._PAGE_TEMPLATE.find(class_='last_check').string.replace_with(dict_row.get('date'))
+        self._PAGE_TEMPLATE.find(class_='last_contact').string.replace_with(dict_row.get('last_contact'))
+        self._PAGE_TEMPLATE.find(class_='last_start').string.replace_with(dict_row.get('start'))
+        self._PAGE_TEMPLATE.find(class_='last_write').string.replace_with(dict_row.get('last_write'))
+        self._PAGE_TEMPLATE.find(class_='last_reject').string.replace_with(dict_row.get('last_reject'))
+
+    def __add_global_imports_to_template_soup(self):
+        dict_row = self.__EXTRACTOR.get_last_row_as_dict()
+        self._PAGE_TEMPLATE.find(class_='imported_global').string.replace_with(dict_row.get('imported'))
+        self._PAGE_TEMPLATE.find(class_='updated_global').string.replace_with(dict_row.get('updated'))
+        self._PAGE_TEMPLATE.find(class_='invalid_global').string.replace_with(dict_row.get('invalid'))
+        self._PAGE_TEMPLATE.find(class_='failed_global').string.replace_with(dict_row.get('failed'))
+        self._PAGE_TEMPLATE.find(class_='error_rate_global').string.replace_with(dict_row.get('error_rate'))
+
+    def __add_daily_imports_to_template_soup(self):
+        dict_row = self.__EXTRACTOR.get_last_row_as_dict()
+        self._PAGE_TEMPLATE.find(class_='imported_daily').string.replace_with(dict_row.get('daily_imported'))
+        self._PAGE_TEMPLATE.find(class_='updated_daily').string.replace_with(dict_row.get('daily_updated'))
+        self._PAGE_TEMPLATE.find(class_='invalid_daily').string.replace_with(dict_row.get('daily_invalid'))
+        self._PAGE_TEMPLATE.find(class_='failed_daily').string.replace_with(dict_row.get('daily_failed'))
+        self._PAGE_TEMPLATE.find(class_='error_rate_daily').string.replace_with(dict_row.get('daily_error_rate'))
+
+
+class TempaltePageCSVErrorWriter:
+
+    def __init__(self, path_csv: str):
+        self.__EXTRACTOR = CSVExtractor(path_csv)
+
+    def add_node_stats_to_template_page(self, page_template: str) -> str:
+        self._load_template_page_as_soup(page_template)
+
+        return str(self._PAGE_TEMPLATE)
+
+    def __load_template_page_as_soup(self, page_template: str):
+        self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
+
+
+# TODO  Status setter
+
+
+"""
 class ConfluencePageHandler:
 
     def __init__(self, id_node: str, dir_working=''):
