@@ -261,25 +261,14 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
         self.__CONFLUENCE.delete_attachment(id_page, name_attachement)
 
+    def create_confluence_page(self, name_page: str, name_parent: str, content: str):
+        id_parent = self.__CONFLUENCE.get_page_id(self.__SPACE, name_parent)
+        self.__CONFLUENCE.create_page(self.__SPACE, name_page, content, parent_id=id_parent)
 
-"""
-    def init_new_page():
-        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-        page = confluence.get_page_by_id(page_id, expand='body.storage')
-        current_folder = os.getcwd()
-        path_html = os.path.join(current_folder, 'resources', 'template_page.html')
-        with open(path_html, 'r') as file:
-            html = file.read()
-        page['body']['storage']['value'] = html
-        confluence.update_page(page_id, page['title'], html)
-
-    def update_page():
-        page_id = confluence.get_page_id(SPACE, 'Dummy Broker-Monitor')
-        page = confluence.get_page_by_id(page_id, expand='body.storage')
-        content = page['body']['storage']['value']
-        html = bs(content, 'html.parser')
-        confluence.update_page(page_id, page['title'], str(html))
-"""
+    def update_confluence_page(self, name_page: str, content: str):
+        page_id = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
+        page = self.__CONFLUENCE.get_page_by_id(page_id, expand='body.storage')
+        self.__CONFLUENCE.update_page(page_id, page['title'], content)
 
 
 def __init_logger():
