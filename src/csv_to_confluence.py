@@ -28,46 +28,13 @@ from common import __stop_logger
 from common import ConfluenceConnection
 from common import load_json_file_as_dict
 
-"""
-
-# CREATE NEW PAGES BY MAPPING TABLE
-# UPDATE PAGES
-# CREATE BACKUP
-
-"""
-
-
-# upload_attachement()
-
-# update element
-# html.find(class_='version_template').string.replace_with('Version 2.0')
-
-# update jira
-# html.find(class_='table_jira').replace_with('abcedf')
-
-# html = bs(content, 'html.parser')
-# _ = html.find(id='it-contact').string.replace_with('12345')
-
-# broker connection for version/rscript/python/import-scripts
-
-# needs mapping settings (node number to common name)
-
-# for each node folder in workdir:
-# check if in aktin confluence exists page:
-# else create page:
-# grap content:
-# extract info
-# update own temp html with content
-# update confluence page
-
-# !!!!!!!!!!!!!!!!!! update template if different version
 
 class CSVBackupManager:
 
     def __init__(self, id_node: str, dir_working=''):
         self.__DIR_WORKING = dir_working
         global dict_mapping
-        self.__COMMON_NAME = dict_mapping[id_node]['CN']
+        self.__COMMON_NAME = dict_mapping[id_node]['COMMON']
         self.__CONFLUENCE = ConfluenceConnection()
 
     def backup_csv_files(self):
@@ -82,14 +49,14 @@ class CSVBackupManager:
 
 class TemplateResourceHandler(ABC):
 
-    @staticmethod
-    def _convert_resource_to_soup(resource_template: str):
-        return bs4.BeautifulSoup(resource_template, 'html.parser')
-
     def _get_resource_as_soup(self, path_resource: str):
         with open(path_resource, 'r') as resource:
             content = resource.read()
         return self._convert_resource_to_soup(content)
+
+    @staticmethod
+    def _convert_resource_to_soup(resource_template: str):
+        return bs4.BeautifulSoup(resource_template, 'html.parser')
 
 
 class TemplatePageLoader(TemplateResourceHandler, ABC):
@@ -222,7 +189,7 @@ class TemplatePageCSVInfoWriter(TemplatePageLoader):
 
 # TODO input just id??
 class TemplatePageCSVErrorWriter(TemplatePageLoader):
-    __FILENAME_TABLE_ERRORS: str = 'table_errors.html'
+    __FILENAME_TABLE_ERRORS: str = 'template_table_errors.html'
 
     def __init__(self, path_csv: str):
         self.__EXTRACTOR = CSVExtractor(path_csv)
