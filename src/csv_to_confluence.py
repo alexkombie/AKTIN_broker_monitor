@@ -18,6 +18,8 @@ import json
 import pprint
 from datetime import datetime
 
+from bs4.element import Tag
+
 from common import CSVHandler
 from common import BrokerNodeConnection
 from common import load_properties_file_as_environment
@@ -78,11 +80,23 @@ class CSVBackupManager:
         return [name_file for name_file in os.listdir(self.__DIR_WORKING) if name_file.endswith('.csv')]
 
 
-class TemplatePageLoader(ABC):
+class TemplateResourceHandler(ABC):
+
+    @staticmethod
+    def _convert_resource_to_soup(resource_template: str):
+        return bs4.BeautifulSoup(resource_template, 'html.parser')
+
+    def _get_resource_as_soup(self, path_resource: str):
+        with open(path_resource, 'r') as resource:
+            content = resource.read()
+        return self._convert_resource_to_soup(content)
+
+
+class TemplatePageLoader(TemplateResourceHandler, ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup
 
     def _load_template_page_as_soup(self, page_template: str):
-        self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
+        self._PAGE_TEMPLATE = self._convert_resource_to_soup(page_template)
 
 
 class NodeResourceFetcher:
@@ -168,7 +182,8 @@ class CSVExtractor(CSVHandler):
         return df.to_dict('records')
 
 
-class TemplatePageCSVInfoWriter(TemplatePageWriter):
+# TODO input just id??
+class TemplatePageCSVInfoWriter(TemplatePageLoader):
 
     def __init__(self, path_csv: str):
         self.__EXTRACTOR = CSVExtractor(path_csv)
@@ -205,7 +220,9 @@ class TemplatePageCSVInfoWriter(TemplatePageWriter):
         self._PAGE_TEMPLATE.find(class_='error_rate_daily').string.replace_with(dict_row.get('daily_error_rate'))
 
 
+# TODO input just id??
 class TemplatePageCSVErrorWriter(TemplatePageLoader):
+    __FILENAME_TABLE_ERRORS: str = 'table_errors.html'
 
     def __init__(self, path_csv: str):
         self.__EXTRACTOR = CSVExtractor(path_csv)
@@ -216,8 +233,38 @@ class TemplatePageCSVErrorWriter(TemplatePageLoader):
         self.__add_node_errors_to_template_soup()
         return str(self._PAGE_TEMPLATE)
 
-    def __load_template_page_as_soup(self, page_template: str):
-        self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
+    def __add_node_errors_to_template_soup(self):
+        table_errors = self.__create_confluence_error_table()
+        self._PAGE_TEMPLATE.find(class_='table_errors_body').replace_with(table_errors)
+
+    def __create_confluence_error_table(self) -> bs4.BeautifulSoup:
+        table_errors = self.__load_error_table_template_as_soup()
+        list_dicts_error = self.__EXTRACTOR.get_first_rows_as_list_of_dicts(self.__NUM_ERRORS)
+        list_error_rows = []
+        for dict_error in list_dicts_error:
+            error_row = self.__create_error_table_row(dict_error['timestamp'], dict_error['repeats'], dict_error['content'])
+            list_error_rows.append(error_row)
+        table_errors.find('tbody').extend(list_error_rows)
+        return table_errors
+
+    def __load_error_table_template_as_soup(self) -> bs4.BeautifulSoup:
+        path_error_table = os.path.join(os.environ['CONFLUENCE_TEMPLATES_DIR'], self.__FILENAME_TABLE_ERRORS)
+        return self._get_resource_as_soup(path_error_table)
+
+    def __create_error_table_row(self, timestamp: str, repeats: str, content: str) -> Tag:
+        column_timestamp = self.__create_table_row_column(timestamp, {'style': 'text-align: center;'})
+        column_repeats = self.__create_table_row_column(repeats, {'style': 'text-align: center;'})
+        column_content = self.__create_table_row_column(content)
+        row_error = bs4.BeautifulSoup().new_tag('tr')
+        row_error.extend([column_timestamp, column_repeats, column_content])
+        return row_error
+
+    @staticmethod
+    def __create_table_row_column(content: str, attributes=None) -> Tag:
+        attributes = {} if attributes is None else attributes
+        row_column = bs4.BeautifulSoup().new_tag('td', attrs=attributes)
+        row_column.append(content)
+        return row_column
 
 
 # TODO  Status setter

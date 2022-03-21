@@ -3,6 +3,9 @@ hide methods
 
 title __Diagram of Broker-Monitor__\n
 
+skinparam linetype ortho
+top to bottom direction
+
 entity "<size:18>AKTIN Broker</size>" as broker
 entity broker #aliceblue;line:blue;text:blue
 hide broker members
@@ -57,6 +60,10 @@ class NodeInfoFetcher {
 * computes daily imports and error rate from differences to previous day
 * each column in csv file stands for one day
 }
+
+note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
+NodeErrorFetcher .u.. N1
+NodeInfoFetcher .u.. N1
 }
 
 package "common.py" as common <<Package>> {
@@ -98,6 +105,15 @@ class CSVBackupManager {
 to confluence page
 }
 
+abstract class TemplateResourceHandler{
+* loads file as html soup
+* converts given input to html soup
+}
+
+abstract class TemplatePageLoader{
+* loads confluence page template as html soup
+}
+
 class NodeResourceFetcher {
 * intermediate class to extract node
 resources from broker-server
@@ -106,6 +122,16 @@ resources from broker-server
 class TemplatePageNodeResourceWriter {
 * writes fetched resources from broker node
 into template of confluence page
+}
+
+class TemplatePageCSVInfoWriter {
+* writes csv import stats into
+template of confluence page
+}
+
+class TemplatePageCSVErrorWriter {
+* writes csv error stats into
+template of confluence page
 }
 
 class ConfluencePageHandler {
@@ -123,39 +149,47 @@ class ConfluenceHandlerManager {
 }
 }
 
-note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
-NodeErrorFetcher .u.. N1
-NodeInfoFetcher .u.. N1
-
-BrokerNodeFetcherManager ..> settings
-BrokerNodeFetcherManager --> NodeInfoFetcher
-BrokerNodeFetcherManager --> NodeErrorFetcher
-NodeInfoFetcher --|> BrokerNodeFetcher
-NodeErrorFetcher --|> BrokerNodeFetcher
-BrokerNodeFetcher --> CSVHandler
-BrokerNodeFetcher --> BrokerNodeConnection
-
-load_mapping -u-> mapping
-ConfluenceHandlerManager --> CSVBackupManager
-ConfluenceHandlerManager --> ConfluencePageHandler
-ConfluenceHandlerManager ..> mapping
-CSVBackupManager ..> mapping
-CSVBackupManager --> ConfluenceConnection
-CSVBackupManager ..> settings
-ConfluencePageHandler ..> mapping
-ConfluencePageHandler ---> ConfluenceConnection
-ConfluencePageHandler ..> settings
-ConfluencePageHandler -> TemplatePageNodeResourceWriter
-TemplatePageNodeResourceWriter -> NodeResourceFetcher
-NodeResourceFetcher --> BrokerNodeConnection
-ConfluencePageHandler --> CSVExtractor
-CSVExtractor --> CSVHandler
-
 read_properties --> settings
 CSVHandler --> csv
 BrokerNodeConnection --> broker
 BrokerNodeConnection ..> settings
 ConfluenceConnection --> confluence
 ConfluenceConnection ..> settings
+
+BrokerNodeFetcher --> CSVHandler
+BrokerNodeFetcher --> BrokerNodeConnection
+NodeInfoFetcher --|> BrokerNodeFetcher
+NodeErrorFetcher --|> BrokerNodeFetcher
+BrokerNodeFetcherManager ..> settings
+BrokerNodeFetcherManager --> NodeInfoFetcher
+BrokerNodeFetcherManager --> NodeErrorFetcher
+
+load_mapping -u-> mapping
+CSVBackupManager ..> mapping
+CSVBackupManager --> ConfluenceConnection
+TemplatePageLoader --|> TemplateResourceHandler
+NodeResourceFetcher --> BrokerNodeConnection
+TemplatePageNodeResourceWriter --|> TemplatePageLoader
+TemplatePageNodeResourceWriter -> NodeResourceFetcher
+CSVExtractor --> CSVHandler
+TemplatePageCSVInfoWriter --|> TemplatePageLoader
+TemplatePageCSVInfoWriter --> CSVExtractor
+TemplatePageCSVErrorWriter --|> TemplatePageLoader
+TemplatePageCSVErrorWriter --> CSVExtractor
+TemplatePageCSVErrorWriter ..> settings
+
+
+
+ConfluencePageHandler ..> mapping
+ConfluencePageHandler ---> ConfluenceConnection
+ConfluencePageHandler ..> settings
+ConfluencePageHandler --> TemplatePageNodeResourceWriter
+ConfluencePageHandler --> TemplatePageCSVInfoWriter
+ConfluencePageHandler --> TemplatePageCSVErrorWriter
+ConfluencePageHandler --> CSVExtractor
+
+ConfluenceHandlerManager --> CSVBackupManager
+ConfluenceHandlerManager --> ConfluencePageHandler
+ConfluenceHandlerManager ..> mapping
 
 @enduml
