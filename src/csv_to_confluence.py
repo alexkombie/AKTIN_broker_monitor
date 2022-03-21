@@ -17,6 +17,7 @@ import re
 import json
 import pprint
 from datetime import datetime
+from datetime import timedelta
 
 from bs4.element import Tag
 
@@ -234,7 +235,114 @@ class TemplatePageCSVErrorWriter(TemplatePageLoader):
         return row_column
 
 
-# TODO  Status setter
+class TemplatePageStatusChecker(TemplatePageLoader):
+    __FILENAME_STATUS: str = 'template_element_status.html'
+    __WITDH_IMPORT_THRESHOLD: float = 0.25
+
+    def __init__(self, id_node: str):
+        self.__ID_NODE = id_node
+        self.__DAILY_IMPORT_TRESHOLD = self.__get_daily_import_threshold_from_mapping_table(id_node)
+
+    @staticmethod
+    def __get_daily_import_threshold_from_mapping_table(id_node: str) -> str | None:
+        global dict_mapping
+        if 'DAILY_IMPORT_THRESHOLD' in dict_mapping[id_node]:
+            return dict_mapping[id_node]['DAILY_IMPORT_THRESHOLD']
+        else:
+            return None
+
+    def check_and_set_status_of_template_page(self, page_template: str) -> str:
+        self._load_template_page_as_soup(page_template)
+        self.__check_and_set_status_of_template_soup()
+        return str(self._PAGE_TEMPLATE)
+
+    def __check_and_set_status_of_template_soup(self):
+        if self.__is_template_soup_offline():
+            status = self.__create_status_element('OFFLINE', 'Red')
+        elif self.__is_template_soup_not_importing():
+            status = self.__create_status_element('NO IMPORTS', 'Red')
+        elif self.__are_template_soup_imports_deviating():
+            status = self.__create_status_element('DEVIATING IMPORTS', 'Orange')
+        elif self.__is_template_soup_daily_error_rate_above_one():
+            status = self.__create_status_element('HIGH ERROR RATE', 'Orange')
+        else:
+            status = self.__create_status_element('ONLINE', 'GREEN')
+        self._PAGE_TEMPLATE.find(class_='status').replace_with(status)
+
+    def __is_template_soup_offline(self) -> bool:
+        last_contact = self._PAGE_TEMPLATE.find(class_='last_contact').string
+        return self.__is_date_longer_ago_than_yesterday(last_contact)
+
+    def __is_template_soup_not_importing(self) -> bool:
+        last_write = self._PAGE_TEMPLATE.find(class_='last_write').string
+        return self.__is_date_longer_ago_than_yesterday(last_write)
+
+    def __are_template_soup_imports_deviating(self) -> bool:
+        if self.__DAILY_IMPORT_TRESHOLD is not None:
+            threshold = int(self.__DAILY_IMPORT_TRESHOLD)
+            border_lower = threshold * (1 - self.__WITDH_IMPORT_THRESHOLD)
+            border_upper = threshold * (1 + self.__WITDH_IMPORT_THRESHOLD)
+            imported = int(self._PAGE_TEMPLATE.find(class_='imported_daily').string)
+            updated = int(self._PAGE_TEMPLATE.find(class_='updated_daily').string)
+            if border_lower <= (imported + updated) <= border_upper:
+                return False
+            else:
+                return True
+        return False
+
+    def __is_template_soup_daily_error_rate_above_one(self) -> bool:
+        error_rate = float(self._PAGE_TEMPLATE.find(class_='error_rate_daily'))
+        return error_rate >= 1.0
+
+    @staticmethod
+    def __is_date_longer_ago_than_yesterday(date: str) -> bool:
+        date_input = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+        date_now = datetime.now()
+        if date_now - date_input > timedelta(days=1):
+            return True
+        else:
+            return False
+
+    def __create_status_element(self, title: str, color: str) -> bs4.BeautifulSoup:
+        status = self.__load_status_template_as_soup()
+        status_title = self.__create_status_element_parameter('title', title)
+        status_color = self.__create_status_element_parameter('colour', color)
+        status.find('ac:structured-macro').extend([status_title, status_color])
+        return status
+
+    def __load_status_template_as_soup(self) -> bs4.BeautifulSoup:
+        path_status = os.path.join(os.environ['CONFLUENCE_TEMPLATES_DIR'], self.__FILENAME_STATUS)
+        return self._get_resource_as_soup(path_status)
+
+    @staticmethod
+    def __create_status_element_parameter(p_type: str, p_content: str) -> Tag:
+        parameter = bs4.BeautifulSoup().new_tag('ac:parameter', attrs={'ac:name': p_type})
+        parameter.append(p_content)
+        return parameter
+
+
+"""
+
+# INIT PARENT
+# CREATE NEW PAGES BY MAPPING TABLE (with jira table)
+# UPDATE PAGES
+# MERGE PAGES
+
+
+"""
+
+# upload_attachement()
+
+# update element
+# html.find(class_='version_template').string.replace_with('Version 2.0')
+
+# update jira
+# html.find(class_='table_jira').replace_with('abcedf')
+
+# html = bs(content, 'html.parser')
+# _ = html.find(id='it-contact').string.replace_with('12345')
+
+# broker connection for version/rscript/python/import-scripts
 
 
 """

@@ -1,15 +1,16 @@
 {
   "1": {
-    "CN": "Dummy Broker-Monitor",
-    "JIRA": [
+    "COMMON": "Dummy Broker-Monitor",
+    "JIRA-LABELS": [
       "jira-label1",
       "jira-label2"
     ]
   },
   "2": {
-    "CN": "Dummy Broker-Monitor",
-    "JIRA": [
+    "COMMON": "Dummy Broker-Monitor",
+    "JIRA-LABELS": [
       "jira-lable3"
-    ]
+    ],
+    "DAILY_IMPORT_THRESHOLD": "120"
   }
 }
