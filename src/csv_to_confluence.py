@@ -38,7 +38,7 @@ class CSVBackupManager:
 class TemplateResourceGetter(metaclass=SingletonMeta):
 
     def __init__(self):
-        self.__DIR_TEMPLATES = os.environ['CONFLUENCE_TEMPLATES_DIR']
+        self.__DIR_TEMPLATES = os.environ['CONFLUENCE_RESOURCES_DIR']
 
     def get_resource_as_string(self, name_resource: str):
         path_resource = os.path.join(self.__DIR_TEMPLATES, name_resource)
@@ -339,6 +339,103 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
             tmp_labels[idx] = ''.join(['Labels=\"', label, '\"'])
         query = ' OR '.join(tmp_labels)
         return query
+
+
+class TemplatePageMigrator(TemplatePageContentWriter):
+    __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
+
+    def __init__(self):
+        self.__RESOURCE_GETTER = TemplateResourceGetter()
+
+    def is_template_page_outdated(self, page_template: str) -> bool:
+        template_new = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
+        version_new = template_new.find(class_='version_template').string
+        template_old = bs4.BeautifulSoup(page_template, 'html.parser')
+        version_old = template_old.find(class_='version_template').string
+        return version_new == version_old
+
+    def migrate_template_to_newer_version(self, page_template: str) -> str:
+        return self._add_content_to_template_page(page_template)
+
+    def _add_content_to_template_soup(self):
+        template_new = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
+        template_new = self.__write_clinic_information_to_template_soup(template_new)
+        template_new = self.__write_id_information_to_template_soup(template_new)
+        self._PAGE_TEMPLATE = template_new
+
+    def __write_clinic_information_to_template_soup(self, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+        soup = self.__migrate_key_to_new_template('clinic_name', soup)
+        soup = self.__migrate_key_to_new_template('clinic_since', soup)
+        soup = self.__migrate_key_to_new_template('information_system', soup)
+        soup = self.__migrate_key_to_new_template('interface_import', soup)
+        soup = self.__migrate_key_to_new_template('contact_ed', soup)
+        soup = self.__migrate_key_to_new_template('contact_it', soup)
+        return soup
+
+    def __write_id_information_to_template_soup(self, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+        soup = self.__migrate_key_to_new_template('root_patient', soup)
+        soup = self.__migrate_key_to_new_template('format_patient', soup)
+        soup = self.__migrate_key_to_new_template('root_encounter', soup)
+        soup = self.__migrate_key_to_new_template('format_encounter', soup)
+        soup = self.__migrate_key_to_new_template('root_billing', soup)
+        soup = self.__migrate_key_to_new_template('format_billing', soup)
+        return soup
+
+    def __migrate_key_to_new_template(self, key_class: str, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+        value = self._PAGE_TEMPLATE.find(class_=key_class).string
+        soup.find(class_=key_class).string.replace_with(value)
+        return soup
+
+
+class ConfluencePageHandler:
+    __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
+
+    def __init__(self, id_node: str, dir_working=''):
+        global dict_mapping
+        self.__COMMON_NAME = dict_mapping[id_node]['COMMON']
+        self.__CONFLUENCE = ConfluenceConnection()
+        self.__CONFLUENCE_PARENT_PAGE = os.environ['CONFLUENCE_PARENT_PAGE']
+        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter(id_node)
+        path_csv_info = self.__genereate_csv_path(id_node, dir_working, '_stats_')
+        self.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter(path_csv_info)
+        path_csv_error = self.__genereate_csv_path(id_node, dir_working, '_errors_')
+        self.__CSV_ERROR_WRITER = TemplatePageCSVErrorWriter(path_csv_error)
+        self.__STATUS_CHECKER = TemplatePageStatusChecker(id_node)
+        self.__JIRA_TABLE_WRITER = TemplatePageJiraTableWriter(id_node)
+        self.__TEMPLATE_MIGRATOR = TemplatePageMigrator()
+
+    @staticmethod
+    def __genereate_csv_path(id_node: str, dir_working: str, type_csv: str) -> str:
+        # Builds the name of the csv path according to the specifications of node_to_csv.py
+        # type_csv shall be _stats_ or _errors_
+        id_node_spread = id_node.rjust(3, '0')
+        current_year = str(datetime.now().year)
+        name_csv = ''.join([id_node_spread, type_csv, current_year, '.csv'])
+        return os.path.join(dir_working, name_csv)
+
+    def upload_node_information_as_confluence_page(self):
+        if not self.__CONFLUENCE.check_page_existence(self.__COMMON_NAME):
+            page = self.__generate_new_page_template()
+            self.__CONFLUENCE.create_confluence_page(self.__COMMON_NAME, self.__CONFLUENCE_PARENT_PAGE, page)
+        else:
+            page = self.__CONFLUENCE.get_page_content(self.__COMMON_NAME)
+            if self.__TEMPLATE_MIGRATOR.is_template_page_outdated(page):
+                page = self.__TEMPLATE_MIGRATOR.migrate_template_to_newer_version(page)
+        page = self.__write_content_to_page_template(page)
+        self.__CONFLUENCE.update_confluence_page(self.__COMMON_NAME, page)
+
+    def __generate_new_page_template(self):
+        template = self.__RESOURCE_GETTER.get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE)
+        template = self.__JIRA_TABLE_WRITER.add_jira_table_to_template_page(template)
+        return template
+
+    def __write_content_to_page_template(self, template: str) -> str:
+        template = self.__NODE_RESOURCE_WRITER.add_resources_to_template_page(template)
+        template = self.__CSV_INFO_WRITER.add_node_stats_to_template_page(template)
+        template = self.__CSV_ERROR_WRITER.add_node_errors_to_template_page(template)
+        template = self.__STATUS_CHECKER.check_and_set_status_of_template_page(template)
+        return template
 
 
 def main(path_config: str):
