@@ -17,22 +17,25 @@ from common import load_properties_file_as_environment
 from common import SingletonMeta
 
 
-class CSVBackupManager:
+class ConfluenceNodeMapper(metaclass=SingletonMeta):
 
-    def __init__(self, id_node: str, dir_working=''):
-        self.__DIR_WORKING = dir_working
-        global dict_mapping
-        self.__COMMON_NAME = dict_mapping[id_node]['COMMON']
-        self.__CONFLUENCE = ConfluenceConnection()
+    def __init__(self):
+        self.__DICT_MAPPING = load_json_file_as_dict(os.environ['CONFLUENCE_MAPPING_JSON'])
 
-    def backup_csv_files(self):
-        list_csv_files = self.__get_all_csv_files_in_directory()
-        for name_csv in list_csv_files:
-            path_csv = os.path.join(self.__DIR_WORKING, name_csv)
-            self.__CONFLUENCE.upload_csv_as_attachement_to_page(self.__COMMON_NAME, path_csv)
+    def get_mapping_dict(self) -> dict:
+        return self.__DICT_MAPPING
 
-    def __get_all_csv_files_in_directory(self) -> list:
-        return [name_file for name_file in os.listdir(self.__DIR_WORKING) if name_file.endswith('.csv')]
+    def get_node_from_mapping_dict(self, node: str) -> dict | None:
+        if node in self.__DICT_MAPPING:
+            return self.__DICT_MAPPING[node]
+        else:
+            return None
+
+    def get_node_value_from_mapping_dict(self, node: str, key: str) -> str | None:
+        if key in self.__DICT_MAPPING[node]:
+            return self.__DICT_MAPPING[node][key]
+        else:
+            return None
 
 
 class TemplateResourceGetter(metaclass=SingletonMeta):
@@ -76,16 +79,24 @@ class NodeResourceFetcher:
         self.__BROKER_NODE_CONNECTION = BrokerNodeConnection()
 
     def fetch_broker_node_versions(self) -> dict:
-        return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'versions')
+        response = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'versions')
+        return self.__clean_dictionary(response)
 
     def fetch_broker_node_rscript(self) -> dict:
-        return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'rscript')
+        response = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'rscript')
+        return self.__clean_dictionary(response)
 
     def fetch_broker_node_python(self) -> dict:
-        return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'python')
+        response = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'python')
+        return self.__clean_dictionary(response)
 
     def fetch_broker_node_import_scripts(self) -> dict:
-        return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
+        response = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
+        return self.__clean_dictionary(response)
+
+    @staticmethod
+    def __clean_dictionary(dictionary: dict) -> dict:
+        return {key: value if value is not None else '-' for key, value in dictionary.items()}
 
 
 class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
@@ -236,16 +247,9 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
     __WITDH_IMPORT_THRESHOLD: float = 0.25
 
     def __init__(self, id_node: str):
-        self.__DAILY_IMPORT_TRESHOLD = self.__get_daily_import_threshold_from_mapping_table(id_node)
+        mapper = ConfluenceNodeMapper()
+        self.__DAILY_IMPORT_TRESHOLD = mapper.get_node_value_from_mapping_dict(id_node, 'DAILY_IMPORT_THRESHOLD')
         self.__RESOURCE_GETTER = TemplateResourceGetter()
-
-    @staticmethod
-    def __get_daily_import_threshold_from_mapping_table(id_node: str) -> str | None:
-        global dict_mapping
-        if 'DAILY_IMPORT_THRESHOLD' in dict_mapping[id_node]:
-            return dict_mapping[id_node]['DAILY_IMPORT_THRESHOLD']
-        else:
-            return None
 
     def check_and_set_status_of_template_page(self, page_template: str) -> str:
         return self._add_content_to_template_page(page_template)
@@ -315,8 +319,8 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
     __FILENAME_TABLE_JIRA: str = 'template_table_jira.html'
 
     def __init__(self, id_node: str):
-        global dict_mapping
-        self.__LABELS_JIRA = dict_mapping[id_node]['JIRA_LABELS']
+        mapper = ConfluenceNodeMapper()
+        self.__LABELS_JIRA = mapper.get_node_value_from_mapping_dict(id_node, 'JIRA_LABELS')
         self.__RESOURCE_GETTER = TemplateResourceGetter()
 
     def add_jira_table_to_template_page(self, page_template: str) -> str:
@@ -335,8 +339,8 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 
     def __generate_jira_query_from_labels(self) -> str:
         tmp_labels = []
-        for idx, label in enumerate(self.__LABELS_JIRA):
-            tmp_labels[idx] = ''.join(['Labels=\"', label, '\"'])
+        for label in self.__LABELS_JIRA:
+            tmp_labels.append(''.join(['Labels=\"', label, '\"']))
         query = ' OR '.join(tmp_labels)
         return query
 
@@ -359,11 +363,11 @@ class TemplatePageMigrator(TemplatePageContentWriter):
 
     def _add_content_to_template_soup(self):
         template_new = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
-        template_new = self.__write_clinic_information_to_template_soup(template_new)
-        template_new = self.__write_id_information_to_template_soup(template_new)
+        template_new = self.__migrate_clinic_information_to_new_template(template_new)
+        template_new = self.__migrate_id_information_to_new_template(template_new)
         self._PAGE_TEMPLATE = template_new
 
-    def __write_clinic_information_to_template_soup(self, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+    def __migrate_clinic_information_to_new_template(self, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
         soup = self.__migrate_key_to_new_template('clinic_name', soup)
         soup = self.__migrate_key_to_new_template('clinic_since', soup)
         soup = self.__migrate_key_to_new_template('information_system', soup)
@@ -372,7 +376,7 @@ class TemplatePageMigrator(TemplatePageContentWriter):
         soup = self.__migrate_key_to_new_template('contact_it', soup)
         return soup
 
-    def __write_id_information_to_template_soup(self, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+    def __migrate_id_information_to_new_template(self, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
         soup = self.__migrate_key_to_new_template('root_patient', soup)
         soup = self.__migrate_key_to_new_template('format_patient', soup)
         soup = self.__migrate_key_to_new_template('root_encounter', soup)
@@ -391,8 +395,8 @@ class ConfluencePageHandler:
     __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
 
     def __init__(self, id_node: str, dir_working=''):
-        global dict_mapping
-        self.__COMMON_NAME = dict_mapping[id_node]['COMMON']
+        mapper = ConfluenceNodeMapper()
+        self.__COMMON_NAME = mapper.get_node_value_from_mapping_dict(id_node, 'COMMON')
         self.__CONFLUENCE = ConfluenceConnection()
         self.__CONFLUENCE_PARENT_PAGE = os.environ['CONFLUENCE_PARENT_PAGE']
         self.__RESOURCE_GETTER = TemplateResourceGetter()
@@ -438,22 +442,61 @@ class ConfluencePageHandler:
         return template
 
 
+class CSVBackupManager:
+
+    def __init__(self, id_node: str, dir_working=''):
+        self.__DIR_WORKING = dir_working
+        mapper = ConfluenceNodeMapper()
+        self.__COMMON_NAME = mapper.get_node_value_from_mapping_dict(id_node, 'COMMON')
+        self.__CONFLUENCE = ConfluenceConnection()
+
+    def backup_csv_files(self):
+        list_csv_files = self.__get_all_csv_files_in_directory()
+        for name_csv in list_csv_files:
+            path_csv = os.path.join(self.__DIR_WORKING, name_csv)
+            self.__CONFLUENCE.upload_csv_as_attachement_to_page(self.__COMMON_NAME, path_csv)
+
+    def __get_all_csv_files_in_directory(self) -> list:
+        return [name_file for name_file in os.listdir(self.__DIR_WORKING) if name_file.endswith('.csv')]
+
+
+class ConfluencePageHandlerManager:
+    __FILENAME_PARENT_PAGE: str = 'parent_page.html'
+    __CONFLUENCE_ROOT_PAGE_NAME = 'Support'
+
+    def __init__(self):
+        mapper = ConfluenceNodeMapper()
+        self.__DICT_MAPPING = mapper.get_mapping_dict()
+        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__CONFLUENCE = ConfluenceConnection()
+        self.__CONFLUENCE_PARENT_PAGE = os.environ['CONFLUENCE_PARENT_PAGE']
+        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__init_parent_page()
+
+    def __init_parent_page(self):
+        if not self.__CONFLUENCE.check_page_existence(self.__CONFLUENCE_PARENT_PAGE):
+            page_parent = self.__RESOURCE_GETTER.get_resource_as_string(self.__FILENAME_PARENT_PAGE)
+            self.__CONFLUENCE.create_confluence_page(self.__CONFLUENCE_PARENT_PAGE, self.__CONFLUENCE_ROOT_PAGE_NAME, page_parent)
+
+    def upload_csv_files_as_confluence_pages(self):
+        for id_node in self.__DICT_MAPPING.keys():
+            dir_working = self.__get_working_dir(id_node)
+            handler = ConfluencePageHandler(id_node, dir_working)
+            handler.upload_node_information_as_confluence_page()
+            backup = CSVBackupManager(id_node, dir_working)
+            backup.backup_csv_files()
+
+    def __get_working_dir(self, id_node: str) -> str:
+        name_folder = id_node.rjust(3, '0')
+        return os.path.join(self.__DIR_ROOT, name_folder)
+
+
 def main(path_config: str):
     try:
         __init_logger()
         load_properties_file_as_environment(path_config)
-        global dict_mapping
-        dict_mapping = load_json_file_as_dict(os.environ['CONFLUENCE_MAPPING_JSON'])
-
-        path_html = os.path.join(os.environ['CONFLUENCE_TEMPLATES_DIR'], 'template_page.html')
-        with open(path_html, 'r') as file:
-            html2 = file.read()
-
-        c1 = TemplatePageStatusChecker('2')
-        c1.check_and_set_status_of_template_page(html2)
-        a = c1.create_status_element('ONLINE', 'Green')
-
-        print(a)
+        manager = ConfluencePageHandlerManager()
+        manager.upload_csv_files_as_confluence_pages()
     except Exception as e:
         logging.exception(e)
     finally:
