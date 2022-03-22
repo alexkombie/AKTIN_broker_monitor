@@ -1,33 +1,19 @@
-import json
 import logging
 import os
-import sys
-import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from functools import singledispatchmethod
-
-import lxml.etree as ET
-import pandas as pd
-import requests
-
-import bs4
-import os
-import re
-import json
-import pprint
 from datetime import datetime
 from datetime import timedelta
 
+import bs4
 from bs4.element import Tag
 
-from common import CSVHandler
 from common import BrokerNodeConnection
-from common import load_properties_file_as_environment
+from common import CSVHandler
+from common import ConfluenceConnection
 from common import __init_logger
 from common import __stop_logger
-from common import ConfluenceConnection
 from common import load_json_file_as_dict
+from common import load_properties_file_as_environment
 
 
 class CSVBackupManager:
@@ -60,11 +46,23 @@ class TemplateResourceHandler(ABC):
         return bs4.BeautifulSoup(resource_template, 'html.parser')
 
 
-class TemplatePageLoader(TemplateResourceHandler, ABC):
+class TemplatePageHandler(TemplateResourceHandler, ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup
+
+    def __init__(self, id_node: str):
+        self.__ID_NODE = id_node
+
+    def _add_content_to_template_page(self, page_template: str):
+        self._load_template_page_as_soup(page_template)
+        self._add_content_to_soup()
+        return str(self._PAGE_TEMPLATE)
 
     def _load_template_page_as_soup(self, page_template: str):
         self._PAGE_TEMPLATE = self._convert_resource_to_soup(page_template)
+
+    @abstractmethod
+    def _add_content_to_soup(self):
+        pass
 
 
 class NodeResourceFetcher:
@@ -86,19 +84,20 @@ class NodeResourceFetcher:
         return self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__ID_NODE, 'import-scripts')
 
 
-class TemplatePageNodeResourceWriter(TemplatePageLoader):
+class TemplatePageNodeResourceWriter(TemplatePageHandler):
 
     def __init__(self, id_node: str):
         self.__ID_NODE = id_node
         self.__FETCHER = NodeResourceFetcher(id_node)
 
     def add_resources_to_template_page(self, page_template: str) -> str:
-        self._load_template_page_as_soup(page_template)
+        return self._add_content_to_template_page(page_template)
+
+    def _add_content_to_soup(self):
         self.__add_versions_to_template_soup()
         self.__add_rscript_to_template_soup()
         self.__add_python_to_template_soup()
         self.__add_import_scripts_to_template_soup()
-        return str(self._PAGE_TEMPLATE)
 
     def __add_versions_to_template_soup(self):
         dict_versions = self.__FETCHER.fetch_broker_node_versions()
@@ -151,17 +150,19 @@ class CSVExtractor(CSVHandler):
 
 
 # TODO input just id??
-class TemplatePageCSVInfoWriter(TemplatePageLoader):
+class TemplatePageCSVInfoWriter(TemplatePageHandler):
 
-    def __init__(self, path_csv: str):
+    def __init__(self, path_csv: str, id_node: str):
+        super().__init__(id_node)
         self.__EXTRACTOR = CSVExtractor(path_csv)
 
     def add_node_stats_to_template_page(self, page_template: str) -> str:
-        self._load_template_page_as_soup(page_template)
+        return self._add_content_to_template_page(page_template)
+
+    def _add_content_to_soup(self):
         self.__add_dates_to_template_soup()
         self.__add_global_imports_to_template_soup()
         self.__add_daily_imports_to_template_soup()
-        return str(self._PAGE_TEMPLATE)
 
     def __add_dates_to_template_soup(self):
         dict_row = self.__EXTRACTOR.get_last_row_as_dict()
@@ -189,19 +190,18 @@ class TemplatePageCSVInfoWriter(TemplatePageLoader):
 
 
 # TODO input just id??
-class TemplatePageCSVErrorWriter(TemplatePageLoader):
+class TemplatePageCSVErrorWriter(TemplatePageHandler):
     __FILENAME_TABLE_ERRORS: str = 'template_table_errors.html'
 
-    def __init__(self, path_csv: str):
+    def __init__(self, path_csv: str, id_node: str):
+        super().__init__(id_node)
         self.__EXTRACTOR = CSVExtractor(path_csv)
         self.__NUM_ERRORS = 20
 
     def add_node_errors_to_template_page(self, page_template: str) -> str:
-        self._load_template_page_as_soup(page_template)
-        self.__add_node_errors_to_template_soup()
-        return str(self._PAGE_TEMPLATE)
+        return self._add_content_to_template_page(page_template)
 
-    def __add_node_errors_to_template_soup(self):
+    def _add_content_to_soup(self):
         table_errors = self.__create_confluence_error_table()
         self._PAGE_TEMPLATE.find(class_='table_errors_body').replace_with(table_errors)
 
@@ -235,12 +235,12 @@ class TemplatePageCSVErrorWriter(TemplatePageLoader):
         return row_column
 
 
-class TemplatePageStatusChecker(TemplatePageLoader):
+class TemplatePageStatusChecker(TemplatePageHandler):
     __FILENAME_STATUS: str = 'template_element_status.html'
     __WITDH_IMPORT_THRESHOLD: float = 0.25
 
     def __init__(self, id_node: str):
-        self.__ID_NODE = id_node
+        super().__init__(id_node)
         self.__DAILY_IMPORT_TRESHOLD = self.__get_daily_import_threshold_from_mapping_table(id_node)
 
     @staticmethod
@@ -252,11 +252,9 @@ class TemplatePageStatusChecker(TemplatePageLoader):
             return None
 
     def check_and_set_status_of_template_page(self, page_template: str) -> str:
-        self._load_template_page_as_soup(page_template)
-        self.__check_and_set_status_of_template_soup()
-        return str(self._PAGE_TEMPLATE)
+        return self._add_content_to_template_page(page_template)
 
-    def __check_and_set_status_of_template_soup(self):
+    def _add_content_to_soup(self):
         if self.__is_template_soup_offline():
             status = self.__create_status_element('OFFLINE', 'Red')
         elif self.__is_template_soup_not_importing():
@@ -319,6 +317,63 @@ class TemplatePageStatusChecker(TemplatePageLoader):
         parameter = bs4.BeautifulSoup().new_tag('ac:parameter', attrs={'ac:name': p_type})
         parameter.append(p_content)
         return parameter
+
+
+class TemplatePageJiraTableWriter(TemplatePageHandler):
+    __FILENAME_TABLE_JIRA: str = 'template_table_jira.html'
+
+    def __init__(self, id_node: str):
+        super().__init__(id_node)
+        global dict_mapping
+        self.__LABELS_JIRA = dict_mapping[id_node]['JIRA_LABELS']
+
+    def add_jira_table_to_template_page(self, page_template: str) -> str:
+        return self._add_content_to_template_page(page_template)
+
+    def _add_content_to_soup(self):
+        table_jira = self.__generate_jira_table_for_confluence()
+        self._PAGE_TEMPLATE.find(class_='table_jira').replace_with(table_jira)
+
+    def __generate_jira_table_for_confluence(self) -> bs4.BeautifulSoup:
+        query = self.__generate_jira_query_from_labels()
+        table = self.__load_jira_table_as_soup()
+        table = str(table).replace('[MY_JQL_QUERY]', query)
+        table = bs4.BeautifulSoup(table, 'html.parser')
+        return table
+
+    def __generate_jira_query_from_labels(self) -> str:
+        tmp_labels = []
+        for idx, label in enumerate(self.__LABELS_JIRA):
+            tmp_labels[idx] = ''.join(['Labels=\"', label, '\"'])
+        query = ' OR '.join(tmp_labels)
+        return query
+
+    def __load_jira_table_as_soup(self) -> bs4.BeautifulSoup:
+        path_status = os.path.join(os.environ['CONFLUENCE_TEMPLATES_DIR'], self.__FILENAME_TABLE_JIRA)
+        return self._get_resource_as_soup(path_status)
+
+class ConfluencePageHandler:
+
+    def __init__(self, id_node: str, dir_working=''):
+        self.__ID_NODE = id_node
+        self.__DIR_WORKING = dir_working
+        global dict_mapping
+        self.__COMMON_NAME = dict_mapping[id_node]['COMMON']
+        self.__JIRA_LABELS = dict_mapping[id_node]['JIRA-LABELS']
+        self.__CONFLUENCE = ConfluenceConnection()
+
+
+class ConfluenceHandlerManager:
+
+    def __init__(self):
+        self.__CONFLUENCE = ConfluenceConnection()
+        self.__CONFLUENCE_ROOT_PAGE_NAME = 'Support'
+        self.__CONFLUENCE_PARENT_PAGE_NAME = 'Support Log Broker-Monitor'
+        self.__init_parent_page()
+
+    def __init_parent_page(self):
+        if not self.__CONFLUENCE.check_page_existence(self.__CONFLUENCE_PARENT_PAGE_NAME):
+            self.__CONFLUENCE.create_confluence_page(self.__CONFLUENCE_PARENT_PAGE_NAME, self.__CONFLUENCE_ROOT_PAGE_NAME)
 
 
 """

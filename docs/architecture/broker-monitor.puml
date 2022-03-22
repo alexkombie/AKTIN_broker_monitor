@@ -3,9 +3,6 @@ hide methods
 
 title __Diagram of Broker-Monitor__\n
 
-skinparam linetype ortho
-top to bottom direction
-
 entity "<size:18>AKTIN Broker</size>" as broker
 entity broker #aliceblue;line:blue;text:blue
 hide broker members
@@ -96,10 +93,6 @@ class CSVHandler {
 }
 
 package "csv_to_confluence.py" as csv_to_confluence {
-class CSVExtractor {
-* extracts rows from csv file as dictionaries
-}
-
 class CSVBackupManager {
 * uploads broker node csv files as attachement
 to confluence page
@@ -110,8 +103,11 @@ abstract class TemplateResourceHandler{
 * converts given input to html soup
 }
 
-abstract class TemplatePageLoader{
-* loads confluence page template as html soup
+abstract class TemplatePageHandler{
+* converts confluence page template to html soup
+back and forth
+* provides abstract method to add content to
+html soup
 }
 
 class NodeResourceFetcher {
@@ -124,14 +120,28 @@ class TemplatePageNodeResourceWriter {
 into template of confluence page
 }
 
+class CSVExtractor {
+* extracts rows from csv file as dictionaries
+}
+
 class TemplatePageCSVInfoWriter {
-* writes csv import stats into
-template of confluence page
+* writes csv import stats into template of
+confluence page
 }
 
 class TemplatePageCSVErrorWriter {
-* writes csv error stats into
-template of confluence page
+* writes csv error stats into template of
+confluence page
+}
+
+class TemplatePageStatusChecker {
+* checks and sets status light in template
+of confluence page
+}
+
+class TemplatePageJiraTableWriter {
+* adds jira table html to confluence page
+template
 }
 
 class ConfluencePageHandler {
@@ -167,18 +177,21 @@ BrokerNodeFetcherManager --> NodeErrorFetcher
 load_mapping -u-> mapping
 CSVBackupManager ..> mapping
 CSVBackupManager --> ConfluenceConnection
-TemplatePageLoader --|> TemplateResourceHandler
+TemplatePageHandler --|> TemplateResourceHandler
 NodeResourceFetcher --> BrokerNodeConnection
-TemplatePageNodeResourceWriter --|> TemplatePageLoader
+TemplatePageNodeResourceWriter --|> TemplatePageHandler
 TemplatePageNodeResourceWriter -> NodeResourceFetcher
 CSVExtractor --> CSVHandler
-TemplatePageCSVInfoWriter --|> TemplatePageLoader
+TemplatePageCSVInfoWriter --|> TemplatePageHandler
 TemplatePageCSVInfoWriter --> CSVExtractor
-TemplatePageCSVErrorWriter --|> TemplatePageLoader
+TemplatePageCSVErrorWriter --|> TemplatePageHandler
 TemplatePageCSVErrorWriter --> CSVExtractor
 TemplatePageCSVErrorWriter ..> settings
-
-
+TemplatePageStatusChecker --|> TemplatePageHandler
+TemplatePageStatusChecker ..> settings
+TemplatePageJiraTableWriter --|> TemplatePageHandler
+TemplatePageStatusChecker ..> settings
+TemplatePageStatusChecker ..> mapping
 
 ConfluencePageHandler ..> mapping
 ConfluencePageHandler ---> ConfluenceConnection
@@ -186,6 +199,7 @@ ConfluencePageHandler ..> settings
 ConfluencePageHandler --> TemplatePageNodeResourceWriter
 ConfluencePageHandler --> TemplatePageCSVInfoWriter
 ConfluencePageHandler --> TemplatePageCSVErrorWriter
+ConfluencePageHandler --> TemplatePageStatusChecker
 ConfluencePageHandler --> CSVExtractor
 
 ConfluenceHandlerManager --> CSVBackupManager
