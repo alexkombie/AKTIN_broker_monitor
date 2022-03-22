@@ -278,18 +278,18 @@ class BrokerNodeFetcherManager:
     """
 
     def __init__(self):
-        self.DIR_ROOT = os.environ['ROOT_DIR']
-        self.LIST_NODE_IDS = BrokerNodeConnection().get_broker_nodes_list()
+        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__LIST_NODE_IDS = BrokerNodeConnection().get_broker_nodes_list()
 
     def fetch_broker_node_information(self):
-        for id_node in self.LIST_NODE_IDS:
+        for id_node in self.__LIST_NODE_IDS:
             name_folder = id_node.rjust(3, '0')
             dir_working = self.init_working_directory(name_folder)
             self.__fetch_broker_node_stats(id_node, dir_working)
             self.__fetch_broker_node_errors(id_node, dir_working)
 
     def init_working_directory(self, name_folder: str) -> str:
-        dir_working = os.path.join(self.DIR_ROOT, name_folder)
+        dir_working = os.path.join(self.__DIR_ROOT, name_folder)
         if not os.path.isdir(dir_working):
             os.makedirs(dir_working)
         return dir_working

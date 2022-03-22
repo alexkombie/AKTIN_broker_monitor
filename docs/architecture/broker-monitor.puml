@@ -48,19 +48,15 @@ information and save them in a csv file
 }
 
 class NodeErrorFetcher {
-* fetches broker node errors
+* fetches broker node errors into csv file
 * each column in csv file stands for one error
 }
 
 class NodeInfoFetcher {
-* fetches broker node last-contact, startup and import stats
+* fetches broker node last-contact, startup and import stats into csv file
 * computes daily imports and error rate from differences to previous day
 * each column in csv file stands for one day
 }
-
-note "* each node has a corresponding folder\n* all csv files of a node are collected in this folder\n* csv files are rotated each year" as N1
-NodeErrorFetcher .u.. N1
-NodeInfoFetcher .u.. N1
 }
 
 package "common.py" as common <<Package>> {
