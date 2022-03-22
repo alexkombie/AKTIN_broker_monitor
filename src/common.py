@@ -292,7 +292,28 @@ def load_properties_file_as_environment(path: str):
         os.environ[key] = dict_config.get(key)
 
 
-def load_json_file_as_dict(path_file: str) -> dict:
-    with open(path_file) as json_file:
-        dict_mapping = json.load(json_file)
-    return dict_mapping
+class ConfluenceNodeMapper(metaclass=SingletonMeta):
+
+    def __init__(self):
+        self.__DICT_MAPPING = self.__load_json_file_as_dict(os.environ['CONFLUENCE_MAPPING_JSON'])
+
+    @staticmethod
+    def __load_json_file_as_dict(path_file: str) -> dict:
+        with open(path_file) as json_file:
+            dict_mapping = json.load(json_file)
+        return dict_mapping
+
+    def get_mapping_dict(self) -> dict:
+        return self.__DICT_MAPPING
+
+    def get_node_from_mapping_dict(self, node: str) -> dict | None:
+        if node in self.__DICT_MAPPING:
+            return self.__DICT_MAPPING[node]
+        else:
+            return None
+
+    def get_node_value_from_mapping_dict(self, node: str, key: str) -> str | None:
+        if key in self.__DICT_MAPPING[node]:
+            return self.__DICT_MAPPING[node][key]
+        else:
+            return None

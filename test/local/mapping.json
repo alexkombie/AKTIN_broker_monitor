@@ -2,12 +2,12 @@
   "1": {
     "COMMON": "Dummy Broker-Monitor",
     "JIRA_LABELS": [
-      "jira-label1",
-      "jira-label2"
+      "klinikum-fuerth",
+      "fuerth"
     ]
   },
   "2": {
-    "COMMON": "Dummy Broker-Monitor",
+    "COMMON": "Dummy Broker-Monitor2",
     "JIRA_LABELS": [
       "jira-lable3"
     ],

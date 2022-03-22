@@ -3,6 +3,8 @@ hide methods
 
 title __Diagram of Broker-Monitor__\n
 
+top to bottom direction
+
 entity "<size:18>AKTIN Broker</size>" as broker
 entity broker #aliceblue;line:blue;text:blue
 hide broker members
@@ -22,26 +24,67 @@ entity "JSON file with configuration" as settings {
 * URL broker-server
 * API Key broker-server
 * Working directory
-* URL Confluence
-* Space Confluence
-* Token Confluence
+* Path to confluence template directory
+* Path to confluence mapping file
+* Confluence URL
+* Confluence Space
+* Confluence Token
+* Confluence Parent Page
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle
 
 entity "JSON file with node mapping" as mapping {
-* maps id of a node to its common name
-and label for jira tickets
+* maps id of a node to:
++ its common name
++ labels for jira query
++ optional threshold for daily imports
 }
 entity mapping #aliceblue;line:blue;text:blue
 hide mapping circle
 
-package "node_to_csv.py" as node_to_csv <<Package>> {
-class BrokerNodeFetcherManager {
-* creates working directory for fetcher
-* initializes and executes fetcher
+package "common.py" as common <<Package>> {
+class "load_properties_file_as_environment()" as read_properties {
+* validates settings file
+* loads settings as python environment variables
+}
+hide read_properties circle
+
+class ConfluenceNodeMapper {
+* loads json file with node mapping as
+python dictionary
 }
 
+class BrokerNodeConnection {
+* uses REST endpoint of broker-server to get
+information about connected broker nodes
+* Responses are converted to objects
+}
+
+class ConfluenceConnection {
+* uses Atlassian Python API to execute
+CRUD operations on confluence pages
+}
+
+class CSVHandler {
+* operations for reading and writing a csv file
+* contains configuration variables for reading csv file
+}
+}
+
+read_properties --> settings
+CSVHandler --> csv
+
+BrokerNodeConnection --> broker
+BrokerNodeConnection ..> settings
+
+ConfluenceConnection --> confluence
+ConfluenceConnection ..> settings
+
+ConfluenceNodeMapper --> mapping
+ConfluenceNodeMapper ..> settings
+
+package "node_to_csv.py" as node_to_csv <<Package>> {
 abstract class BrokerNodeFetcher {
 * helper functions and variables to fetch broker node
 information and save them in a csv file
@@ -57,53 +100,35 @@ class NodeInfoFetcher {
 * computes daily imports and error rate from differences to previous day
 * each column in csv file stands for one day
 }
+
+class BrokerNodeFetcherManager {
+* creates working directory for fetcher
+* initializes and executes fetcher
+}
 }
 
-package "common.py" as common <<Package>> {
-class "load_properties_file_as_environment()" as read_properties {
-* validates settings file
-* loads settings as python environment variables
-}
-hide read_properties circle
+BrokerNodeFetcher --> CSVHandler
+BrokerNodeFetcher --> BrokerNodeConnection
 
-class "load_json_file_as_dict()" as load_mapping {
-* loads json file with node mapping as
-python dictionary
-}
-hide load_mapping circle
+NodeInfoFetcher --|> BrokerNodeFetcher
+NodeErrorFetcher --|> BrokerNodeFetcher
 
-class BrokerNodeConnection {
-* uses REST endpoint of broker-server to get
-information about connected broker nodes
-}
-
-class ConfluenceConnection {
-* uses Atlassian Python API to execute
-operations in confluence
-}
-
-class CSVHandler {
-* operations for reading and writing a csv file
-* contains configuration variables for reading csv file
-}
-}
+BrokerNodeFetcherManager --> BrokerNodeConnection
+BrokerNodeFetcherManager --> NodeInfoFetcher
+BrokerNodeFetcherManager --> NodeErrorFetcher
+BrokerNodeFetcherManager ..> settings
 
 package "csv_to_confluence.py" as csv_to_confluence {
-class CSVBackupManager {
-* uploads broker node csv files as attachement
-to confluence page
+class TemplateResourceGetter {
+* loads resources from confluence
+template directory
 }
 
-abstract class TemplateResourceHandler{
-* loads file as html soup
-* converts given input to html soup
-}
-
-abstract class TemplatePageHandler{
-* converts confluence page template to html soup
-back and forth
-* provides abstract method to add content to
-html soup
+abstract class TemplatePageContentWriter{
+* converts confluence page
+template to html soup
+* provides abstract method to
+add content to html soup
 }
 
 class NodeResourceFetcher {
@@ -140,12 +165,23 @@ class TemplatePageJiraTableWriter {
 template
 }
 
+class TemplatePageMigrator {
+* checks confluence page for current
+template version
+* migrates static information of confluence
+page to newer template
+}
+
 class ConfluencePageHandler {
 * creates new pages for broker nodes on confluence
 * updates content on existing broker node pages
-* updates template of broker node pages
-* fetches node information from csv and broker-server
-to confluence
+* updates template of broker node pages to
+newer version
+}
+
+class CSVBackupManager {
+* uploads broker node csv files as attachement
+to confluence page
 }
 
 class ConfluenceHandlerManager {
@@ -155,51 +191,49 @@ class ConfluenceHandlerManager {
 }
 }
 
-read_properties --> settings
-CSVHandler --> csv
-BrokerNodeConnection --> broker
-BrokerNodeConnection ..> settings
-ConfluenceConnection --> confluence
-ConfluenceConnection ..> settings
-
-BrokerNodeFetcher --> CSVHandler
-BrokerNodeFetcher --> BrokerNodeConnection
-NodeInfoFetcher --|> BrokerNodeFetcher
-NodeErrorFetcher --|> BrokerNodeFetcher
-BrokerNodeFetcherManager ..> settings
-BrokerNodeFetcherManager --> NodeInfoFetcher
-BrokerNodeFetcherManager --> NodeErrorFetcher
-
-load_mapping -u-> mapping
-CSVBackupManager ..> mapping
-CSVBackupManager --> ConfluenceConnection
-TemplatePageHandler --|> TemplateResourceHandler
+TemplateResourceGetter ..> settings
 NodeResourceFetcher --> BrokerNodeConnection
-TemplatePageNodeResourceWriter --|> TemplatePageHandler
-TemplatePageNodeResourceWriter -> NodeResourceFetcher
-CSVExtractor --> CSVHandler
-TemplatePageCSVInfoWriter --|> TemplatePageHandler
-TemplatePageCSVInfoWriter --> CSVExtractor
-TemplatePageCSVErrorWriter --|> TemplatePageHandler
-TemplatePageCSVErrorWriter --> CSVExtractor
-TemplatePageCSVErrorWriter ..> settings
-TemplatePageStatusChecker --|> TemplatePageHandler
-TemplatePageStatusChecker ..> settings
-TemplatePageJiraTableWriter --|> TemplatePageHandler
-TemplatePageStatusChecker ..> settings
-TemplatePageStatusChecker ..> mapping
+TemplatePageNodeResourceWriter --|> TemplatePageContentWriter
+TemplatePageNodeResourceWriter --> NodeResourceFetcher
+CSVExtractor --|> CSVHandler
 
-ConfluencePageHandler ..> mapping
-ConfluencePageHandler ---> ConfluenceConnection
+TemplatePageCSVInfoWriter --|> TemplatePageContentWriter
+TemplatePageCSVInfoWriter --> CSVExtractor
+
+TemplatePageCSVErrorWriter --|> TemplatePageContentWriter
+TemplatePageCSVErrorWriter --> CSVExtractor
+TemplatePageCSVErrorWriter --> TemplateResourceGetter
+
+TemplatePageStatusChecker --|> TemplatePageContentWriter
+TemplatePageStatusChecker --> ConfluenceNodeMapper
+TemplatePageStatusChecker --> TemplateResourceGetter
+
+TemplatePageJiraTableWriter --|> TemplatePageContentWriter
+TemplatePageJiraTableWriter --> ConfluenceNodeMapper
+TemplatePageJiraTableWriter --> TemplateResourceGetter
+
+TemplatePageMigrator --|> TemplatePageContentWriter
+TemplatePageMigrator --> TemplateResourceGetter
+
 ConfluencePageHandler ..> settings
+ConfluencePageHandler --> ConfluenceNodeMapper
+ConfluencePageHandler --> ConfluenceConnection
+ConfluencePageHandler --> TemplateResourceGetter
 ConfluencePageHandler --> TemplatePageNodeResourceWriter
 ConfluencePageHandler --> TemplatePageCSVInfoWriter
 ConfluencePageHandler --> TemplatePageCSVErrorWriter
-ConfluencePageHandler --> TemplatePageStatusChecker
-ConfluencePageHandler --> CSVExtractor
+ConfluencePageHandler ---> TemplatePageStatusChecker
+ConfluencePageHandler ---> TemplatePageJiraTableWriter
+ConfluencePageHandler ---> TemplatePageMigrator
 
+CSVBackupManager --> ConfluenceNodeMapper
+CSVBackupManager --> ConfluenceConnection
+
+ConfluenceHandlerManager ..> settings
+ConfluenceHandlerManager --> ConfluenceNodeMapper
+ConfluenceHandlerManager --> ConfluenceConnection
+ConfluenceHandlerManager --> TemplateResourceGetter
 ConfluenceHandlerManager --> CSVBackupManager
 ConfluenceHandlerManager --> ConfluencePageHandler
-ConfluenceHandlerManager ..> mapping
 
 @enduml

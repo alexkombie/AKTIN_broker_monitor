@@ -1,3 +1,25 @@
+# -*- coding: utf-8 -*
+# Created on Tue Mar 22 12:00 2022
+# @version: 1.0
+
+#
+#      Copyright (c) 2022  Alexander Kombeiz
+#
+#      This program is free software: you can redistribute it and/or modify
+#      it under the terms of the GNU Affero General Public License as
+#      published by the Free Software Foundation, either version 3 of the
+#      License, or (at your option) any later version.
+#
+#      This program is distributed in the hope that it will be useful,
+#      but WITHOUT ANY WARRANTY; without even the implied warranty of
+#      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#      GNU Affero General Public License for more details.
+#
+#      You should have received a copy of the GNU Affero General Public License
+#      along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+#
+
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -12,30 +34,9 @@ from common import CSVHandler
 from common import ConfluenceConnection
 from common import __init_logger
 from common import __stop_logger
-from common import load_json_file_as_dict
 from common import load_properties_file_as_environment
 from common import SingletonMeta
-
-
-class ConfluenceNodeMapper(metaclass=SingletonMeta):
-
-    def __init__(self):
-        self.__DICT_MAPPING = load_json_file_as_dict(os.environ['CONFLUENCE_MAPPING_JSON'])
-
-    def get_mapping_dict(self) -> dict:
-        return self.__DICT_MAPPING
-
-    def get_node_from_mapping_dict(self, node: str) -> dict | None:
-        if node in self.__DICT_MAPPING:
-            return self.__DICT_MAPPING[node]
-        else:
-            return None
-
-    def get_node_value_from_mapping_dict(self, node: str, key: str) -> str | None:
-        if key in self.__DICT_MAPPING[node]:
-            return self.__DICT_MAPPING[node][key]
-        else:
-            return None
+from common import ConfluenceNodeMapper
 
 
 class TemplateResourceGetter(metaclass=SingletonMeta):
@@ -298,8 +299,10 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         return False
 
     def __is_template_soup_daily_error_rate_above_one(self) -> bool:
-        error_rate = float(self._PAGE_TEMPLATE.find(class_='error_rate_daily'))
-        return error_rate >= 1.0
+        error_rate = self._PAGE_TEMPLATE.find(class_='error_rate_daily').string
+        if error_rate == '-':
+            return False
+        return float(error_rate) >= 1.0
 
     def __create_status_element(self, title: str, color: str) -> bs4.BeautifulSoup:
         status = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_STATUS)
@@ -356,7 +359,7 @@ class TemplatePageMigrator(TemplatePageContentWriter):
         version_new = template_new.find(class_='version_template').string
         template_old = bs4.BeautifulSoup(page_template, 'html.parser')
         version_old = template_old.find(class_='version_template').string
-        return version_new == version_old
+        return version_new != version_old
 
     def migrate_template_to_newer_version(self, page_template: str) -> str:
         return self._add_content_to_template_page(page_template)
