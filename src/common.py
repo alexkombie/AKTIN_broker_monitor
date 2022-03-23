@@ -111,7 +111,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         for elem in tree.find('last-errors').getchildren():
             error = self.BrokerNodeError(
                     elem.get('timestamp'),
-                    elem.get('repeats'),
+                    elem.get('repeats') if elem.get('repeats') is not None else '',
                     elem.text)
             errors.append(error)
         return errors
@@ -306,13 +306,13 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
     def get_mapping_dict(self) -> dict:
         return self.__DICT_MAPPING
 
-    def get_node_from_mapping_dict(self, node: str) -> dict | None:
+    def get_node_from_mapping_dict(self, node: str) -> dict:
         if node in self.__DICT_MAPPING:
             return self.__DICT_MAPPING[node]
         else:
             return None
 
-    def get_node_value_from_mapping_dict(self, node: str, key: str) -> str | None:
+    def get_node_value_from_mapping_dict(self, node: str, key: str) -> str:
         if key in self.__DICT_MAPPING[node]:
             return self.__DICT_MAPPING[node][key]
         else:

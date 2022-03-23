@@ -43,6 +43,11 @@ class BrokerNodeDummy:
         response = requests.put(url, data=payload.to_xml_string(), headers=self.__create_basic_header())
         response.raise_for_status()
 
+    def put_empty_resource_on_broker(self, type_resource: str):
+        url = self.__append_to_broker_url('broker', 'my', 'node', type_resource)
+        response = requests.put(url, data=None, headers=self.__create_basic_header())
+        response.raise_for_status()
+
 
 @dataclass()
 class BrokerImportStats:
@@ -75,9 +80,14 @@ class BrokerNodeError:
     __CONTENT: str
 
     def to_xml_string(self) -> str:
-        return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
-               "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\" repeats=\"" + self.__REPEATS + "\">" + self.__CONTENT + "</error></last-errors>" + \
-               "</import-statistics>"
+        if self.__REPEATS:
+            return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
+                   "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\" repeats=\"" + self.__REPEATS + "\">" + self.__CONTENT + "</error></last-errors>" + \
+                   "</import-statistics>"
+        else:
+            return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
+                   "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\">" + self.__CONTENT + "</error></last-errors>" + \
+                   "</import-statistics>"
 
 
 @dataclass()

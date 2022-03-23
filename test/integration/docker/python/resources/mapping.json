@@ -1,0 +1,25 @@
+{
+  "1": {
+    "COMMON": "Broker Node 1",
+    "JIRA_LABELS": [
+      "label1",
+      "label2"
+    ]
+  },
+  "2": {
+    "COMMON": "Broker Node 2",
+    "JIRA_LABELS": [
+      "label1"
+    ],
+    "DAILY_IMPORT_THRESHOLD": "120"
+  },
+  "3": {
+    "COMMON": "Broker Node 3"
+  },
+  "4": {
+    "JIRA_LABELS": [
+      "label1"
+    ],
+    "DAILY_IMPORT_THRESHOLD": "120"
+  }
+}

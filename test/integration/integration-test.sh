@@ -19,6 +19,7 @@ docker cp $ROOT_DIR/src/common.py python:/opt/
 
 echo -e "${YEL} Run python unit tests ${WHI}"
 docker exec python pytest test_BrokerNodeConnection.py
+docker exec python pytest test_ConfluenceNodeMapper.py
 docker exec python pytest test_BrokerNodeFetcherManager.py
 docker exec python pytest test_NodeErrorFetcher.py
 docker exec python pytest test_NodeInfoFetcher.py

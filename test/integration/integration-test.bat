@@ -13,6 +13,7 @@ docker cp %RootDirPath%/src/common.py python:/opt/
 
 echo %ESC%[33m Run python unit tests %ESC%[0m
 docker exec python pytest test_BrokerNodeConnection.py
+docker exec python pytest test_ConfluenceNodeMapper.py
 docker exec python pytest test_BrokerNodeFetcherManager.py
 docker exec python pytest test_NodeErrorFetcher.py
 docker exec python pytest test_NodeInfoFetcher.py
