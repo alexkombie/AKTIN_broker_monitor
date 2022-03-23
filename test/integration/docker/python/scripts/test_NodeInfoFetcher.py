@@ -59,8 +59,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
                             'updated', 'invalid', 'failed', 'error_rate', 'daily_imported',
                             'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
         self.assertTrue(len(expected_columns), len(header))
-        for column in expected_columns:
-            self.assertTrue(column in header)
+        self.assertCountEqual(expected_columns, header)
 
     def test_fetch_default_stats_to_csv(self):
         path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)

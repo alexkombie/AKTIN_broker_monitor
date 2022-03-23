@@ -57,8 +57,7 @@ class TestNodeErrorFetcher(unittest.TestCase):
         header = list(df.columns)
         expected_columns = ['timestamp', 'repeats', 'content']
         self.assertTrue(len(expected_columns), len(header))
-        for column in expected_columns:
-            self.assertTrue(column in header)
+        self.assertCountEqual(expected_columns, header)
 
     def test_fetch_default_error_to_csv(self):
         error = self.__create_error1()
@@ -68,6 +67,15 @@ class TestNodeErrorFetcher(unittest.TestCase):
         self.assertEqual(1, df.shape[0])
         ts_expected = ''.join([str(pd.Timestamp.now().year), '-01-01 00:00:00'])
         self.__check_error_row_from_csv(df.iloc[0], ts_expected, '5', 'TestError')
+
+    def test_fetch_default_error_to_csv_missing_repeats(self):
+        error = self.__create_error1_without_repeats()
+        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, error)
+        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
+        df = self.__load_csv_as_dataframe(path_csv)
+        self.assertEqual(1, df.shape[0])
+        ts_expected = ''.join([str(pd.Timestamp.now().year), '-01-01 00:00:00'])
+        self.__check_error_row_from_csv(df.iloc[0], ts_expected, '1', 'TestError')
 
     def test_update_error_in_csv(self):
         """
@@ -83,7 +91,7 @@ class TestNodeErrorFetcher(unittest.TestCase):
         ts_expected = ''.join([str(pd.Timestamp.now().year), '-10-10 01:00:00'])
         self.__check_error_row_from_csv(df.iloc[0], ts_expected, '10', 'TestError')
 
-    def test_update_same_error_in_csv(self):
+    def test_update_identical_error_in_csv(self):
         error = self.__create_error1()
         self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, error)
         error = self.__create_error1()
@@ -120,6 +128,11 @@ class TestNodeErrorFetcher(unittest.TestCase):
     def __create_error_last_year():
         ts_error = ''.join([str(pd.Timestamp.now().year - 1), '-01-01T00:00:00+01:00'])
         return BrokerNodeError(ts_error, '1', 'TestError')
+
+    @staticmethod
+    def __create_error1_without_repeats():
+        ts_error = ''.join([str(pd.Timestamp.now().year), '-01-01T00:00:00+01:00'])
+        return BrokerNodeError(ts_error, '', 'TestError')
 
     @staticmethod
     def __load_csv_as_dataframe(path_csv: str) -> pd.DataFrame:

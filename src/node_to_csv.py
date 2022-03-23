@@ -144,7 +144,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
                 raise SystemExit('date of today was found in multiple rows!!')
         return df
 
-    def __get_last_row_of_last_years_csv_if_exists(self):
+    def __get_last_row_of_last_years_csv_if_exists(self) -> pd.DataFrame:
         path_csv_last_year = self.__get_last_years_csv_path()
         if os.path.isfile(path_csv_last_year):
             tmp_csv_manager = CSVHandler(path_csv_last_year)
@@ -165,7 +165,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         date_yesterday = self._extract_YMD(self._CURRENT_DATE - pd.Timedelta(days=1))
         return date_csv == date_yesterday
 
-    def __are_dwh_start_date_equal(self, reference: pd.Series, stats: BrokerNodeConnection.BrokerNodeStats):
+    def __are_dwh_start_date_equal(self, reference: pd.DataFrame, stats: BrokerNodeConnection.BrokerNodeStats) -> bool:
         start_reference = reference.start
         if not re.match(r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}", start_reference):
             raise SystemExit("invalid date format of date_csv")
@@ -180,11 +180,11 @@ class NodeInfoFetcher(BrokerNodeFetcher):
                 'daily_failed':     '-',
                 'daily_error_rate': '-'}
 
-    def __compute_daily_stats(self, stats_previous, stats_current) -> dict:
-        daily_imported = int(stats_current.imported) - int(stats_previous.imported)
-        daily_updated = int(stats_current.updated) - int(stats_previous.updated)
-        daily_invalid = int(stats_current.invalid) - int(stats_previous.invalid)
-        daily_failed = int(stats_current.failed) - int(stats_previous.failed)
+    def __compute_daily_stats(self, stats_csv: pd.DataFrame, stats_current: BrokerNodeConnection.BrokerNodeStats) -> dict:
+        daily_imported = int(stats_current.imported) - int(stats_csv.imported)
+        daily_updated = int(stats_current.updated) - int(stats_csv.updated)
+        daily_invalid = int(stats_current.invalid) - int(stats_csv.invalid)
+        daily_failed = int(stats_current.failed) - int(stats_csv.failed)
         daily_error_rate = self.__compute_error_rate(daily_imported, daily_updated, daily_invalid, daily_failed)
         return {'daily_imported':   daily_imported,
                 'daily_updated':    daily_updated,
@@ -192,7 +192,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
                 'daily_failed':     daily_failed,
                 'daily_error_rate': daily_error_rate}
 
-    def __generate_row_stats(self, node, stats) -> dict:
+    def __generate_row_stats(self, node: BrokerNodeConnection.BrokerNode, stats: BrokerNodeConnection.BrokerNodeStats) -> dict:
         imported = int(stats.imported)
         updated = int(stats.updated)
         invalid = int(stats.invalid)
@@ -240,7 +240,7 @@ class NodeErrorFetcher(BrokerNodeFetcher):
             if self.__did_error_appear_this_year(error):
                 new_row = {
                     'timestamp': self._extract_YMD_HMS(error.timestamp),
-                    'repeats':   error.repeats if error.repeats is not None else '1',
+                    'repeats':   error.repeats if error.repeats else '1',
                     'content':   error.content}
                 dict_new_row = pd.DataFrame(new_row, index=[0])
                 if self.__is_error_already_logged(df, error):
