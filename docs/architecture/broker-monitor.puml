@@ -119,7 +119,7 @@ BrokerNodeFetcherManager --> NodeErrorFetcher
 BrokerNodeFetcherManager ..> settings
 
 package "csv_to_confluence.py" as csv_to_confluence {
-class TemplateResourceGetter {
+class TemplateResourceLoader {
 * loads resources from confluence
 template directory
 }
@@ -186,12 +186,12 @@ to confluence page
 
 class ConfluenceHandlerManager {
 * creates working environment
-* initializes and executes confluence handler
+* initializes and executes ConfluencePageHandler
 * creates csv backups on confluence
 }
 }
 
-TemplateResourceGetter ..> settings
+TemplateResourceLoader ..> settings
 NodeResourceFetcher --> BrokerNodeConnection
 TemplatePageNodeResourceWriter --|> TemplatePageContentWriter
 TemplatePageNodeResourceWriter --> NodeResourceFetcher
@@ -202,23 +202,23 @@ TemplatePageCSVInfoWriter --> CSVExtractor
 
 TemplatePageCSVErrorWriter --|> TemplatePageContentWriter
 TemplatePageCSVErrorWriter --> CSVExtractor
-TemplatePageCSVErrorWriter --> TemplateResourceGetter
+TemplatePageCSVErrorWriter --> TemplateResourceLoader
 
 TemplatePageStatusChecker --|> TemplatePageContentWriter
 TemplatePageStatusChecker --> ConfluenceNodeMapper
-TemplatePageStatusChecker --> TemplateResourceGetter
+TemplatePageStatusChecker --> TemplateResourceLoader
 
 TemplatePageJiraTableWriter --|> TemplatePageContentWriter
 TemplatePageJiraTableWriter --> ConfluenceNodeMapper
-TemplatePageJiraTableWriter --> TemplateResourceGetter
+TemplatePageJiraTableWriter --> TemplateResourceLoader
 
 TemplatePageMigrator --|> TemplatePageContentWriter
-TemplatePageMigrator --> TemplateResourceGetter
+TemplatePageMigrator --> TemplateResourceLoader
 
 ConfluencePageHandler ..> settings
 ConfluencePageHandler --> ConfluenceNodeMapper
 ConfluencePageHandler --> ConfluenceConnection
-ConfluencePageHandler --> TemplateResourceGetter
+ConfluencePageHandler --> TemplateResourceLoader
 ConfluencePageHandler --> TemplatePageNodeResourceWriter
 ConfluencePageHandler --> TemplatePageCSVInfoWriter
 ConfluencePageHandler --> TemplatePageCSVErrorWriter
@@ -232,7 +232,7 @@ CSVBackupManager --> ConfluenceConnection
 ConfluenceHandlerManager ..> settings
 ConfluenceHandlerManager --> ConfluenceNodeMapper
 ConfluenceHandlerManager --> ConfluenceConnection
-ConfluenceHandlerManager --> TemplateResourceGetter
+ConfluenceHandlerManager --> TemplateResourceLoader
 ConfluenceHandlerManager --> CSVBackupManager
 ConfluenceHandlerManager --> ConfluencePageHandler
 

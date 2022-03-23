@@ -65,7 +65,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         self.__ADMIN_API_KEY = os.environ['ADMIN_API_KEY']
         self.__check_broker_server_availability()
 
-    def __check_broker_server_availability(self) -> None:
+    def __check_broker_server_availability(self):
         url = self.__append_to_broker_url('broker', 'status')
         response = requests.head(url)
         response.raise_for_status()

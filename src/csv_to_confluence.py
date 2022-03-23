@@ -22,6 +22,7 @@
 
 import logging
 import os
+import sys
 from abc import ABC, abstractmethod
 from datetime import datetime
 from datetime import timedelta
@@ -39,7 +40,7 @@ from common import SingletonMeta
 from common import ConfluenceNodeMapper
 
 
-class TemplateResourceGetter(metaclass=SingletonMeta):
+class TemplateResourceLoader(metaclass=SingletonMeta):
 
     def __init__(self):
         self.__DIR_TEMPLATES = os.environ['CONFLUENCE_RESOURCES_DIR']
@@ -208,7 +209,7 @@ class TemplatePageCSVErrorWriter(TemplatePageContentWriter):
 
     def __init__(self, path_csv: str):
         self.__EXTRACTOR = CSVExtractor(path_csv)
-        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__RESOURCE_LOADER = TemplateResourceLoader()
 
     def add_node_errors_to_template_page(self, page_template: str) -> str:
         return self._add_content_to_template_page(page_template)
@@ -218,7 +219,7 @@ class TemplatePageCSVErrorWriter(TemplatePageContentWriter):
         self._PAGE_TEMPLATE.find(class_='table_errors_body').replace_with(table_errors)
 
     def __create_confluence_error_table(self) -> bs4.BeautifulSoup:
-        table_errors = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TABLE_ERRORS)
+        table_errors = self.__RESOURCE_LOADER.get_resource_as_soup(self.__FILENAME_TABLE_ERRORS)
         list_dicts_error = self.__EXTRACTOR.get_first_rows_as_list_of_dicts(self.__NUM_ERRORS)
         list_error_rows = []
         for dict_error in list_dicts_error:
@@ -250,7 +251,7 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
     def __init__(self, id_node: str):
         mapper = ConfluenceNodeMapper()
         self.__DAILY_IMPORT_TRESHOLD = mapper.get_node_value_from_mapping_dict(id_node, 'DAILY_IMPORT_THRESHOLD')
-        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__RESOURCE_LOADER = TemplateResourceLoader()
 
     def check_and_set_status_of_template_page(self, page_template: str) -> str:
         return self._add_content_to_template_page(page_template)
@@ -305,7 +306,7 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         return float(error_rate) >= 1.0
 
     def __create_status_element(self, title: str, color: str) -> bs4.BeautifulSoup:
-        status = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_STATUS)
+        status = self.__RESOURCE_LOADER.get_resource_as_soup(self.__FILENAME_STATUS)
         status_title = self.__create_status_element_parameter('title', title)
         status_color = self.__create_status_element_parameter('colour', color)
         status.find('ac:structured-macro').extend([status_title, status_color])
@@ -324,7 +325,7 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
     def __init__(self, id_node: str):
         mapper = ConfluenceNodeMapper()
         self.__LABELS_JIRA = mapper.get_node_value_from_mapping_dict(id_node, 'JIRA_LABELS')
-        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__RESOURCE_LOADER = TemplateResourceLoader()
 
     def add_jira_table_to_template_page(self, page_template: str) -> str:
         return self._add_content_to_template_page(page_template)
@@ -335,7 +336,7 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 
     def __generate_jira_table_for_confluence(self) -> bs4.BeautifulSoup:
         query = self.__generate_jira_query_from_labels()
-        table = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TABLE_JIRA)
+        table = self.__RESOURCE_LOADER.get_resource_as_soup(self.__FILENAME_TABLE_JIRA)
         table = str(table).replace('[MY_JQL_QUERY]', query)
         table = bs4.BeautifulSoup(table, 'html.parser')
         return table
@@ -352,10 +353,10 @@ class TemplatePageMigrator(TemplatePageContentWriter):
     __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
 
     def __init__(self):
-        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__RESOURCE_LOADER = TemplateResourceLoader()
 
     def is_template_page_outdated(self, page_template: str) -> bool:
-        template_new = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
+        template_new = self.__RESOURCE_LOADER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
         version_new = template_new.find(class_='version_template').string
         template_old = bs4.BeautifulSoup(page_template, 'html.parser')
         version_old = template_old.find(class_='version_template').string
@@ -365,7 +366,7 @@ class TemplatePageMigrator(TemplatePageContentWriter):
         return self._add_content_to_template_page(page_template)
 
     def _add_content_to_template_soup(self):
-        template_new = self.__RESOURCE_GETTER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
+        template_new = self.__RESOURCE_LOADER.get_resource_as_soup(self.__FILENAME_TEMPLATE_PAGE)
         template_new = self.__migrate_clinic_information_to_new_template(template_new)
         template_new = self.__migrate_id_information_to_new_template(template_new)
         self._PAGE_TEMPLATE = template_new
@@ -402,7 +403,7 @@ class ConfluencePageHandler:
         self.__COMMON_NAME = mapper.get_node_value_from_mapping_dict(id_node, 'COMMON')
         self.__CONFLUENCE = ConfluenceConnection()
         self.__CONFLUENCE_PARENT_PAGE = os.environ['CONFLUENCE_PARENT_PAGE']
-        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__RESOURCE_LOADER = TemplateResourceLoader()
         self.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter(id_node)
         path_csv_info = self.__genereate_csv_path(id_node, dir_working, '_stats_')
         self.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter(path_csv_info)
@@ -433,7 +434,7 @@ class ConfluencePageHandler:
         self.__CONFLUENCE.update_confluence_page(self.__COMMON_NAME, page)
 
     def __generate_new_page_template(self):
-        template = self.__RESOURCE_GETTER.get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE)
+        template = self.__RESOURCE_LOADER.get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE)
         template = self.__JIRA_TABLE_WRITER.add_jira_table_to_template_page(template)
         return template
 
@@ -473,7 +474,7 @@ class ConfluencePageHandlerManager:
         self.__DIR_ROOT = os.environ['ROOT_DIR']
         self.__CONFLUENCE = ConfluenceConnection()
         self.__CONFLUENCE_PARENT_PAGE = os.environ['CONFLUENCE_PARENT_PAGE']
-        self.__RESOURCE_GETTER = TemplateResourceGetter()
+        self.__RESOURCE_GETTER = TemplateResourceLoader()
         self.__init_parent_page()
 
     def __init_parent_page(self):
@@ -504,3 +505,11 @@ def main(path_config: str):
         logging.exception(e)
     finally:
         __stop_logger()
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        raise SystemExit('path to config file is missing')
+    if len(sys.argv) > 2:
+        raise SystemExit('invalid number of input arguments')
+    main(sys.argv[1])
