@@ -3,174 +3,65 @@ import unittest
 import pandas as pd
 from node_to_csv import NodeInfoFetcher
 from common import load_properties_file_as_environment
-from common import CSVHandler
+from common import InfoCSVHandler
 
 from BrokerNodeDummy import BrokerNodeDummy
-from BrokerNodeDummy import BrokerImportStats
+from BrokerNodeDummy import BrokerNodeImports
 
 
 class TestNodeInfoFetcher(unittest.TestCase):
+    __DEFAULT_NODE_ID = '0'
+    __DEFAULT_API_KEY = 'xxxApiKey123'
+    __DIR_WORKING = None
+    __CSV_HANDLER = InfoCSVHandler()
 
     @classmethod
     def setUpClass(cls):
         load_properties_file_as_environment('settings.json')
-        BrokerNodeDummy('xxxApiKey123').reset_stats_on_broker()
-        BrokerNodeDummy('xxxApiKey567').reset_stats_on_broker()
-        BrokerNodeDummy('xxxApiKey890').reset_stats_on_broker()
-        cls.__DIR_WORKING = os.environ['ROOT_DIR']
-        cls.__DEFAULT_API_KEY = 'xxxApiKey123'
-        cls.__DEFAULT_NODE_ID = '0'
+        cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        name_csv = ''.join([cls.__DEFAULT_NODE_ID, '_stats_', str(pd.Timestamp.now().year), '.csv'])
+        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_WORKING, name_csv)
+        cls.__CURRENT_YMD = pd.Timestamp.now().tz_localize('Europe/Berlin').strftime("%Y-%m-%d")
+        cls.__FETCHER = NodeInfoFetcher(cls.__DEFAULT_NODE_ID, cls.__DIR_WORKING)
+        cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
+
+    def setUp(self):
+        stats = self.__create_stats1()
+        self.__DUMMY.put_import_info_on_broker(stats)
+        self.__FETCHER.fetch_to_csv()
 
     def tearDown(self):
-        [os.remove(name) for name in os.listdir(os.getcwd()) if '.csv' in name]
-        BrokerNodeDummy(self.__DEFAULT_API_KEY).reset_stats_on_broker()
+        [os.remove(name) for name in os.listdir(self.__DIR_WORKING) if '.csv' in name]
 
-    def test_init_working_csv(self):
-        self.__init_csv_and_check_count('0', 1)
-        self.__init_csv_and_check_count('0', 1)
-        self.__init_csv_and_check_count('1', 2)
-        self.__init_csv_and_check_name('2')
+    @staticmethod
+    def __create_stats1():
+        return BrokerNodeImports('2020-01-01T00:00:00+01:00',
+                                 '',
+                                 '',
+                                 '0',
+                                 '0',
+                                 '0',
+                                 '0')
 
-    def __init_csv_and_check_count(self, id_node: str, count: int):
-        self.__init_new_fetcher_and_fetch_to_csv(id_node)
-        count_csv = len(self.__get_csv_in_working_directory())
-        self.assertEqual(count, count_csv)
+    @staticmethod
+    def __create_stats2():
+        return BrokerNodeImports('2020-01-01T00:00:00+01:00',
+                                 '2020-03-03T00:00:00+01:00',
+                                 '2020-03-03T00:00:00+01:00',
+                                 '2000',
+                                 '400',
+                                 '250',
+                                 '350')
 
-    def __get_csv_in_working_directory(self) -> list[str]:
-        """
-        Case differentation as os.listdir() tries to read from ROOT instead of current folder if input is empty/('')
-        """
-        dir_working = self.__DIR_WORKING if self.__DIR_WORKING else os.getcwd()
-        return [name for name in os.listdir(dir_working) if '.csv' in name]
-
-    def __init_csv_and_check_name(self, id_node: str):
-        name_expected = ''.join(['00', id_node, '_stats_', str(pd.Timestamp.now().year), '.csv'])
-        list_csv_in_folder = self.__get_csv_in_working_directory()
-        self.assertFalse(name_expected in list_csv_in_folder)
-        self.__init_new_fetcher_and_fetch_to_csv(id_node)
-        list_csv_in_folder = self.__get_csv_in_working_directory()
-        self.assertTrue(name_expected in list_csv_in_folder)
-
-    def test_working_csv_columns(self):
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        header = list(df.columns)
-        expected_columns = ['date', 'last_contact', 'start', 'last_write', 'last_reject', 'imported',
-                            'updated', 'invalid', 'failed', 'error_rate', 'daily_imported',
-                            'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
-        self.assertTrue(len(expected_columns), len(header))
-        self.assertCountEqual(expected_columns, header)
-
-    def test_fetch_default_stats_to_csv(self):
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '-', '-')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '0', '0', '0', '0', '-')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
-
-    def test_update_default_stats_in_csv(self):
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(1, df.shape[0])
-        stats = self.__create_stats1()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-02-02 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '500', '400', '250', '200', '33.33')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
-
-    def test_fetch_next_stats_in_csv(self):
-        stats1 = self.__create_stats1()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats1)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        date_yesterday = self.__get_shifted_date_YMD(1)
-        df = self.__change_date_in_first_row_of_df(df, date_yesterday)
-        self.__save_df_to_path(df, path_csv)
-        self.assertEqual(1, df.shape[0])
-        stats2 = self.__create_stats2()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats2)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '1500', '0', '0', '150', '9.09')
-
-    def test_fetch_next_stats_in_csv_timegap(self):
-        stats1 = self.__create_stats1()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats1)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        date_yesterday = self.__get_shifted_date_YMD(5)
-        df = self.__change_date_in_first_row_of_df(df, date_yesterday)
-        self.__save_df_to_path(df, path_csv)
-        self.assertEqual(1, df.shape[0])
-        stats2 = self.__create_stats2()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats2)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
-
-    def test_fetch_next_stats_in_csv_with_dwh_restart(self):
-        stats1 = self.__create_stats1()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats1)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        date_yesterday = self.__get_shifted_date_YMD(1)
-        df = self.__change_date_in_first_row_of_df(df, date_yesterday)
-        self.__save_df_to_path(df, path_csv)
-        self.assertEqual(1, df.shape[0])
-        stats2 = self.__create_stats2_dwh_restart()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats2)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], self.__get_current_date_YMD(), '2020-01-01 12:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
-
-    def test_fetch_new_stats_in_csv_after_year_change(self):
-        stats1 = self.__create_stats1()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats1)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        date_yesterday = self.__get_shifted_date_YMD(1)
-        df = self.__change_date_in_first_row_of_df(df, date_yesterday)
-        self.__save_df_to_path(df, path_csv)
-        self.__rename_csv_to_last_years_csv(path_csv)
-        stats2 = self.__create_stats2()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats2)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '1500', '0', '0', '150', '9.09')
-
-    def test_fetch_new_stats_in_csv_after_year_change_timegap(self):
-        stats1 = self.__create_stats1()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats1)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        date_yesterday = self.__get_shifted_date_YMD(5)
-        df = self.__change_date_in_first_row_of_df(df, date_yesterday)
-        self.__save_df_to_path(df, path_csv)
-        self.__rename_csv_to_last_years_csv(path_csv)
-        stats2 = self.__create_stats2()
-        self.__init_new_dummy_and_put_payload_on_node(self.__DEFAULT_API_KEY, stats2)
-        path_csv = self.__init_new_fetcher_and_fetch_to_csv(self.__DEFAULT_NODE_ID)
-        df = self.__load_csv_as_dataframe(path_csv)
-        self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__get_current_date_YMD(), '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
+    @staticmethod
+    def __create_stats2_dwh_restart():
+        return BrokerNodeImports('2020-01-01T12:00:00+01:00',
+                                 '2020-03-03T00:00:00+01:00',
+                                 '2020-03-03T00:00:00+01:00',
+                                 '2000',
+                                 '400',
+                                 '250',
+                                 '350')
 
     def __check_date_stats_in_csv_row(self, row: pd.Series, date: str, start: str, last_write: str, last_reject: str):
         self.assertEqual(date, row['date'])
@@ -192,78 +83,116 @@ class TestNodeInfoFetcher(unittest.TestCase):
         self.assertEqual(failed, row['daily_failed'])
         self.assertEqual(error_rate, row['daily_error_rate'])
 
-    @staticmethod
-    def __create_stats1():
-        return BrokerImportStats('2020-01-01T00:00:00+01:00',
-                                 '2020-02-02T00:00:00+01:00',
-                                 '2020-03-03T00:00:00+01:00',
-                                 '500',
-                                 '400',
-                                 '250',
-                                 '200')
+    def __put_improt_stats_on_broker_and_get_fetched_csv_as_df(self, payload):
+        self.__DUMMY.put_import_info_on_broker(payload)
+        self.__FETCHER.fetch_to_csv()
+        return self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
+
+    def __change_date_of_current_csv_to_past_days(self, days: int):
+        df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
+        ts_current = pd.Timestamp.now().tz_localize('Europe/Berlin')
+        ts_past = ts_current - pd.Timedelta(days=days)
+        date_past = ts_past.strftime("%Y-%m-%d")
+        df.iloc[0]['date'] = date_past
+        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
 
     @staticmethod
-    def __create_stats2():
-        return BrokerImportStats('2020-01-01T00:00:00+01:00',
-                                 '2020-03-03T00:00:00+01:00',
-                                 '2020-03-03T00:00:00+01:00',
-                                 '2000',
-                                 '400',
-                                 '250',
-                                 '350')
-
-    @staticmethod
-    def __create_stats2_dwh_restart():
-        return BrokerImportStats('2020-01-01T12:00:00+01:00',
-                                 '2020-03-03T00:00:00+01:00',
-                                 '2020-03-03T00:00:00+01:00',
-                                 '2000',
-                                 '400',
-                                 '250',
-                                 '350')
-
-    @staticmethod
-    def __get_current_date_YMD() -> str:
-        ts = pd.Timestamp.now().tz_localize('Europe/Berlin')
-        return ts.strftime("%Y-%m-%d")
-
-    @staticmethod
-    def __get_shifted_date_YMD(days: int) -> str:
-        ts = pd.Timestamp.now().tz_localize('Europe/Berlin')
-        ts = ts - pd.Timedelta(days=days)
-        return ts.strftime("%Y-%m-%d")
-
-    @staticmethod
-    def __change_date_in_first_row_of_df(df: pd.DataFrame, date: str) -> pd.DataFrame:
-        df.iloc[0]['date'] = date
-        return df
-
-    @staticmethod
-    def __rename_csv_to_last_years_csv(path_csv: str) -> str:
+    def __rename_csv_to_last_years_csv(path_csv: str):
         last_year = str(pd.Timestamp.now().year - 1)
         path_csv_new = path_csv[:-8] + last_year + path_csv[-4:]
         os.rename(path_csv, path_csv_new)
 
-    @staticmethod
-    def __load_csv_as_dataframe(path_csv: str) -> pd.DataFrame:
-        handler = CSVHandler(path_csv)
-        return handler.read_csv_as_df()
+    def test_init_working_csv(self):
+        self.__init_new_dummy_and_put_default_stats_on_node('xxxApiKey123')
+        self.__init_new_dummy_and_put_default_stats_on_node('xxxApiKey567')
+        self.__init_new_fetcher_and_check_csv_count('0', 1)
+        self.__init_new_fetcher_and_check_csv_count('0', 1)
+        self.__init_new_fetcher_and_check_csv_count('1', 2)
 
-    @staticmethod
-    def __save_df_to_path(df: pd.DataFrame, path_csv: str):
-        handler = CSVHandler(path_csv)
-        handler.save_df_as_csv(df)
-
-    @staticmethod
-    def __init_new_dummy_and_put_payload_on_node(api_key: str, payload):
+    def __init_new_dummy_and_put_default_stats_on_node(self, api_key: str):
+        stats = self.__create_stats1()
         dummy = BrokerNodeDummy(api_key)
-        dummy.put_stats_object_on_broker(payload)
+        dummy.put_import_info_on_broker(stats)
 
-    def __init_new_fetcher_and_fetch_to_csv(self, id_node: str) -> str:
+    def __init_new_fetcher_and_check_csv_count(self, id_node: str, count: int):
         fetcher = NodeInfoFetcher(id_node, self.__DIR_WORKING)
-        path_csv = fetcher.init_working_csv()
         fetcher.fetch_to_csv()
-        return path_csv
+        count_csv = len(self.__list_csv_in_working_directory())
+        self.assertEqual(count, count_csv)
+
+    def __list_csv_in_working_directory(self) -> list:
+        return [name for name in os.listdir(self.__DIR_WORKING) if '.csv' in name]
+
+    def test_csv_columns(self):
+        df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
+        header = list(df.columns)
+        expected_columns = ['date', 'last_contact', 'start', 'last_write', 'last_reject', 'imported',
+                            'updated', 'invalid', 'failed', 'error_rate', 'daily_imported',
+                            'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
+        self.assertTrue(len(expected_columns), len(header))
+        self.assertCountEqual(expected_columns, header)
+
+    def test_fetch_default_stats_to_csv(self):
+        df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
+        self.assertEqual(1, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '-', '-')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '0', '0', '0', '0', '-')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
+
+    def test_update_default_stats_in_csv(self):
+        stats2 = self.__create_stats2()
+        df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
+        self.assertEqual(1, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
+
+    def test_fetch_next_stats_in_csv(self):
+        self.__change_date_of_current_csv_to_past_days(1)
+        stats2 = self.__create_stats2()
+        df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
+        self.assertEqual(2, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+
+    def test_fetch_next_stats_in_csv_timegap(self):
+        self.__change_date_of_current_csv_to_past_days(5)
+        stats2 = self.__create_stats2()
+        df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
+        self.assertEqual(2, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
+
+    def test_fetch_next_stats_in_csv_with_dwh_restart(self):
+        self.__change_date_of_current_csv_to_past_days(1)
+        stats2 = self.__create_stats2_dwh_restart()
+        df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
+        self.assertEqual(2, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD, '2020-01-01 12:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
+
+    def test_fetch_new_stats_in_csv_after_year_change(self):
+        self.__change_date_of_current_csv_to_past_days(1)
+        self.__rename_csv_to_last_years_csv(self.__DEFAULT_CSV_PATH)
+        stats2 = self.__create_stats2()
+        df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
+        self.assertEqual(1, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+
+    def test_fetch_new_stats_in_csv_after_year_change_timegap(self):
+        self.__change_date_of_current_csv_to_past_days(5)
+        self.__rename_csv_to_last_years_csv(self.__DEFAULT_CSV_PATH)
+        stats2 = self.__create_stats2()
+        df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
+        self.assertEqual(1, df.shape[0])
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
 
 if __name__ == '__main__':

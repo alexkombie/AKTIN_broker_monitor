@@ -21,9 +21,11 @@ docker cp $ROOT_DIR/src/common.py python:/opt/
 echo -e "${YEL} Run python unit tests ${WHI}"
 docker exec python pytest test_BrokerNodeConnection.py
 docker exec python pytest test_ConfluenceNodeMapper.py
-docker exec python pytest test_BrokerNodeFetcherManager.py
-docker exec python pytest test_NodeErrorFetcher.py
+docker exec python pytest test_SingletonMeta.py
 docker exec python pytest test_NodeInfoFetcher.py
+docker exec python pytest test_NodeErrorFetcher.py
+docker exec python pytest test_BrokerNodeResourceFetcher.py
+docker exec python pytest test_BrokerNodeFetcherManager.py
 
 LIST_CONTAINER=( broker-server python )
 echo -e "${YEL} Stop all container ${WHI}"

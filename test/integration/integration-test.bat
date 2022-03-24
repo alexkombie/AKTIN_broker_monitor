@@ -15,9 +15,11 @@ docker cp %RootDirPath%/src/common.py python:/opt/
 echo %ESC%[33m Run python unit tests %ESC%[0m
 docker exec python pytest test_BrokerNodeConnection.py
 docker exec python pytest test_ConfluenceNodeMapper.py
-docker exec python pytest test_BrokerNodeFetcherManager.py
-docker exec python pytest test_NodeErrorFetcher.py
+docker exec python pytest test_SingletonMeta.py
 docker exec python pytest test_NodeInfoFetcher.py
+docker exec python pytest test_NodeErrorFetcher.py
+docker exec python pytest test_BrokerNodeResourceFetcher.py
+docker exec python pytest test_BrokerNodeFetcherManager.py
 
 set ListContainer=broker-server python
 echo %ESC%[33m Stop all container %ESC%[0m

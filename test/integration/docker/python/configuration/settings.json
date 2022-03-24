@@ -1,7 +1,7 @@
 {
   "BROKER_URL": "http://localhost:8080",
   "ADMIN_API_KEY": "xxxAdmin1234",
-  "ROOT_DIR": "",
+  "ROOT_DIR": "/opt",
   "CONFLUENCE_RESOURCES_DIR": "",
   "CONFLUENCE_URL": "",
   "CONFLUENCE_SPACE": "",

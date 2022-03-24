@@ -5,11 +5,13 @@ from common import load_properties_file_as_environment
 
 
 class TestBrokerNodeFetcherManager(unittest.TestCase):
+    __DIR_WORKING = None
 
     @classmethod
     def setUpClass(cls):
         load_properties_file_as_environment('settings.json')
-        cls.BROKER_NODE_FETCHER_MANAGER = BrokerNodeFetcherManager()
+        cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        cls.__BROKER_NODE_FETCHER_MANAGER = BrokerNodeFetcherManager()
 
     def tearDown(self) -> None:
         if os.path.isdir(os.path.join(os.getcwd(), 'test1')):
@@ -23,10 +25,11 @@ class TestBrokerNodeFetcherManager(unittest.TestCase):
         self.__create_folder_and_check_count('test2', 2)
 
     def __create_folder_and_check_count(self, name_folder: str, count: int):
-        path_folder = self.BROKER_NODE_FETCHER_MANAGER.init_working_directory(name_folder)
+        path_expected = os.path.join(self.__DIR_WORKING, name_folder)
+        path_folder = self.__BROKER_NODE_FETCHER_MANAGER.init_working_directory(name_folder)
         count_folders = self.__count_folder_in_current_directory()
         self.assertEqual(count, count_folders)
-        self.assertEqual(name_folder, path_folder)
+        self.assertEqual(path_expected, path_folder)
 
     @staticmethod
     def __count_folder_in_current_directory():
