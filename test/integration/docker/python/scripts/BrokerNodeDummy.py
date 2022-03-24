@@ -13,7 +13,7 @@ class Payload(ABC):
 
 
 @dataclass()
-class BrokerImportStats(Payload):
+class BrokerNodeImports(Payload):
     __DWH_START: str
     __LAST_WRITE: str
     __LAST_REJECT: str
@@ -122,7 +122,7 @@ class BrokerNodeDummy:
             url = '{}/{}'.format(url, item)
         return url
 
-    def put_stats_object_on_broker(self, payload: Payload):
+    def put_import_info_on_broker(self, payload: Payload):
         """
         Payload must be either BrokerImportStats or BrokerImportError
         """
@@ -138,7 +138,7 @@ class BrokerNodeDummy:
         response = requests.put(url, data=payload, headers=self.__create_basic_header())
         response.raise_for_status()
 
-    def put_resource_object_on_broker(self, payload: Payload, type_resource: str):
+    def put_resource_on_broker(self, payload: Payload, type_resource: str):
         """
         Payload must be BrokerNodeVersions, BrokerNodeRscript, BrokerNodePyhton or BrokerNodeImportScripts
         """
