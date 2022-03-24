@@ -45,7 +45,7 @@ class BrokerNodeFetcher(ABC):
         self._DIR_WORKING = dir_working
         self._TIMEZONE = 'Europe/Berlin'
         self._CURRENT_DATE = pd.Timestamp.now().tz_localize(self._TIMEZONE)
-        self._NAME_CSV = self._CSV_HANDLER.generate_csv_name(id_node, str(self._CURRENT_DATE.year))
+        self._NAME_CSV = self._CSV_HANDLER.generate_csv_name(id_node)
         self._PATH_CSV = os.path.join(self._DIR_WORKING, self._NAME_CSV)
         self._BROKER_NODE_CONNECTION = BrokerNodeConnection()
 
@@ -131,7 +131,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
 
     def __get_last_years_csv_path(self) -> str:
         date_last_year = self._CURRENT_DATE.replace(year=self._CURRENT_DATE.year - 1)
-        name_csv_last_year = self._CSV_HANDLER.generate_csv_name(self._ID_NODE, str(date_last_year.year))
+        name_csv_last_year = self._CSV_HANDLER.generate_csv_name_with_custom_year(self._ID_NODE, str(date_last_year.year))
         return os.path.join(self._DIR_WORKING, name_csv_last_year)
 
     def __was_csv_date_yesterday(self, date_csv: str) -> bool:

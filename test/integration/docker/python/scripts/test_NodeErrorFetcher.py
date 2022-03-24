@@ -19,7 +19,7 @@ class TestNodeErrorFetcher(unittest.TestCase):
     def setUpClass(cls):
         load_properties_file_as_environment('settings.json')
         cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        name_csv = ''.join([cls.__DEFAULT_NODE_ID, '_errors_', str(pd.Timestamp.now().year), '.csv'])
+        name_csv = cls.__CSV_HANDLER.generate_csv_name()
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_WORKING, name_csv)
         cls.__FETCHER = NodeErrorFetcher(cls.__DEFAULT_NODE_ID, cls.__DIR_WORKING)
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
