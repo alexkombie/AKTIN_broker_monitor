@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 # Created on Tue Feb 15 12:00 2022
-# @version: 1.0
+# @version: 1.1
 
 #
 #      Copyright (c) 2022  Alexander Kombeiz
@@ -25,24 +25,11 @@ import logging
 import os
 from dataclasses import dataclass
 from atlassian import Confluence
+from abc import ABC, abstractmethod
 
 import lxml.etree as ET
 import pandas as pd
 import requests
-
-
-class CSVHandler:
-    __CSV_SEPARATOR: str = ';'
-    __CSV_ENCODING: str = 'UTF-8'
-
-    def __init__(self, path_csv: str):
-        self.__PATH_CSV = path_csv
-
-    def save_df_as_csv(self, df: pd.DataFrame):
-        df.to_csv(self.__PATH_CSV, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, index=False)
-
-    def read_csv_as_df(self) -> pd.DataFrame:
-        return pd.read_csv(self.__PATH_CSV, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, dtype=str)
 
 
 class SingletonMeta(type):
@@ -56,6 +43,48 @@ class SingletonMeta(type):
             instance = super().__call__(*args, **kwargs)
             cls._instances[cls] = instance
         return cls._instances[cls]
+
+
+# TODO: Make implementations of CSVHandler Singletons
+class CSVHandler(ABC):
+    __CSV_SEPARATOR: str = ';'
+    __CSV_ENCODING: str = 'UTF-8'
+
+    def save_df_to_csv(self, df: pd.DataFrame, path_csv: str):
+        df.to_csv(path_csv, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, index=False)
+
+    def read_csv_as_df(self, path_csv: str) -> pd.DataFrame:
+        return pd.read_csv(path_csv, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, dtype=str)
+
+    @abstractmethod
+    def generate_csv_name(self, id_node: str, year: str) -> str:
+        pass
+
+    @abstractmethod
+    def get_csv_columns(self) -> list:
+        pass
+
+
+class InfoCSVHandler(CSVHandler):
+
+    def generate_csv_name(self, id_node, year: str) -> str:
+        name_csv = '_'.join([id_node, 'stats', year])
+        return ''.join([name_csv, '.csv'])
+
+    def get_csv_columns(self) -> list:
+        return ['date', 'last_contact', 'start', 'last_write', 'last_reject',
+                'imported', 'updated', 'invalid', 'failed', 'error_rate',
+                'daily_imported', 'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
+
+
+class ErrorCSVHandler(CSVHandler):
+
+    def generate_csv_name(self, id_node, year: str) -> str:
+        name_csv = '_'.join([id_node, 'errors', year])
+        return ''.join([name_csv, '.csv'])
+
+    def get_csv_columns(self) -> list:
+        return ['timestamp', 'repeats', 'content']
 
 
 class BrokerNodeConnection(metaclass=SingletonMeta):
@@ -118,10 +147,14 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
 
     def get_broker_node_resource(self, id_node: str, resource: str) -> dict:
         """
-        Possible resources are 'versions', 'rscript', 'python', 'import-scripts'
+        Possible resources are 'versions', 'rscript', 'python', 'import-scripts'.
+        URL to possible resources can be non-existing
         """
         url = self.__append_to_broker_url('broker', 'node', id_node, resource)
-        tree = self.__get_processed_response(url)
+        try:
+            tree = self.__get_processed_response(url)
+        except requests.exceptions.HTTPError:
+            return {}
         resources = {}
         for elem in tree.findall('entry'):
             resources[elem.get('key')] = elem.text
@@ -266,32 +299,6 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         self.__CONFLUENCE.update_page(id_page, name_page, content)
 
 
-def __init_logger():
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s',
-                        handlers=[logging.StreamHandler()])
-
-
-def __stop_logger():
-    [logging.root.removeHandler(handler) for handler in logging.root.handlers[:]]
-    logging.shutdown()
-
-
-def load_properties_file_as_environment(path: str):
-    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'CONFLUENCE_RESOURCES_DIR', 'CONFLUENCE_URL',
-                         'CONFLUENCE_SPACE', 'CONFLUENCE_TOKEN', 'CONFLUENCE_MAPPING_JSON', 'CONFLUENCE_PARENT_PAGE'}
-    if not os.path.isfile(path):
-        raise SystemExit('invalid config file path')
-    with open(path) as file_json:
-        dict_config = json.load(file_json)
-    set_found_keys = set(dict_config.keys())
-    set_matched_keys = set_required_keys.intersection(set_found_keys)
-    if set_matched_keys != set_required_keys:
-        raise SystemExit('following keys are missing in config file: {0}'.format(set_required_keys.difference(set_matched_keys)))
-    for key in set_required_keys:
-        os.environ[key] = dict_config.get(key)
-
-
 class ConfluenceNodeMapper(metaclass=SingletonMeta):
 
     def __init__(self):
@@ -317,3 +324,29 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
             return self.__DICT_MAPPING[node][key]
         else:
             return None
+
+
+def __init_logger():
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)s %(message)s',
+                        handlers=[logging.StreamHandler()])
+
+
+def __stop_logger():
+    [logging.root.removeHandler(handler) for handler in logging.root.handlers[:]]
+    logging.shutdown()
+
+
+def load_properties_file_as_environment(path: str):
+    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'CONFLUENCE_RESOURCES_DIR', 'CONFLUENCE_URL',
+                         'CONFLUENCE_SPACE', 'CONFLUENCE_TOKEN', 'CONFLUENCE_MAPPING_JSON', 'CONFLUENCE_PARENT_PAGE'}
+    if not os.path.isfile(path):
+        raise SystemExit('invalid config file path')
+    with open(path) as file_json:
+        dict_config = json.load(file_json)
+    set_found_keys = set(dict_config.keys())
+    set_matched_keys = set_required_keys.intersection(set_found_keys)
+    if set_matched_keys != set_required_keys:
+        raise SystemExit('following keys are missing in config file: {0}'.format(set_required_keys.difference(set_matched_keys)))
+    for key in set_required_keys:
+        os.environ[key] = dict_config.get(key)

@@ -3,14 +3,14 @@ from common import load_properties_file_as_environment
 from common import ConfluenceNodeMapper
 
 
-class TestBrokerNodeFetcherManager(unittest.TestCase):
+class TestConfluenceNodeMapper(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         load_properties_file_as_environment('settings.json')
         cls.__CONFLUENCE_NODE_MAPPER = ConfluenceNodeMapper()
 
-    def test_get_content_of_mapping_dict(self):
+    def test_get_mapping_dict(self):
         dict_mapping = self.__CONFLUENCE_NODE_MAPPER.get_mapping_dict()
         self.assertEqual(4, len(dict_mapping.keys()))
         self.assertEqual('Broker Node 1', dict_mapping['1']['COMMON'])

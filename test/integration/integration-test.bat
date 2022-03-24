@@ -9,6 +9,7 @@ docker-compose -f docker/docker-compose.yml up -d --force-recreate --build
 
 echo %ESC%[33m Copy python scripts from repository to python container %ESC%[0m
 docker cp %RootDirPath%/src/node_to_csv.py python:/opt/
+docker cp %RootDirPath%/src/csv_to_confluence.py python:/opt/
 docker cp %RootDirPath%/src/common.py python:/opt/
 
 echo %ESC%[33m Run python unit tests %ESC%[0m
