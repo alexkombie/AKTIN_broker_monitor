@@ -19,7 +19,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
     def setUpClass(cls):
         load_properties_file_as_environment('settings.json')
         cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        name_csv = cls.__CSV_HANDLER.generate_csv_name()
+        name_csv = cls.__CSV_HANDLER.generate_csv_name(cls.__DEFAULT_NODE_ID)
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_WORKING, name_csv)
         cls.__CURRENT_YMD = pd.Timestamp.now().tz_localize('Europe/Berlin').strftime("%Y-%m-%d")
         cls.__FETCHER = NodeInfoFetcher(cls.__DEFAULT_NODE_ID, cls.__DIR_WORKING)
@@ -65,7 +65,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
 
     def __check_date_stats_in_csv_row(self, row: pd.Series, date: str, start: str, last_write: str, last_reject: str):
         self.assertEqual(date, row['date'])
-        self.assertEqual(start, row['start'])
+        self.assertEqual(start, row['last_start'])
         self.assertEqual(last_write, row['last_write'])
         self.assertEqual(last_reject, row['last_reject'])
 
@@ -126,7 +126,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
     def test_csv_columns(self):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
         header = list(df.columns)
-        expected_columns = ['date', 'last_contact', 'start', 'last_write', 'last_reject', 'imported',
+        expected_columns = ['date', 'last_contact', 'last_start', 'last_write', 'last_reject', 'imported',
                             'updated', 'invalid', 'failed', 'error_rate', 'daily_imported',
                             'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
         self.assertTrue(len(expected_columns), len(header))

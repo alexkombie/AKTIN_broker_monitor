@@ -208,7 +208,7 @@ class NodeErrorFetcher(BrokerNodeFetcher):
             if self.__did_error_appear_this_year(error):
                 new_row = {
                     'timestamp': self._extract_YMD_HMS_from_string(error.timestamp),
-                    'repeats':   error.repeats if error.repeats else '1',
+                    'repeats':   error.repeats,
                     'content':   error.content}
                 dict_new_row = pd.DataFrame(new_row, index=[0])
                 if self.__is_error_already_logged(df, error):

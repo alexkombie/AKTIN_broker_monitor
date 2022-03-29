@@ -119,7 +119,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
         self.assertEqual(1, len(list_errors))
         error2 = list_errors[0]
         self.assertEqual('2020-01-01T00:00:00+01:00', error2.timestamp)
-        self.assertFalse(error2.repeats)
+        self.assertEqual('1', error2.repeats)
         self.assertEqual('TestError', error2.content)
 
     def test_get_broker_node_empty_errors(self):
