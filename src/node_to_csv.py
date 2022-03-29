@@ -175,7 +175,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         failed = int(stats.failed)
         return {'date':         self._extract_YMD(self._CURRENT_DATE),
                 'last_contact': self._extract_YMD_HMS_from_string(node.last_contact),
-                'start':        self._extract_YMD_HMS_from_string(stats.dwh_start),
+                'last_start':   self._extract_YMD_HMS_from_string(stats.dwh_start),
                 'last_write':   self._extract_YMD_HMS_from_string(stats.last_write) if stats.last_write else '-',
                 'last_reject':  self._extract_YMD_HMS_from_string(stats.last_reject) if stats.last_reject else '-',
                 'imported':     imported,

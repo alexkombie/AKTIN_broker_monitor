@@ -49,7 +49,7 @@ class SingletonMeta(type):
 class CSVHandler(ABC):
     __CSV_SEPARATOR: str = ';'
     __CSV_ENCODING: str = 'UTF-8'
-    __CSV_CATEGORY: str
+    _CSV_CATEGORY: str
     __TIMEZONE: str = 'Europe/Berlin'
 
     def save_df_to_csv(self, df: pd.DataFrame, path_csv: str):
@@ -60,11 +60,11 @@ class CSVHandler(ABC):
 
     def generate_csv_name(self, id_node: str) -> str:
         current_year = str(pd.Timestamp.now().tz_localize(self.__TIMEZONE).year)
-        name_csv = '_'.join([id_node, self.__CSV_CATEGORY, current_year])
+        name_csv = '_'.join([id_node, self._CSV_CATEGORY, current_year])
         return ''.join([name_csv, '.csv'])
 
     def generate_csv_name_with_custom_year(self, id_node: str, year: str) -> str:
-        name_csv = '_'.join([id_node, self.__CSV_CATEGORY, year])
+        name_csv = '_'.join([id_node, self._CSV_CATEGORY, year])
         return ''.join([name_csv, '.csv'])
 
     @abstractmethod
@@ -73,16 +73,16 @@ class CSVHandler(ABC):
 
 
 class InfoCSVHandler(CSVHandler):
-    __CSV_CATEGORY = 'stats'
+    _CSV_CATEGORY = 'stats'
 
     def get_csv_columns(self) -> list:
-        return ['date', 'last_contact', 'lsat_start', 'last_write', 'last_reject',
+        return ['date', 'last_contact', 'last_start', 'last_write', 'last_reject',
                 'imported', 'updated', 'invalid', 'failed', 'error_rate',
                 'daily_imported', 'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
 
 
 class ErrorCSVHandler(CSVHandler):
-    __CSV_CATEGORY = 'errors'
+    _CSV_CATEGORY = 'errors'
 
     def get_csv_columns(self) -> list:
         return ['timestamp', 'repeats', 'content']
