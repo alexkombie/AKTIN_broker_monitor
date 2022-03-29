@@ -3,17 +3,10 @@ hide methods
 
 title __Diagram of Broker-Monitor__\n
 
-top to bottom direction
-
 entity "<size:18>AKTIN Broker</size>" as broker
 entity broker #aliceblue;line:blue;text:blue
 hide broker members
 hide broker circle
-
-entity "<size:18>CSV</size>" as csv
-entity csv #aliceblue;line:blue;text:blue
-hide csv members
-hide csv circle
 
 entity "<size:18>CONFLUENCE</size>" as confluence
 entity confluence #aliceblue;line:blue;text:blue
@@ -23,7 +16,7 @@ hide confluence circle
 entity "JSON file with configuration" as settings {
 * URL broker-server
 * API Key broker-server
-* Working directory
+* Working directory of scripts
 * Path to confluence template directory
 * Path to confluence mapping file
 * Confluence URL
@@ -35,45 +28,56 @@ entity settings #aliceblue;line:blue;text:blue
 hide settings circle
 
 entity "JSON file with node mapping" as mapping {
-* maps id of a node to:
-+ its common name
-+ labels for jira query
-+ optional threshold for daily imports
+* maps id of a node to its common name
+* optional jira query labels can be set for id
+* optional threshold for daily imports can be set for id
 }
 entity mapping #aliceblue;line:blue;text:blue
 hide mapping circle
 
 package "common.py" as common <<Package>> {
-class "load_properties_file_as_environment()" as read_properties {
-* validates settings file
-* loads settings as python environment variables
+abstract class CSVHandler {
+* operations for reading a csv file as a dataframe
+or writing a dataframe to a csv
 }
-hide read_properties circle
 
-class ConfluenceNodeMapper {
-* loads json file with node mapping as
-python dictionary
+class InfoCSVHandler {
+* generates info csv name
+* knows columns of info csv
+}
+
+class ErrorCSVHandler {
+* generates error csv name
+* knows columns of error csv
 }
 
 class BrokerNodeConnection {
 * uses REST endpoint of broker-server to get
 information about connected broker nodes
-* Responses are converted to objects
+* Responses are converted to custom objects
+* Broker connection is created on initialization
 }
 
 class ConfluenceConnection {
-* uses Atlassian Python API to execute
-CRUD operations on confluence pages
+* uses Atlassian Python API to execute CRUD
+operations on confluence pages
+* Confluence conncetion is created on initialization
 }
 
-class CSVHandler {
-* operations for reading and writing a csv file
-* contains configuration variables for reading csv file
-}
+class ConfluenceNodeMapper {
+* loads json file with confluence node mapping
+as python dictionary
 }
 
-read_properties --> settings
-CSVHandler --> csv
+class "load_properties_file_as_environment()" as read_properties {
+* validates and loads given settings file
+as python environment variables
+}
+hide read_properties circle
+}
+
+InfoCSVHandler --|> CSVHandler
+ErrorCSVHandler --|> CSVHandler
 
 BrokerNodeConnection --> broker
 BrokerNodeConnection ..> settings
@@ -84,65 +88,59 @@ ConfluenceConnection ..> settings
 ConfluenceNodeMapper --> mapping
 ConfluenceNodeMapper ..> settings
 
+read_properties --> settings
+
 package "node_to_csv.py" as node_to_csv <<Package>> {
 abstract class BrokerNodeFetcher {
 * helper functions and variables to fetch broker node
 information and save them in a csv file
 }
 
-class NodeErrorFetcher {
-* fetches broker node errors into csv file
-* each column in csv file stands for one error
+class NodeInfoFetcher {
+* fetches broker node last-contact, startup
+and import stats into csv file
+* computes daily imports and error rate from
+differences to previous day
 }
 
-class NodeInfoFetcher {
-* fetches broker node last-contact, startup and import stats into csv file
-* computes daily imports and error rate from differences to previous day
-* each column in csv file stands for one day
+class NodeErrorFetcher {
+* fetches broker node errors into csv file
+}
+
+class BrokerNodeResourceFetcher {
+* fetches broker node resource information to text file
 }
 
 class BrokerNodeFetcherManager {
-* creates working directory for fetcher
+* main class to run broker node info fetching
+* creates working dir for each connected node
 * initializes and executes fetcher
 }
 }
 
-BrokerNodeFetcher --> CSVHandler
 BrokerNodeFetcher --> BrokerNodeConnection
+BrokerNodeFetcher --> CSVHandler
 
 NodeInfoFetcher --|> BrokerNodeFetcher
 NodeErrorFetcher --|> BrokerNodeFetcher
 
+BrokerNodeResourceFetcher --> BrokerNodeConnection
+
 BrokerNodeFetcherManager --> BrokerNodeConnection
 BrokerNodeFetcherManager --> NodeInfoFetcher
 BrokerNodeFetcherManager --> NodeErrorFetcher
+BrokerNodeFetcherManager --> BrokerNodeResourceFetcher
 BrokerNodeFetcherManager ..> settings
 
 package "csv_to_confluence.py" as csv_to_confluence {
 class TemplateResourceLoader {
-* loads resources from confluence
-template directory
+* loads resources from confluence template
+directory
 }
 
 abstract class TemplatePageContentWriter{
-* converts confluence page
-template to html soup
-* provides abstract method to
-add content to html soup
-}
-
-class NodeResourceFetcher {
-* intermediate class to extract node
-resources from broker-server
-}
-
-class TemplatePageNodeResourceWriter {
-* writes fetched resources from broker node
-into template of confluence page
-}
-
-class CSVExtractor {
-* extracts rows from csv file as dictionaries
+* converts confluence page template to html soup
+* provides abstract method to add content to html soup
 }
 
 class TemplatePageCSVInfoWriter {
@@ -156,84 +154,29 @@ confluence page
 }
 
 class TemplatePageStatusChecker {
-* checks and sets status light in template
-of confluence page
+* checks and sets status light in confluence
+page template
 }
 
 class TemplatePageJiraTableWriter {
-* adds jira table html to confluence page
+* adds jira table to confluence page
 template
 }
 
-class TemplatePageMigrator {
-* checks confluence page for current
-template version
-* migrates static information of confluence
-page to newer template
-}
-
-class ConfluencePageHandler {
-* creates new pages for broker nodes on confluence
-* updates content on existing broker node pages
-* updates template of broker node pages to
-newer version
-}
-
-class CSVBackupManager {
-* uploads broker node csv files as attachement
-to confluence page
-}
-
-class ConfluenceHandlerManager {
-* creates working environment
-* initializes and executes ConfluencePageHandler
-* creates csv backups on confluence
-}
 }
 
 TemplateResourceLoader ..> settings
-NodeResourceFetcher --> BrokerNodeConnection
-TemplatePageNodeResourceWriter --|> TemplatePageContentWriter
-TemplatePageNodeResourceWriter --> NodeResourceFetcher
-CSVExtractor --|> CSVHandler
 
 TemplatePageCSVInfoWriter --|> TemplatePageContentWriter
-TemplatePageCSVInfoWriter --> CSVExtractor
+TemplatePageCSVInfoWriter --> InfoCSVHandler
 
 TemplatePageCSVErrorWriter --|> TemplatePageContentWriter
-TemplatePageCSVErrorWriter --> CSVExtractor
-TemplatePageCSVErrorWriter --> TemplateResourceLoader
+TemplatePageCSVErrorWriter --> ErrorCSVHandler
 
 TemplatePageStatusChecker --|> TemplatePageContentWriter
-TemplatePageStatusChecker --> ConfluenceNodeMapper
-TemplatePageStatusChecker --> TemplateResourceLoader
+TemplatePageStatusChecker --|> ConfluenceNodeMapper
 
 TemplatePageJiraTableWriter --|> TemplatePageContentWriter
-TemplatePageJiraTableWriter --> ConfluenceNodeMapper
-TemplatePageJiraTableWriter --> TemplateResourceLoader
-
-TemplatePageMigrator --|> TemplatePageContentWriter
-TemplatePageMigrator --> TemplateResourceLoader
-
-ConfluencePageHandler ..> settings
-ConfluencePageHandler --> ConfluenceNodeMapper
-ConfluencePageHandler --> ConfluenceConnection
-ConfluencePageHandler --> TemplateResourceLoader
-ConfluencePageHandler --> TemplatePageNodeResourceWriter
-ConfluencePageHandler --> TemplatePageCSVInfoWriter
-ConfluencePageHandler --> TemplatePageCSVErrorWriter
-ConfluencePageHandler ---> TemplatePageStatusChecker
-ConfluencePageHandler ---> TemplatePageJiraTableWriter
-ConfluencePageHandler ---> TemplatePageMigrator
-
-CSVBackupManager --> ConfluenceNodeMapper
-CSVBackupManager --> ConfluenceConnection
-
-ConfluenceHandlerManager ..> settings
-ConfluenceHandlerManager --> ConfluenceNodeMapper
-ConfluenceHandlerManager --> ConfluenceConnection
-ConfluenceHandlerManager --> TemplateResourceLoader
-ConfluenceHandlerManager --> CSVBackupManager
-ConfluenceHandlerManager --> ConfluencePageHandler
+TemplatePageJiraTableWriter --|> ConfluenceNodeMapper
 
 @enduml
