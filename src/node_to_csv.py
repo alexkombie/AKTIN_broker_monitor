@@ -23,7 +23,6 @@
 import json
 import logging
 import os
-import re
 import sys
 from abc import ABC, abstractmethod
 
@@ -113,8 +112,6 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         if not df.empty:
             current_date = self._extract_YMD(self._CURRENT_DATE)
             last_date = df.iloc[-1].date
-            if not re.match(r"\d{4}-\d{2}-\d{2}", last_date):
-                raise ValueError("invalid date format of input")
             if last_date == current_date:
                 df = df.head(-1)
             if any(df['date'] == current_date):
@@ -136,17 +133,12 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         return os.path.join(self._DIR_WORKING, name_csv_last_year)
 
     def __was_csv_date_yesterday(self, date_csv: str) -> bool:
-        if not re.match(r"\d{4}-\d{2}-\d{2}", date_csv):
-            raise ValueError("invalid date format of input")
         date_yesterday = self._extract_YMD(self._CURRENT_DATE - pd.Timedelta(days=1))
         return date_csv == date_yesterday
 
     def __are_dwh_start_date_equal(self, reference: pd.DataFrame, stats: BrokerNodeConnection.BrokerNodeStats) -> bool:
-        start_reference = reference.start
-        if not re.match(r"\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}", start_reference):
-            raise ValueError("invalid date format of input")
         start_dwh = self._extract_YMD_HMS_from_string(stats.dwh_start)
-        return start_reference == start_dwh
+        return reference.last_start == start_dwh
 
     @staticmethod
     def __generate_empty_daily_stats() -> dict:
