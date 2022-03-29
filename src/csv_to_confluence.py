@@ -404,9 +404,9 @@ class TemplatePageMigrator(TemplatePageContentWriter):
         soup = self.__migrate_key_to_new_template('format_billing', soup)
         return soup
 
-    def __migrate_key_to_new_template(self, key_class: str, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
-        value = self._PAGE_TEMPLATE.find(class_=key_class).string
-        soup.find(class_=key_class).string.replace_with(value)
+    def __migrate_key_to_new_template(self, key: str, soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+        value = self._PAGE_TEMPLATE.find(class_=key)
+        soup.find(class_=key).replace_with(value)
         return soup
 
 
