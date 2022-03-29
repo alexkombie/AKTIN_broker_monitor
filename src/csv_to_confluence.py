@@ -229,9 +229,9 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         elif self.__is_template_soup_not_importing():
             status = self.__create_status_element('NO IMPORTS', 'Red')
         elif self.__are_template_soup_imports_deviating():
-            status = self.__create_status_element('DEVIATING IMPORTS', 'Orange')
+            status = self.__create_status_element('DEVIATING IMPORTS', 'Yellow')
         elif self.__is_template_soup_daily_error_rate_above_one():
-            status = self.__create_status_element('HIGH ERROR RATE', 'Orange')
+            status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
         else:
             status = self.__create_status_element('ONLINE', 'GREEN')
         self._PAGE_TEMPLATE.find(class_='status').replace_with(status)
@@ -279,8 +279,8 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
             threshold = int(self.__DAILY_IMPORT_TRESHOLD)
             border_lower = threshold * (1 - self.__WITDH_IMPORT_THRESHOLD)
             border_upper = threshold * (1 + self.__WITDH_IMPORT_THRESHOLD)
-            imported = self._PAGE_TEMPLATE.find(class_='imported_daily').string
-            updated = self._PAGE_TEMPLATE.find(class_='updated_daily').string
+            imported = self._PAGE_TEMPLATE.find(class_='daily_imported').string
+            updated = self._PAGE_TEMPLATE.find(class_='daily_updated').string
             if imported == '-' or updated == '-':
                 return False
             sum_imports = int(imported) + int(updated)

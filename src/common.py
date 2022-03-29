@@ -141,7 +141,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         for elem in tree.find('last-errors').getchildren():
             error = self.BrokerNodeError(
                     elem.get('timestamp'),
-                    elem.get('repeats') if elem.get('repeats') is not None else '',
+                    elem.get('repeats') if elem.get('repeats') is not None else '1',
                     elem.text)
             errors.append(error)
         return errors
