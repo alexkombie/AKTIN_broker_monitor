@@ -21,7 +21,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
         name_csv = cls.__CSV_HANDLER.generate_csv_name(cls.__DEFAULT_NODE_ID)
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_WORKING, name_csv)
-        cls.__CURRENT_YMD = pd.Timestamp.now().tz_localize('Europe/Berlin').strftime("%Y-%m-%d")
+        cls.__CURRENT_YMD_HMS = pd.Timestamp.now().tz_localize('Europe/Berlin').strftime('%Y-%m-%d %H:%M:%S')
         cls.__FETCHER = NodeInfoFetcher(cls.__DEFAULT_NODE_ID, cls.__DIR_WORKING)
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
 
@@ -92,7 +92,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
         ts_current = pd.Timestamp.now().tz_localize('Europe/Berlin')
         ts_past = ts_current - pd.Timedelta(days=days)
-        date_past = ts_past.strftime("%Y-%m-%d")
+        date_past = ts_past.strftime('%Y-%m-%d %H:%M:%S')
         df.iloc[0]['date'] = date_past
         self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
 
@@ -135,7 +135,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
     def test_fetch_default_stats_to_csv(self):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '-', '-')
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD_HMS, '2020-01-01 00:00:00', '-', '-')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '0', '0', '0', '0', '-')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
@@ -143,7 +143,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD_HMS, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
@@ -152,7 +152,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD_HMS, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
         self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
 
@@ -161,7 +161,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD_HMS, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
         self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
@@ -170,7 +170,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         stats2 = self.__create_stats2_dwh_restart()
         df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD, '2020-01-01 12:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[1], self.__CURRENT_YMD_HMS, '2020-01-01 12:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
         self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
@@ -180,7 +180,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD_HMS, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
 
@@ -190,7 +190,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_improt_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[0], self.__CURRENT_YMD_HMS, '2020-01-01 00:00:00', '2020-03-03 00:00:00', '2020-03-03 00:00:00')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 

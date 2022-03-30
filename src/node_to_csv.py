@@ -44,7 +44,7 @@ class BrokerNodeFetcher(ABC):
         self._ID_NODE = id_node
         self._DIR_WORKING = dir_working
         self._TIMEZONE = 'Europe/Berlin'
-        self._CURRENT_DATE = pd.Timestamp.now().tz_localize(self._TIMEZONE)
+        self._CURRENT_DATE = pd.Timestamp.now()
         self._NAME_CSV = self._CSV_HANDLER.generate_csv_name(id_node)
         self._PATH_CSV = os.path.join(self._DIR_WORKING, self._NAME_CSV)
         self._BROKER_NODE_CONNECTION = BrokerNodeConnection()
@@ -54,17 +54,25 @@ class BrokerNodeFetcher(ABC):
             df = pd.DataFrame(columns=self._CSV_HANDLER.get_csv_columns())
             self._CSV_HANDLER.save_df_to_csv(df, self._PATH_CSV)
 
+    def _extract_YMD(self, date: pd.Timestamp) -> str:
+        ts = date.tz_localize(self._TIMEZONE)
+        return ts.strftime('%Y-%m-%d')
+
     def _extract_YMD_HMS(self, date: pd.Timestamp) -> str:
-        ts = date.tz_convert(self._TIMEZONE)
+        ts = date.tz_localize(self._TIMEZONE)
         return ts.strftime('%Y-%m-%d %H:%M:%S')
+
+    def _extract_YMD_from_string(self, date: str) -> str:
+        ts = pd.Timestamp(date).tz_localize(self._TIMEZONE)
+        return ts.strftime('%Y-%m-%d')
 
     def _extract_YMD_HMS_from_string(self, date: str) -> str:
+        """
+        tz_convert() must be used as this method is only used to convert timestamps of broker-server responses.
+        The methods above are used to convert CURRENT_DATE timestamp or dates from csv where tz_localize() is sufficient.
+        """
         ts = pd.Timestamp(date).tz_convert(self._TIMEZONE)
         return ts.strftime('%Y-%m-%d %H:%M:%S')
-
-    def _extract_YMD(self, date: pd.Timestamp) -> str:
-        ts = date.tz_convert(self._TIMEZONE)
-        return ts.strftime('%Y-%m-%d')
 
     @abstractmethod
     def fetch_to_csv(self):
@@ -79,12 +87,13 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         Calls AKTIN Broker Endpoints to get import statistics of connected node and writes response in csv file.
         * One row in csv file equals the status of one day.
         * Computes differences to last row in csv file (assuming it contains the import statistic of yesterday's date).
+        * Import stats are reseted on DWH when restart occurs. Therefore, no daily differences are calculated either.
         * Running the method multiple times will overwrite the row of the current day each time.
-        * If the csv file is empty or newly created, the existence of last years csv file is checked.
-        * Missing/Not computable values are added as '-'.
         * All date information from broker-server is converted into a local, human-readable format.
         * The vars 'last-reject' and 'last-write' from broker-server can be None if no data was imported/no error occured.
+        * Missing/Not computable values are added as '-'.
         * Csv file is rotated each year to limit file size.
+        * If the csv file is empty or newly created, the existence of last years csv file is checked.
         """
         self._init_working_csv()
         node = self._BROKER_NODE_CONNECTION.get_broker_node(self._ID_NODE)
@@ -96,7 +105,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         else:
             row_reference = df.iloc[-1]
         if row_reference is not None:
-            if self.__was_csv_date_yesterday(row_reference.date) and self.__are_dwh_start_date_equal(row_reference, stats):
+            if self.__was_last_check_yesterday(row_reference) and self.__are_dwh_start_date_equal(row_reference, stats):
                 map_daily = self.__compute_daily_stats(row_reference, stats)
             else:
                 map_daily = self.__generate_empty_daily_stats()
@@ -111,34 +120,30 @@ class NodeInfoFetcher(BrokerNodeFetcher):
     def __delete_todays_row_if_exists(self, df: pd.DataFrame) -> pd.DataFrame:
         if not df.empty:
             current_date = self._extract_YMD(self._CURRENT_DATE)
-            last_date = df.iloc[-1].date
-            if last_date == current_date:
+            last_csv_date = self._extract_YMD_from_string(df.iloc[-1].date)
+            if last_csv_date == current_date:
                 df = df.head(-1)
             if any(df['date'] == current_date):
                 raise SystemExit('date of today was found in multiple rows!!')
         return df
 
     def __get_last_row_of_last_years_csv_if_exists(self) -> pd.DataFrame:
-        path_csv_last_year = self.__get_last_years_csv_path()
-        if os.path.isfile(path_csv_last_year):
-            df_last_year = self._CSV_HANDLER.read_csv_as_df(path_csv_last_year)
-            last_row = df_last_year.iloc[-1]
-            if self.__was_csv_date_yesterday(last_row.date):
-                return last_row
-        return None
-
-    def __get_last_years_csv_path(self) -> str:
         date_last_year = self._CURRENT_DATE.replace(year=self._CURRENT_DATE.year - 1)
         name_csv_last_year = self._CSV_HANDLER.generate_csv_name_with_custom_year(self._ID_NODE, str(date_last_year.year))
-        return os.path.join(self._DIR_WORKING, name_csv_last_year)
+        path_csv_last_year = os.path.join(self._DIR_WORKING, name_csv_last_year)
+        if os.path.isfile(path_csv_last_year):
+            df_last_year = self._CSV_HANDLER.read_csv_as_df(path_csv_last_year)
+            return df_last_year.iloc[-1]
+        return None
 
-    def __was_csv_date_yesterday(self, date_csv: str) -> bool:
+    def __was_last_check_yesterday(self, row_reference: pd.DataFrame) -> bool:
         date_yesterday = self._extract_YMD(self._CURRENT_DATE - pd.Timedelta(days=1))
-        return date_csv == date_yesterday
+        last_csv_date = self._extract_YMD_from_string(row_reference.date)
+        return last_csv_date == date_yesterday
 
-    def __are_dwh_start_date_equal(self, reference: pd.DataFrame, stats: BrokerNodeConnection.BrokerNodeStats) -> bool:
+    def __are_dwh_start_date_equal(self, row_reference: pd.DataFrame, stats: BrokerNodeConnection.BrokerNodeStats) -> bool:
         start_dwh = self._extract_YMD_HMS_from_string(stats.dwh_start)
-        return reference.last_start == start_dwh
+        return row_reference.last_start == start_dwh
 
     @staticmethod
     def __generate_empty_daily_stats() -> dict:
@@ -165,7 +170,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         updated = int(stats.updated)
         invalid = int(stats.invalid)
         failed = int(stats.failed)
-        return {'date':         self._extract_YMD(self._CURRENT_DATE),
+        return {'date':         self._extract_YMD_HMS(self._CURRENT_DATE),
                 'last_contact': self._extract_YMD_HMS_from_string(node.last_contact),
                 'last_start':   self._extract_YMD_HMS_from_string(stats.dwh_start),
                 'last_write':   self._extract_YMD_HMS_from_string(stats.last_write) if stats.last_write else '-',
@@ -198,8 +203,11 @@ class NodeErrorFetcher(BrokerNodeFetcher):
         Calls AKTIN Broker Endpoints to get noted errors of connected node and writes response in csv file.
         * One row in csv file equals one occured error.
         * Logged Errors can be updated on the broker side, in which the var 'timestamp' is updated and 'repeats' is incremented.
+        * The var 'repeats' from broker-server can be None, if the error occured just once. BROKER_NODE_CONNECTION picks this up and
+        replaces the value with a '1'.
         * Updates in csv are done by deleting and re-appending corresponding row.
         * Only errors of the current year are tracked in the csv file to limit file size.
+        * As with NodeInfoFetcher, the Csv file is rotated each year.
         """
         self._init_working_csv()
         errors = self._BROKER_NODE_CONNECTION.get_broker_node_errors(self._ID_NODE)
@@ -265,6 +273,9 @@ class BrokerNodeResourceFetcher:
 
     @staticmethod
     def __clean_dictionary(dictionary: dict) -> dict:
+        """
+        Set dict values with None to be '-', as file.write() throws exception when None occurs
+        """
         return {key: value if value is not None else '-' for key, value in dictionary.items()}
 
     def __save_dict_as_txt_file(self, dictionary: dict, type_resource: str):
