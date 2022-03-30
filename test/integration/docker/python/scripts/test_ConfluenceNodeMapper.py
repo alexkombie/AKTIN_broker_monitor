@@ -13,25 +13,28 @@ class TestConfluenceNodeMapper(unittest.TestCase):
     def test_get_mapping_dict(self):
         dict_mapping = self.__CONFLUENCE_NODE_MAPPER.get_mapping_dict()
         self.assertEqual(4, len(dict_mapping.keys()))
-        self.assertEqual('Broker Node 1', dict_mapping['1']['COMMON'])
-        self.assertEqual('Broker Node 2', dict_mapping['2']['COMMON'])
-        self.assertEqual('Broker Node 3', dict_mapping['3']['COMMON'])
+        self.assertEqual('[1] Clinic1', dict_mapping['1']['COMMON'])
+        self.assertEqual('[2] Clinic2', dict_mapping['2']['COMMON'])
+        self.assertEqual('[3] ÄÜÖ äüö', dict_mapping['3']['COMMON'])
+        self.assertEqual('[10] Clinic10', dict_mapping['10']['COMMON'])
         with self.assertRaises(KeyError):
             _ = dict_mapping['4']['COMMON']
 
     def test_get_node(self):
-        node = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('2')
-        self.assertEqual('Broker Node 2', node['COMMON'])
-        self.assertEqual(['label1'], node['JIRA_LABELS'])
-        self.assertEqual('120', node['DAILY_IMPORT_THRESHOLD'])
+        node1 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('1')
+        self.assertEqual('[1] Clinic1', node1['COMMON'])
+        self.assertEqual(['label1','label2'], node1['JIRA_LABELS'])
+        node10 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('10')
+        self.assertEqual('[10] Clinic10', node10['COMMON'])
+        self.assertEqual('100', node10['DAILY_IMPORT_THRESHOLD'])
 
     def test_get_nonexisting_node(self):
         node = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('99')
         self.assertIsNone(node)
 
     def test_get_node_value(self):
-        value = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('2', 'DAILY_IMPORT_THRESHOLD')
-        self.assertEqual('120', value)
+        value = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('3', 'COMMON')
+        self.assertEqual('[3] ÄÜÖ äüö', value)
 
     def test_get_nonexisting_node_value(self):
         value = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('2', 'NONEXISTING')
