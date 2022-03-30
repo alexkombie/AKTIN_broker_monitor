@@ -126,8 +126,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         tree = self.__get_processed_response(url)
         stats = self.BrokerNodeStats(
                 tree.find('start').text,
-                tree.find('last-write').text if tree.find('last-write') is not None else '',
-                tree.find('last-reject').text if tree.find('last-reject') is not None else '',
+                tree.find('last-write').text if tree.find('last-write') is not None else None,
+                tree.find('last-reject').text if tree.find('last-reject') is not None else None,
                 tree.find('imported').text,
                 tree.find('updated').text,
                 tree.find('invalid').text,
@@ -141,7 +141,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         for elem in tree.find('last-errors').getchildren():
             error = self.BrokerNodeError(
                     elem.get('timestamp'),
-                    elem.get('repeats') if elem.get('repeats') is not None else '1',
+                    elem.get('repeats'),
                     elem.text)
             errors.append(error)
         return errors

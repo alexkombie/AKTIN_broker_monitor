@@ -173,8 +173,8 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         return {'date':         self._extract_YMD_HMS(self._CURRENT_DATE),
                 'last_contact': self._extract_YMD_HMS_from_string(node.last_contact),
                 'last_start':   self._extract_YMD_HMS_from_string(stats.dwh_start),
-                'last_write':   self._extract_YMD_HMS_from_string(stats.last_write) if stats.last_write else '-',
-                'last_reject':  self._extract_YMD_HMS_from_string(stats.last_reject) if stats.last_reject else '-',
+                'last_write':   self._extract_YMD_HMS_from_string(stats.last_write) if stats.last_write is not None else '-',
+                'last_reject':  self._extract_YMD_HMS_from_string(stats.last_reject) if stats.last_reject is not None else '-',
                 'imported':     imported,
                 'updated':      updated,
                 'invalid':      invalid,
@@ -216,7 +216,7 @@ class NodeErrorFetcher(BrokerNodeFetcher):
             if self.__did_error_appear_this_year(error):
                 new_row = {
                     'timestamp': self._extract_YMD_HMS_from_string(error.timestamp),
-                    'repeats':   error.repeats,
+                    'repeats':   error.repeats if error.repeats is not None else '1',
                     'content':   error.content}
                 dict_new_row = pd.DataFrame(new_row, index=[0])
                 if self.__is_error_already_logged(df, error):

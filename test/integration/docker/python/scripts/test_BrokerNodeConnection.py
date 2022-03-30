@@ -48,8 +48,8 @@ class TestBrokerNodeConnection(unittest.TestCase):
         self.__DUMMY.put_import_info_on_broker(stats)
         stats2 = self.__BROKER_NODE_CONNECTION.get_broker_node_stats(self.__DEFAULT_NODE_ID)
         self.assertEqual('2020-01-01T00:00:00+01:00', stats2.dwh_start)
-        self.assertFalse(stats2.last_write)
-        self.assertFalse(stats2.last_reject)
+        self.assertIsNone(stats2.last_write)
+        self.assertIsNone(stats2.last_reject)
         self.assertEqual('400', stats2.imported)
         self.assertEqual('300', stats2.updated)
         self.assertEqual('200', stats2.invalid)
@@ -76,7 +76,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
         self.assertEqual(1, len(list_errors))
         error2 = list_errors[0]
         self.assertEqual('2020-01-01T00:00:00+01:00', error2.timestamp)
-        self.assertEqual('1', error2.repeats)
+        self.assertIsNone(error2.repeats)
         self.assertEqual('TestError', error2.content)
 
     def test_get_broker_node_empty_errors(self):
