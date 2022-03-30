@@ -1,16 +1,22 @@
 {
   "1": {
-    "COMMON": "Dummy Broker-Monitor",
+    "COMMON": "[1] Clinic1",
     "JIRA_LABELS": [
-      "klinikum-fuerth",
-      "fuerth"
+      "label1",
+      "label2"
     ]
   },
   "2": {
-    "COMMON": "Dummy Broker-Monitor2",
+    "COMMON": "[2] Clinic2",
     "JIRA_LABELS": [
-      "jira-lable3"
-    ],
-    "DAILY_IMPORT_THRESHOLD": "120"
+      "label3"
+    ]
+  },
+  "3": {
+    "COMMON": "[3] Clinic3"
+  },
+  "10": {
+    "COMMON": "[10] Clinic10",
+    "DAILY_IMPORT_THRESHOLD": "100"
   }
 }
