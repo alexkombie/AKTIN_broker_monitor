@@ -14,57 +14,14 @@ from BrokerNodeDummy import BrokerNodeImportScripts
 
 
 class TestBrokerNodeConnection(unittest.TestCase):
-    __DEFAULT_API_KEY = 'xxxApiKey123'
-    __DEFAULT_NODE_ID = '0'
+    __DEFAULT_API_KEY: str = 'xxxApiKey123'
+    __DEFAULT_NODE_ID: str = '0'
 
     @classmethod
     def setUpClass(cls):
         load_properties_file_as_environment('settings.json')
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
         cls.__BROKER_NODE_CONNECTION = BrokerNodeConnection()
-
-    @staticmethod
-    def __create_default_broker_import_stats():
-        return BrokerNodeImports(
-                '2020-01-01T00:00:00+01:00',
-                '2020-01-02T12:00:00+01:00',
-                '2020-01-02T12:00:00+01:00',
-                '400',
-                '300',
-                '200',
-                '100')
-
-    @staticmethod
-    def __create_default_broker_import_stats_with_missing_dates():
-        return BrokerNodeImports(
-                '2020-01-01T00:00:00+01:00',
-                '',
-                '',
-                '400',
-                '300',
-                '200',
-                '100')
-
-    @staticmethod
-    def __create_default_broker_error():
-        return BrokerNodeError(
-                '2020-01-01T00:00:00+01:00',
-                '5',
-                'TestError'
-        )
-
-    @staticmethod
-    def __create_default_broker_error_with_missing_repeats():
-        return BrokerNodeError(
-                '2020-01-01T00:00:00+01:00',
-                '',
-                'TestError'
-        )
-
-    @staticmethod
-    def __init_new_dummy_and_put_stats_on_node(api_key: str, payload):
-        dummy = BrokerNodeDummy(api_key)
-        dummy.put_import_info_on_broker(payload)
 
     def test_get_broker_nodes_list(self):
         stats = self.__create_default_broker_import_stats()
@@ -174,6 +131,49 @@ class TestBrokerNodeConnection(unittest.TestCase):
     def test_get_broker_node_nonexisting_resource(self):
         resource = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'nonexisting')
         self.assertFalse(resource)
+
+    @staticmethod
+    def __create_default_broker_import_stats():
+        return BrokerNodeImports(
+                '2020-01-01T00:00:00+01:00',
+                '2020-01-02T12:00:00+01:00',
+                '2020-01-02T12:00:00+01:00',
+                '400',
+                '300',
+                '200',
+                '100')
+
+    @staticmethod
+    def __create_default_broker_import_stats_with_missing_dates():
+        return BrokerNodeImports(
+                '2020-01-01T00:00:00+01:00',
+                '',
+                '',
+                '400',
+                '300',
+                '200',
+                '100')
+
+    @staticmethod
+    def __create_default_broker_error():
+        return BrokerNodeError(
+                '2020-01-01T00:00:00+01:00',
+                '5',
+                'TestError'
+        )
+
+    @staticmethod
+    def __create_default_broker_error_with_missing_repeats():
+        return BrokerNodeError(
+                '2020-01-01T00:00:00+01:00',
+                '',
+                'TestError'
+        )
+
+    @staticmethod
+    def __init_new_dummy_and_put_stats_on_node(api_key: str, payload):
+        dummy = BrokerNodeDummy(api_key)
+        dummy.put_import_info_on_broker(payload)
 
 
 if __name__ == '__main__':

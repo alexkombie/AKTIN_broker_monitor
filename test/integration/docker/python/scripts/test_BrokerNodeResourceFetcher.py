@@ -1,6 +1,5 @@
 import os
 import unittest
-import pandas as pd
 from node_to_csv import BrokerNodeResourceFetcher
 from common import load_properties_file_as_environment
 
@@ -12,9 +11,9 @@ from BrokerNodeDummy import BrokerNodeImportScripts
 
 
 class TestBrokerNodeResourceFetcher(unittest.TestCase):
-    __DEFAULT_NODE_ID = '0'
-    __DEFAULT_API_KEY = 'xxxApiKey123'
-    __DIR_WORKING = None
+    __DEFAULT_NODE_ID: str = '0'
+    __DEFAULT_API_KEY: str = 'xxxApiKey123'
+    __DIR_WORKING: str = None
 
     @classmethod
     def setUpClass(cls):
@@ -24,13 +23,7 @@ class TestBrokerNodeResourceFetcher(unittest.TestCase):
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
 
     def tearDown(self):
-        [os.remove(name) for name in os.listdir(os.getcwd()) if '.txt' in name]
-
-    def __get_text_file_in_working_dir(self, filename: str) -> str:
-        path_file = os.path.join(self.__DIR_WORKING, filename)
-        with open(path_file, 'r') as file:
-            content = file.read()
-        return content
+        [os.remove(name) for name in os.listdir(self.__DIR_WORKING) if '.txt' in name]
 
     def test_fetch_broker_node_versions(self):
         versions = BrokerNodeVersions('1', '2', '3', '4')
@@ -59,3 +52,9 @@ class TestBrokerNodeResourceFetcher(unittest.TestCase):
         self.__FETCHER.fetch_broker_node_import_scripts()
         content = self.__get_text_file_in_working_dir('0_import-scripts.txt')
         self.assertEqual('{"p21": "1.5"}', content)
+
+    def __get_text_file_in_working_dir(self, filename: str) -> str:
+        path_file = os.path.join(self.__DIR_WORKING, filename)
+        with open(path_file, 'r') as file:
+            content = file.read()
+        return content

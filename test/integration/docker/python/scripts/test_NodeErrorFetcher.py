@@ -10,9 +10,9 @@ from BrokerNodeDummy import BrokerNodeError
 
 
 class TestNodeErrorFetcher(unittest.TestCase):
-    __DEFAULT_NODE_ID = '0'
-    __DEFAULT_API_KEY = 'xxxApiKey123'
-    __DIR_WORKING = None
+    __DEFAULT_NODE_ID: str = '0'
+    __DEFAULT_API_KEY: str = 'xxxApiKey123'
+    __DIR_WORKING: str = None
     __CSV_HANDLER = ErrorCSVHandler()
 
     @classmethod
@@ -31,41 +31,6 @@ class TestNodeErrorFetcher(unittest.TestCase):
 
     def tearDown(self):
         [os.remove(name) for name in os.listdir(os.getcwd()) if '.csv' in name]
-
-    @staticmethod
-    def __create_error1():
-        ts_error = ''.join([str(pd.Timestamp.now().year), '-01-01T00:00:00+01:00'])
-        return BrokerNodeError(ts_error, '5', 'TestError')
-
-    @staticmethod
-    def __create_error1_update():
-        ts_error = ''.join([str(pd.Timestamp.now().year), '-10-10T00:00:00+01:00'])
-        return BrokerNodeError(ts_error, '10', 'TestError')
-
-    @staticmethod
-    def __create_error2():
-        ts_error = ''.join([str(pd.Timestamp.now().year), '-05-05T00:00:00+01:00'])
-        return BrokerNodeError(ts_error, '5', 'TestError2')
-
-    @staticmethod
-    def __create_error_last_year():
-        ts_error = ''.join([str(pd.Timestamp.now().year - 1), '-01-01T00:00:00+01:00'])
-        return BrokerNodeError(ts_error, '1', 'TestError')
-
-    @staticmethod
-    def __create_error_without_repeats():
-        ts_error = ''.join([str(pd.Timestamp.now().year), '-01-01T00:00:00+01:00'])
-        return BrokerNodeError(ts_error, '', 'TestError')
-
-    def __check_error_row_from_csv(self, row: pd.Series, timestamp: str, repeats: str, content: str):
-        self.assertEqual(timestamp, row['timestamp'])
-        self.assertEqual(repeats, row['repeats'])
-        self.assertEqual(content, row['content'])
-
-    def __put_import_error_on_broker_and_get_fetched_csv_as_df(self, payload):
-        self.__DUMMY.put_import_info_on_broker(payload)
-        self.__FETCHER.fetch_to_csv()
-        return self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
 
     def test_init_working_csv(self):
         self.__init_new_dummy_and_put_default_error_on_node('xxxApiKey123')
@@ -139,6 +104,41 @@ class TestNodeErrorFetcher(unittest.TestCase):
         error = self.__create_error_last_year()
         df = self.__put_import_error_on_broker_and_get_fetched_csv_as_df(error)
         self.assertEqual(0, df.shape[0])
+
+    @staticmethod
+    def __create_error1():
+        ts_error = ''.join([str(pd.Timestamp.now().year), '-01-01T00:00:00+01:00'])
+        return BrokerNodeError(ts_error, '5', 'TestError')
+
+    @staticmethod
+    def __create_error1_update():
+        ts_error = ''.join([str(pd.Timestamp.now().year), '-10-10T00:00:00+01:00'])
+        return BrokerNodeError(ts_error, '10', 'TestError')
+
+    @staticmethod
+    def __create_error2():
+        ts_error = ''.join([str(pd.Timestamp.now().year), '-05-05T00:00:00+01:00'])
+        return BrokerNodeError(ts_error, '5', 'TestError2')
+
+    @staticmethod
+    def __create_error_last_year():
+        ts_error = ''.join([str(pd.Timestamp.now().year - 1), '-01-01T00:00:00+01:00'])
+        return BrokerNodeError(ts_error, '1', 'TestError')
+
+    @staticmethod
+    def __create_error_without_repeats():
+        ts_error = ''.join([str(pd.Timestamp.now().year), '-01-01T00:00:00+01:00'])
+        return BrokerNodeError(ts_error, '', 'TestError')
+
+    def __check_error_row_from_csv(self, row: pd.Series, timestamp: str, repeats: str, content: str):
+        self.assertEqual(timestamp, row['timestamp'])
+        self.assertEqual(repeats, row['repeats'])
+        self.assertEqual(content, row['content'])
+
+    def __put_import_error_on_broker_and_get_fetched_csv_as_df(self, payload):
+        self.__DUMMY.put_import_info_on_broker(payload)
+        self.__FETCHER.fetch_to_csv()
+        return self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
 
 
 if __name__ == '__main__':

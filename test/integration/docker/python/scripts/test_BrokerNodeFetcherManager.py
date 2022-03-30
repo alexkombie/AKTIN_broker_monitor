@@ -5,7 +5,7 @@ from common import load_properties_file_as_environment
 
 
 class TestBrokerNodeFetcherManager(unittest.TestCase):
-    __DIR_WORKING = None
+    __DIR_WORKING: str = None
 
     @classmethod
     def setUpClass(cls):
@@ -14,9 +14,9 @@ class TestBrokerNodeFetcherManager(unittest.TestCase):
         cls.__BROKER_NODE_FETCHER_MANAGER = BrokerNodeFetcherManager()
 
     def tearDown(self) -> None:
-        if os.path.isdir(os.path.join(os.getcwd(), 'test1')):
+        if os.path.isdir(os.path.join(self.__DIR_WORKING, 'test1')):
             os.removedirs('test1')
-        if os.path.isdir(os.path.join(os.getcwd(), 'test2')):
+        if os.path.isdir(os.path.join(self.__DIR_WORKING, 'test2')):
             os.removedirs('test2')
 
     def test_init_working_dir_for_node(self):
