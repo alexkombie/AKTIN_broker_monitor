@@ -11,6 +11,7 @@ echo %ESC%[33m Copy python scripts from repository to python container %ESC%[0m
 docker cp %RootDirPath%/src/node_to_csv.py python:/opt/
 docker cp %RootDirPath%/src/csv_to_confluence.py python:/opt/
 docker cp %RootDirPath%/src/common.py python:/opt/
+docker cp %RootDirPath%/src/resources/template_page.html python:/opt/
 
 echo %ESC%[33m Run python unit tests %ESC%[0m
 docker exec python pytest test_BrokerNodeConnection.py
@@ -20,6 +21,7 @@ docker exec python pytest test_NodeInfoFetcher.py
 docker exec python pytest test_NodeErrorFetcher.py
 docker exec python pytest test_BrokerNodeResourceFetcher.py
 docker exec python pytest test_BrokerNodeFetcherManager.py
+docker exec python pytest test_TemplatePageCSVInfoWriter.py
 
 set ListContainer=broker-server python
 echo %ESC%[33m Stop all container %ESC%[0m

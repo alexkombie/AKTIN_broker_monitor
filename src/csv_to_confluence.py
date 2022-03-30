@@ -72,7 +72,7 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVWriter, TemplatePageContentWriter
 
     def _add_content_to_template_soup(self):
         self.__add_dates_to_template_soup()
-        self.__add_global_imports_to_template_soup()
+        self.__add_total_imports_to_template_soup()
         self.__add_daily_imports_to_template_soup()
 
     def __add_dates_to_template_soup(self):
@@ -83,7 +83,7 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVWriter, TemplatePageContentWriter
         self._PAGE_TEMPLATE.find(class_='last_write').string.replace_with(dict_last_row.get('last_write'))
         self._PAGE_TEMPLATE.find(class_='last_reject').string.replace_with(dict_last_row.get('last_reject'))
 
-    def __add_global_imports_to_template_soup(self):
+    def __add_total_imports_to_template_soup(self):
         dict_last_row = self._DF.iloc[-1].to_dict()
         self._PAGE_TEMPLATE.find(class_='imported').string.replace_with(dict_last_row.get('imported'))
         self._PAGE_TEMPLATE.find(class_='updated').string.replace_with(dict_last_row.get('updated'))
