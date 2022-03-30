@@ -8,7 +8,7 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/broker/status" ]
       interval: 2s
       timeout: 2s
-      retries: 5
+      retries: 10
     network_mode: host
   python:
     tty: true
