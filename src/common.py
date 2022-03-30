@@ -307,7 +307,7 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
 
     @staticmethod
     def __load_json_file_as_dict(path_file: str) -> dict:
-        with open(path_file) as json_file:
+        with open(path_file, encoding='utf-8') as json_file:
             dict_mapping = json.load(json_file)
         return dict_mapping
 

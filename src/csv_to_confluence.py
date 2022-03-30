@@ -486,10 +486,13 @@ class ConfluencePageHandlerManager:
     def upload_csv_files_as_confluence_pages(self):
         for id_node in self.__DICT_MAPPING.keys():
             dir_working = os.path.join(self.__DIR_ROOT, id_node)
-            handler = ConfluencePageHandler(id_node, dir_working)
-            handler.upload_node_information_as_confluence_page()
-            backup = CSVBackupManager(id_node, dir_working)
-            backup.backup_csv_files()
+            if os.path.isdir(dir_working):
+                handler = ConfluencePageHandler(id_node, dir_working)
+                handler.upload_node_information_as_confluence_page()
+                backup = CSVBackupManager(id_node, dir_working)
+                backup.backup_csv_files()
+            else:
+                print('Directory for id %s not found. Skipping...' % id_node)
 
 
 def main(path_config: str):
