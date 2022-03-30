@@ -121,3 +121,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.assertEqual(invalid, page.find(class_='daily_invalid').string)
         self.assertEqual(failed, page.find(class_='daily_failed').string)
         self.assertEqual(error_rate, page.find(class_='daily_error_rate').string)
+
+
+if __name__ == '__main__':
+    unittest.main()

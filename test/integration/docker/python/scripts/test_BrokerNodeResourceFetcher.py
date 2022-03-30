@@ -58,3 +58,7 @@ class TestBrokerNodeResourceFetcher(unittest.TestCase):
         with open(path_file, 'r') as file:
             content = file.read()
         return content
+
+
+if __name__ == '__main__':
+    unittest.main()

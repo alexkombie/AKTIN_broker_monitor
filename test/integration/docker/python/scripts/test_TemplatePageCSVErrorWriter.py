@@ -103,3 +103,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.assertEqual(expected_rows, count_rows)
         count_total_column_items = len(table_errors.find_all('td'))
         self.assertEqual(expected_rows * 3, count_total_column_items)
+
+
+if __name__ == '__main__':
+    unittest.main()

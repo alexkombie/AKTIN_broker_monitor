@@ -28,3 +28,6 @@ class TestSingletonMeta(unittest.TestCase):
         mapper1 = ConfluenceNodeMapper()
         mapper2 = ConfluenceNodeMapper()
         self.assertEqual(id(mapper1), id(mapper2))
+
+if __name__ == '__main__':
+    unittest.main()
