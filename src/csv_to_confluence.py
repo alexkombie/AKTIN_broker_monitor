@@ -200,7 +200,7 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
         if not dictionary:
             return '-'
         for key, value in dictionary.items():
-            value = '?' if value is None else value
+            value = '?' if not value else value
             item = ''.join([key, ' ', '(', value, ')'])
             tmp_list.append(item)
         return ', '.join(tmp_list)

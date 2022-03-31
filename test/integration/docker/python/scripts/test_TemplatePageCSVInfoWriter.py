@@ -98,24 +98,24 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         page = writer.add_content_to_template_page(self.__TEMPLATE)
         return page
 
-    def __check_template_page_dates(self, page: str, last_check: str, last_contact: str, last_start: str, last_write: str, last_reject: str):
-        page = bs4.BeautifulSoup(page, 'html.parser')
+    def __check_template_page_dates(self, page_template: str, last_check: str, last_contact: str, last_start: str, last_write: str, last_reject: str):
+        page = bs4.BeautifulSoup(page_template, 'html.parser')
         self.assertEqual(last_check, page.find(class_='last_check').string)
         self.assertEqual(last_contact, page.find(class_='last_contact').string)
         self.assertEqual(last_start, page.find(class_='last_start').string)
         self.assertEqual(last_write, page.find(class_='last_write').string)
         self.assertEqual(last_reject, page.find(class_='last_reject').string)
 
-    def __check_template_page_total_imports(self, page: str, imported: str, updated: str, invalid: str, failed: str, error_rate: str):
-        page = bs4.BeautifulSoup(page, 'html.parser')
+    def __check_template_page_total_imports(self, page_template: str, imported: str, updated: str, invalid: str, failed: str, error_rate: str):
+        page = bs4.BeautifulSoup(page_template, 'html.parser')
         self.assertEqual(imported, page.find(class_='imported').string)
         self.assertEqual(updated, page.find(class_='updated').string)
         self.assertEqual(invalid, page.find(class_='invalid').string)
         self.assertEqual(failed, page.find(class_='failed').string)
         self.assertEqual(error_rate, page.find(class_='error_rate').string)
 
-    def __check_template_page_daily_imports(self, page: str, imported: str, updated: str, invalid: str, failed: str, error_rate: str):
-        page = bs4.BeautifulSoup(page, 'html.parser')
+    def __check_template_page_daily_imports(self, page_template: str, imported: str, updated: str, invalid: str, failed: str, error_rate: str):
+        page = bs4.BeautifulSoup(page_template, 'html.parser')
         self.assertEqual(imported, page.find(class_='daily_imported').string)
         self.assertEqual(updated, page.find(class_='daily_updated').string)
         self.assertEqual(invalid, page.find(class_='daily_invalid').string)

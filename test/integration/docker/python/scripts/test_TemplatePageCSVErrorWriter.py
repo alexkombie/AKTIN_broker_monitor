@@ -9,7 +9,7 @@ from common import ErrorCSVHandler
 from common import load_properties_file_as_environment
 
 
-class TestTemplatePageCSVInfoWriter(unittest.TestCase):
+class TestTemplatePageCSVErrorWriter(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
     __DIR_WORKING: str = None
     __HANDLER = ErrorCSVHandler()
@@ -96,9 +96,9 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         page = writer.add_content_to_template_page(self.__TEMPLATE)
         return page
 
-    def __check_error_table_row_count(self, page: str, expected_rows: int):
-        template = bs4.BeautifulSoup(page, 'html.parser')
-        table_errors = template.find(class_='table_errors_body')
+    def __check_error_table_row_count(self, page_template: str, expected_rows: int):
+        page = bs4.BeautifulSoup(page_template, 'html.parser')
+        table_errors = page.find(class_='table_errors_body')
         count_rows = len(table_errors.find_all('tr'))
         self.assertEqual(expected_rows, count_rows)
         count_total_column_items = len(table_errors.find_all('td'))
