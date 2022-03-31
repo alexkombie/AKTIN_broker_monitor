@@ -236,7 +236,7 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         elif self.__is_template_soup_daily_error_rate_above_one():
             status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
         else:
-            status = self.__create_status_element('ONLINE', 'GREEN')
+            status = self.__create_status_element('ONLINE', 'Green')
         self._PAGE_TEMPLATE.find(class_='status').replace_with(status)
 
     def __is_template_soup_offline(self) -> bool:
@@ -266,6 +266,8 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
 
     def __is_template_soup_not_importing(self) -> bool:
         last_write = self._PAGE_TEMPLATE.find(class_='last_write').string
+        if last_write == '-':
+            return True
         return self.__is_date_longer_ago_than_yesterday(last_write)
 
     @staticmethod

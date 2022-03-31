@@ -30,6 +30,8 @@ docker exec python pytest test_BrokerNodeFetcherManager.py
 docker exec python pytest test_TemplatePageCSVInfoWriter.py
 docker exec python pytest test_TemplatePageCSVErrorWriter.py
 docker exec python pytest test_TemplatePageNodeResourceWriter.py
+docker exec python pytest test_TemplatePageStatusChecker.py
+docker exec python pytest test_TemplateResourceLoader.py
 
 LIST_CONTAINER=( broker-server python )
 echo -e "${YEL} Stop all container ${WHI}"
