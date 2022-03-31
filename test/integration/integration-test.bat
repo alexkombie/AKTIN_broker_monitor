@@ -23,6 +23,7 @@ docker exec python pytest test_BrokerNodeResourceFetcher.py
 docker exec python pytest test_BrokerNodeFetcherManager.py
 docker exec python pytest test_TemplatePageCSVInfoWriter.py
 docker exec python pytest test_TemplatePageCSVErrorWriter.py
+docker exec python pytest test_TemplatePageNodeResourceWriter.py
 
 set ListContainer=broker-server python
 echo %ESC%[33m Stop all container %ESC%[0m

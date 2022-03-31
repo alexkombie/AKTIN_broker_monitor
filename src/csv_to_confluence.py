@@ -168,11 +168,11 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
         self._PAGE_TEMPLATE.find(class_='os').string.replace_with(self.__get_value_of_dict(versions, 'os'))
         self._PAGE_TEMPLATE.find(class_='kernel').string.replace_with(self.__get_value_of_dict(versions, 'kernel'))
         self._PAGE_TEMPLATE.find(class_='java').string.replace_with(self.__get_value_of_dict(versions, 'java'))
-        self._PAGE_TEMPLATE.find(class_='wildfly').string.replace_with(self.__get_value_of_dict(versions, 'j2ee-impl'))
+        self._PAGE_TEMPLATE.find(class_='j2ee-impl').string.replace_with(self.__get_value_of_dict(versions, 'j2ee-impl'))
         self._PAGE_TEMPLATE.find(class_='apache2').string.replace_with(self.__get_value_of_dict(versions, 'apache2'))
-        self._PAGE_TEMPLATE.find(class_='postgresql').string.replace_with(self.__get_value_of_dict(versions, 'postgres'))
-        self._PAGE_TEMPLATE.find(class_='api').string.replace_with(self.__get_value_of_dict(versions, 'dwh-api'))
-        self._PAGE_TEMPLATE.find(class_='dwh').string.replace_with(self.__get_value_of_dict(versions, 'dwh-j2ee'))
+        self._PAGE_TEMPLATE.find(class_='postgres').string.replace_with(self.__get_value_of_dict(versions, 'postgres'))
+        self._PAGE_TEMPLATE.find(class_='dwh-api').string.replace_with(self.__get_value_of_dict(versions, 'dwh-api'))
+        self._PAGE_TEMPLATE.find(class_='dwh-j2ee').string.replace_with(self.__get_value_of_dict(versions, 'dwh-j2ee'))
 
     def __load_node_resource_as_dict(self, name_resource: str) -> dict:
         name_file = ''.join([self.__ID_NODE, '_', name_resource, '.txt'])
@@ -187,7 +187,10 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
     def __get_value_of_dict(dictionary: dict, key: str) -> str:
         if key not in dictionary:
             return '-'
-        return dictionary[key]
+        value = dictionary[key]
+        if not value:
+            return '-'
+        return value
 
     def __add_rscript_to_template_soup(self):
         dict_rscript = self.__load_node_resource_as_dict('rscript')
@@ -200,7 +203,7 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
         if not dictionary:
             return '-'
         for key, value in dictionary.items():
-            value = '?' if not value else value
+            value = '-' if not value else value
             item = ''.join([key, ' ', '(', value, ')'])
             tmp_list.append(item)
         return ', '.join(tmp_list)
@@ -213,7 +216,7 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
     def __add_import_scripts_to_template_soup(self):
         dict_import_scripts = self.__load_node_resource_as_dict('import-scripts')
         import_scripts = self.__concat_dict_items_as_string(dict_import_scripts)
-        self._PAGE_TEMPLATE.find(class_='import_scripts').string.replace_with(import_scripts)
+        self._PAGE_TEMPLATE.find(class_='import-scripts').string.replace_with(import_scripts)
 
 
 class TemplatePageStatusChecker(TemplatePageContentWriter):
