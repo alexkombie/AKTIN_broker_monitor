@@ -42,6 +42,9 @@ from common import __stop_logger
 from common import load_properties_file_as_environment
 
 
+# TODO Compute deviating imports based on past values
+# TODO Create summary of the most important values on Parent page
+
 class TemplatePageContentWriter(ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup = None
 
@@ -333,8 +336,10 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 
     def __generate_jira_table_with_query(self, query: str) -> Tag:
         param_server = self.__create_ac_parameter_tag('server', 'Jira IMI UK Aachen')
-        param_id_columns = self.__create_ac_parameter_tag('columnIds', 'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
-        param_columns = self.__create_ac_parameter_tag('columns', 'key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution')
+        param_id_columns = self.__create_ac_parameter_tag('columnIds', 'issuekey,summary,issuetype,created,updated,'
+                                                                       'duedate,assignee,reporter,priority,status,resolution')
+        param_columns = self.__create_ac_parameter_tag('columns', 'key,summary,type,created,updated,'
+                                                                  'due,assignee,reporter,priority,status,resolution')
         param_max_issues = self.__create_ac_parameter_tag('maximumIssues', '25')
         param_query = self.__create_ac_parameter_tag('jqlQuery', query)
         frame = self.__create_ac_macro_tag('jira')
@@ -497,7 +502,7 @@ class ConfluencePageHandlerManager:
                 backup = CSVBackupManager(id_node, dir_working)
                 backup.backup_csv_files()
             else:
-                print('Directory for id %s not found. Skipping...' % id_node)
+                logging.info('Directory for id %s not found. Skipping...' % id_node)
 
 
 def main(path_config: str):
