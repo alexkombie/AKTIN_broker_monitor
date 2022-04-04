@@ -214,17 +214,13 @@ class NodeErrorFetcher(BrokerNodeFetcher):
         df = self._CSV_HANDLER.read_csv_as_df(self._PATH_CSV)
         for error in errors:
             if self.__did_error_appear_this_year(error):
-                new_row = {
-                    'timestamp': self._extract_YMD_HMS_from_string(error.timestamp),
-                    'repeats':   error.repeats if error.repeats is not None else '1',
-                    'content':   error.content}
-                dict_new_row = pd.DataFrame(new_row, index=[0])
-                if self.__is_error_already_logged(df, error):
-                    if self.__did_error_repeats_change(df, error):
-                        df = self.__delete_old_error_row(df, error)
-                        df = pd.concat([df, dict_new_row])
+                row_error = self.__convert_error_to_row(error)
+                if self.__is_error_already_logged(df, row_error):
+                    if self.__did_error_row_repeats_change(df, row_error):
+                        df = self.__delete_old_error_row(df, row_error)
+                        df = pd.concat([df, row_error])
                 else:
-                    df = pd.concat([df, dict_new_row])
+                    df = pd.concat([df, row_error])
         df = df.sort_values(by='timestamp', ascending=False)
         self._CSV_HANDLER.save_df_to_csv(df, self._PATH_CSV)
 
@@ -232,18 +228,29 @@ class NodeErrorFetcher(BrokerNodeFetcher):
         date_error = pd.Timestamp(error.timestamp).tz_convert(self._TIMEZONE)
         return self._CURRENT_DATE.year == date_error.year
 
-    @staticmethod
-    def __is_error_already_logged(reference: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError) -> bool:
-        return any(reference['content'] == error.content)
+    def __convert_error_to_row(self, error: BrokerNodeConnection.BrokerNodeError) -> pd.DataFrame:
+        new_row = {
+            'timestamp': self._extract_YMD_HMS_from_string(error.timestamp),
+            'repeats':   error.repeats if error.repeats is not None else '1',
+            'content':   error.content}
+        return pd.DataFrame(new_row, index=[0])
 
     @staticmethod
-    def __did_error_repeats_change(reference: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError) -> bool:
-        idx = reference.index[reference['content'] == error.content][0]
-        return reference['repeats'][idx] != error.repeats
+    def __is_error_already_logged(reference: pd.DataFrame, error: pd.DataFrame) -> bool:
+        set_reference = set(reference['content'])
+        set_error = set(error['content'])
+        return any(set_reference.intersection(set_error))
 
     @staticmethod
-    def __delete_old_error_row(df: pd.DataFrame, error: BrokerNodeConnection.BrokerNodeError) -> pd.DataFrame:
-        idx = df.index[df['content'] == error.content][0]
+    def __did_error_row_repeats_change(reference: pd.DataFrame, error: pd.DataFrame) -> bool:
+        df_intersection = pd.merge(reference, error, on='content', how='inner')
+        repeats_reference = df_intersection['repeats_x'].values
+        repeats_error = df_intersection['repeats_y'].values
+        return repeats_reference != repeats_error
+
+    @staticmethod
+    def __delete_old_error_row(df: pd.DataFrame, error: pd.DataFrame) -> pd.DataFrame:
+        idx = df.index[df['content'] == error['content'][0]]
         return df.drop(index=idx)
 
 
