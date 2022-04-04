@@ -17,6 +17,7 @@
   },
   "10": {
     "COMMON": "[10] Clinic10",
+    "JIRA_LABELS": [],
     "DAILY_IMPORT_THRESHOLD": "100"
   }
 }
