@@ -23,8 +23,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         html = bs4.BeautifulSoup(page, 'html.parser')
         html.find(class_='last_contact').string.replace_with(self.__CURRENT_YMD_HMS)
         html.find(class_='last_write').string.replace_with(self.__CURRENT_YMD_HMS)
-        html.find(class_='daily_imported').string.replace_with('60')
-        html.find(class_='daily_updated').string.replace_with('60')
+        html.find(class_='daily_imported').string.replace_with('1000')
         html.find(class_='daily_error_rate').string.replace_with('0.0')
         self.__TEMPLATE = str(html)
 
@@ -61,27 +60,18 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'NO IMPORTS', 'Red')
 
-    def test_imports_below_lower_border(self):
-        self.__set_value_in_template('daily_imported', '66')
-        self.__set_value_in_template('daily_updated', '0')
+    def test_imports_below_border(self):
+        self.__set_value_in_template('daily_imported', '24')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'DEVIATING IMPORTS', 'Yellow')
 
-    def test_imports_on_lower_border(self):
-        self.__set_value_in_template('daily_imported', '67')
-        self.__set_value_in_template('daily_updated', '0')
-        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
-        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
-
-    def test_imports_above_higher_broder(self):
-        self.__set_value_in_template('daily_imported', '134')
-        self.__set_value_in_template('daily_updated', '0')
+    def test_imports_on_border(self):
+        self.__set_value_in_template('daily_imported', '25')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'DEVIATING IMPORTS', 'Yellow')
 
-    def test_imports_on_higher_border(self):
-        self.__set_value_in_template('daily_imported', '133')
-        self.__set_value_in_template('daily_updated', '0')
+    def test_imports_above_border(self):
+        self.__set_value_in_template('daily_imported', '26')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 

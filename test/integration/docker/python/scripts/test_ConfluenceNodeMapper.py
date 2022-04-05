@@ -26,7 +26,7 @@ class TestConfluenceNodeMapper(unittest.TestCase):
         self.assertEqual(['label1','label2'], node1['JIRA_LABELS'])
         node10 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('10')
         self.assertEqual('[10] Clinic10', node10['COMMON'])
-        self.assertEqual('100', node10['DAILY_IMPORT_THRESHOLD'])
+        self.assertEqual('25', node10['MINIMUM_DAILY_IMPORTS'])
 
     def test_get_nonexisting_node(self):
         node = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('99')

@@ -42,7 +42,7 @@ from common import __stop_logger
 from common import load_properties_file_as_environment
 
 
-# TODO Compute deviating imports based on past values
+# TODO Create Email Sending Service for import status
 # TODO Create summary of the most important values on Parent page
 
 class TemplatePageContentWriter(ABC):
@@ -223,11 +223,10 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
 
 
 class TemplatePageStatusChecker(TemplatePageContentWriter):
-    __WITDH_IMPORT_THRESHOLD: float = 0.33
 
     def __init__(self, id_node: str):
         mapper = ConfluenceNodeMapper()
-        self.__DAILY_IMPORT_TRESHOLD = mapper.get_node_value_from_mapping_dict(id_node, 'DAILY_IMPORT_THRESHOLD')
+        self.__MINIMUM_DAILY_IMPORTS = mapper.get_node_value_from_mapping_dict(id_node, 'MINIMUM_DAILY_IMPORTS')
 
     def _add_content_to_template_soup(self):
         if self.__is_template_soup_offline():
@@ -283,18 +282,12 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
             return False
 
     def __are_template_soup_imports_deviating(self) -> bool:
-        if self.__DAILY_IMPORT_TRESHOLD is not None:
-            threshold = int(self.__DAILY_IMPORT_TRESHOLD)
-            border_lower = threshold * (1 - self.__WITDH_IMPORT_THRESHOLD)
-            border_upper = threshold * (1 + self.__WITDH_IMPORT_THRESHOLD)
+        if self.__MINIMUM_DAILY_IMPORTS is not None:
+            minimum = int(self.__MINIMUM_DAILY_IMPORTS)
             imported = self._PAGE_TEMPLATE.find(class_='daily_imported').string
-            updated = self._PAGE_TEMPLATE.find(class_='daily_updated').string
-            if imported == '-' or updated == '-':
+            if imported == '-':
                 return False
-            sum_imports = int(imported) + int(updated)
-            if border_lower <= sum_imports <= border_upper:
-                return False
-            else:
+            if int(imported) <= minimum:
                 return True
         return False
 
