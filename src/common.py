@@ -106,7 +106,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             url = '{}/{}'.format(url, item)
         return url
 
-    def get_broker_nodes_list(self) -> list[str]:
+    def get_broker_nodes_list(self) -> list:
         url = self.__append_to_broker_url('broker', 'node')
         tree = self.__get_processed_response(url)
         return [node.find('id').text for node in tree.getchildren()]
@@ -149,7 +149,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     def get_broker_node_resource(self, id_node: str, resource: str) -> dict:
         """
         Possible resources are 'versions', 'rscript', 'python', 'import-scripts'.
-        URL to possible resources can be non-existing
+        URL to mentioned resources can also be non-existing.
         """
         url = self.__append_to_broker_url('broker', 'node', id_node, resource)
         try:
@@ -179,7 +179,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     @staticmethod
     def __remove_namespace_from_tree(tree: ET._ElementTree) -> ET._ElementTree:
         """
-        To enable search via xpath
+        To enable search/processing via xpath
         """
         for elem in tree.getiterator():
             if not hasattr(elem.tag, 'find'):

@@ -87,7 +87,7 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         Calls AKTIN Broker Endpoints to get import statistics of connected node and writes response in csv file.
         * One row in csv file equals the status of one day.
         * Computes differences to last row in csv file (assuming it contains the import statistic of yesterday's date).
-        * Import stats are reseted on DWH when restart occurs. Therefore, no daily differences are calculated either.
+        * Import stats are reseted on DWH when a restart occurs. Therefore, no daily differences are calculated either.
         * Running the method multiple times will overwrite the row of the current day each time.
         * All date information from broker-server is converted into a local, human-readable format.
         * The vars 'last-reject' and 'last-write' from broker-server can be None if no data was imported/no error occured.
@@ -184,13 +184,13 @@ class NodeInfoFetcher(BrokerNodeFetcher):
     @staticmethod
     def __compute_error_rate(imported: int, updated: int, invalid: int, failed: int) -> str:
         sum_success = imported + updated
-        sum_failed = invalid + failed
-        if sum_failed > 0 and sum_success == 0:
+        sum_failure = invalid + failed
+        if sum_failure > 0 and sum_success == 0:
             error_rate = '100.0'
-        elif sum_failed == 0 and sum_success == 0:
+        elif sum_failure == 0 and sum_success == 0:
             error_rate = '-'
         else:
-            error_rate = sum_failed / (sum_success + sum_failed)
+            error_rate = sum_failure / (sum_success + sum_failure)
             error_rate = str(round(error_rate * 100, 2))
         return error_rate
 
@@ -203,8 +203,6 @@ class NodeErrorFetcher(BrokerNodeFetcher):
         Calls AKTIN Broker Endpoints to get noted errors of connected node and writes response in csv file.
         * One row in csv file equals one occured error.
         * Logged Errors can be updated on the broker side, in which the var 'timestamp' is updated and 'repeats' is incremented.
-        * The var 'repeats' from broker-server can be None, if the error occured just once. BROKER_NODE_CONNECTION picks this up and
-        replaces the value with a '1'.
         * Updates in csv are done by deleting and re-appending corresponding row.
         * Only errors of the current year are tracked in the csv file to limit file size.
         * As with NodeInfoFetcher, the Csv file is rotated each year.
@@ -229,6 +227,9 @@ class NodeErrorFetcher(BrokerNodeFetcher):
         return self._CURRENT_DATE.year == date_error.year
 
     def __convert_error_to_row(self, error: BrokerNodeConnection.BrokerNodeError) -> pd.DataFrame:
+        """
+        The var 'repeats' from broker-server can be None, if the error occured just once.
+        """
         new_row = {
             'timestamp': self._extract_YMD_HMS_from_string(error.timestamp),
             'repeats':   error.repeats if error.repeats is not None else '1',
@@ -281,7 +282,7 @@ class BrokerNodeResourceFetcher:
     @staticmethod
     def __clean_dictionary(dictionary: dict) -> dict:
         """
-        Set dict values with None to be '-', as file.write() throws exception when None occurs
+        Set dict values with None to be '-', as file.write() throws exception when a None occurs
         """
         return {key: value if value is not None else '-' for key, value in dictionary.items()}
 

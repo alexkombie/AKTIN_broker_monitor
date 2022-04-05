@@ -44,6 +44,7 @@ from common import load_properties_file_as_environment
 
 # TODO Create Email Sending Service for import status
 # TODO Create summary of the most important values on Parent page
+# TODO Compute deviating threshold automatically
 
 class TemplatePageContentWriter(ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup = None
@@ -125,16 +126,16 @@ class TemplatePageCSVErrorWriter(TemplatePageCSVWriter, TemplatePageContentWrite
         header_timestamp = self.__create_table_header_tag('timestamp')
         header_repeats = self.__create_table_header_tag('repeats')
         header_content = self.__create_table_header_tag('content')
-        row_header = bs4.BeautifulSoup().new_tag('tr')
+        row_header = bs4.BeautifulSoup(features='html.parser').new_tag('tr')
         row_header.extend([header_timestamp, header_repeats, header_content])
-        table_errors = bs4.BeautifulSoup().new_tag('tbody', attrs={'class': 'table_errors_body'})
-        table_errors.extend(row_header)
+        table_errors = bs4.BeautifulSoup(features='html.parser').new_tag('tbody', attrs={'class': 'table_errors_body'})
+        table_errors.append(row_header)
         table_errors = bs4.BeautifulSoup(str(table_errors), 'html.parser')
         return table_errors
 
     @staticmethod
     def __create_table_header_tag(content: str) -> Tag:
-        tag = bs4.BeautifulSoup().new_tag('th', attrs={'style': 'text-align: center;'})
+        tag = bs4.BeautifulSoup(features='html.parser').new_tag('th', attrs={'style': 'text-align: center;'})
         tag.append(content)
         return tag
 
@@ -142,14 +143,14 @@ class TemplatePageCSVErrorWriter(TemplatePageCSVWriter, TemplatePageContentWrite
         column_timestamp = self.__create_table_row_tag(timestamp, centered=True)
         column_repeats = self.__create_table_row_tag(repeats, centered=True)
         column_content = self.__create_table_row_tag(content)
-        row_error = bs4.BeautifulSoup().new_tag('tr')
+        row_error = bs4.BeautifulSoup(features='html.parser').new_tag('tr')
         row_error.extend([column_timestamp, column_repeats, column_content])
         return row_error
 
     @staticmethod
     def __create_table_row_tag(content: str, centered=False) -> Tag:
         attribute = {'style': 'text-align: center;'} if centered is True else {}
-        tag = bs4.BeautifulSoup().new_tag('td', attrs=attribute)
+        tag = bs4.BeautifulSoup(features='html.parser').new_tag('td', attrs=attribute)
         tag.append(content)
         return tag
 
@@ -167,6 +168,10 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
         self.__add_import_scripts_to_template_soup()
 
     def __add_versions_to_template_soup(self):
+        """
+        Resource 'versions' is more static than the other resources. The other resources are more dynamic in
+        scope and are therefore just concatted.
+        """
         versions = self.__load_node_resource_as_dict('versions')
         self._PAGE_TEMPLATE.find(class_='os').string.replace_with(self.__get_value_of_dict(versions, 'os'))
         self._PAGE_TEMPLATE.find(class_='kernel').string.replace_with(self.__get_value_of_dict(versions, 'kernel'))
@@ -250,20 +255,20 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         param_color = self.__create_ac_parameter_tag('color', color)
         frame = self.__create_ac_macro_tag('status')
         frame.extend([param_title, param_color])
-        status = bs4.BeautifulSoup().new_tag('td', attrs={'style': 'text-align:center;', 'class': 'status'})
+        status = bs4.BeautifulSoup(features='html.parser').new_tag('td', attrs={'style': 'text-align:center;', 'class': 'status'})
         status.append(frame)
         return status
 
     @staticmethod
     def __create_ac_parameter_tag(name: str, content: str) -> Tag:
-        parameter = bs4.BeautifulSoup().new_tag('ac:parameter', attrs={'ac:name': name})
+        parameter = bs4.BeautifulSoup(features='html.parser').new_tag('ac:parameter', attrs={'ac:name': name})
         parameter.append(content)
         return parameter
 
     @staticmethod
     def __create_ac_macro_tag(name: str) -> Tag:
         attributes = {'ac:name': name, 'ac:schema-version': '1'}
-        macro = bs4.BeautifulSoup().new_tag('ac:structured-macro', attrs=attributes)
+        macro = bs4.BeautifulSoup(features='html.parser').new_tag('ac:structured-macro', attrs=attributes)
         return macro
 
     def __is_template_soup_not_importing(self) -> bool:
@@ -337,20 +342,20 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
         param_query = self.__create_ac_parameter_tag('jqlQuery', query)
         frame = self.__create_ac_macro_tag('jira')
         frame.extend([param_server, param_id_columns, param_columns, param_max_issues, param_query])
-        jira = bs4.BeautifulSoup().new_tag('p', attrs={'class': 'table_jira'})
+        jira = bs4.BeautifulSoup(features='html.parser').new_tag('p', attrs={'class': 'table_jira'})
         jira.append(frame)
         return jira
 
     @staticmethod
     def __create_ac_parameter_tag(name: str, content: str) -> Tag:
-        parameter = bs4.BeautifulSoup().new_tag('ac:parameter', attrs={'ac:name': name})
+        parameter = bs4.BeautifulSoup(features='html.parser').new_tag('ac:parameter', attrs={'ac:name': name})
         parameter.append(content)
         return parameter
 
     @staticmethod
     def __create_ac_macro_tag(name: str) -> Tag:
         attributes = {'ac:name': name, 'ac:schema-version': '1'}
-        macro = bs4.BeautifulSoup().new_tag('ac:structured-macro', attrs=attributes)
+        macro = bs4.BeautifulSoup(features='html.parser').new_tag('ac:structured-macro', attrs=attributes)
         return macro
 
 
@@ -480,8 +485,8 @@ class ConfluencePageHandlerManager:
 
     def __init_parent_page(self):
         if not self.__CONFLUENCE.check_page_existence(self.__CONFLUENCE_PARENT_PAGE):
-            macro = bs4.BeautifulSoup().new_tag('ac:structured-macro', attrs={'ac:name': 'children', 'ac:schema-version': '1'})
-            page_parent = bs4.BeautifulSoup().new_tag('p')
+            macro = bs4.BeautifulSoup(features='html.parser').new_tag('ac:structured-macro', attrs={'ac:name': 'children', 'ac:schema-version': '1'})
+            page_parent = bs4.BeautifulSoup(features='html.parser').new_tag('p')
             page_parent.append(macro)
             page_parent = str(page_parent)
             self.__CONFLUENCE.create_confluence_page(self.__CONFLUENCE_PARENT_PAGE, self.__CONFLUENCE_ROOT_PAGE_NAME, page_parent)

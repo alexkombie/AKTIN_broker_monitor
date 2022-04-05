@@ -107,7 +107,7 @@ class BrokerNodeResourceFetcher {
 }
 
 class "**BrokerNodeFetcherManager**" as BrokerNodeFetcherManager {
-* main class to run broker node info fetching
+* main class to run broker node fetching
 * creates working dir for each connected node
 * initializes and executes fetcher
 }
@@ -155,6 +155,8 @@ information to confluence page template
 class TemplatePageStatusChecker {
 * checks and sets status light in confluence
 page template
+* States are ONLINE, OFFLINE, NO IMPORTS,
+DEVIATING IMPORTS and HIGH ERROR RATE
 }
 
 class TemplatePageJiraTableWriter {
