@@ -45,6 +45,7 @@ from common import load_properties_file_as_environment
 # TODO Create Email Sending Service for import status
 # TODO Create summary of the most important values on Parent page
 # TODO Compute deviating threshold automatically
+# TODO move everything bs4 related into own class
 
 class TemplatePageContentWriter(ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup = None
@@ -303,7 +304,7 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         imported = self._PAGE_TEMPLATE.find(class_='daily_imported').string
         updated = self._PAGE_TEMPLATE.find(class_='daily_updated').string
         threshold = 1.0
-        if not imported == '-' and not updated == '-':
+        if imported != '-' and updated != '-':
             sum_imports = int(imported) + int(updated)
             if sum_imports <= 100:
                 threshold = 5.0
