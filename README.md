@@ -1,2 +1,44 @@
-# AKTIN_broker_monitor
-Simple scripts that monitor connected node activity of the AKTIN Broker
+# AKTIN_broker_monitor [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=aktin_AKTIN_broker_monitor&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=aktin_AKTIN_broker_monitor) ![Python 3.9](https://img.shields.io/badge/python-3.9-blue)
+
+Simple scripts that monitor connected node activity of the [AKTIN Broker](https://github.com/aktin/broker). The whole process is divided into several scripts. All reusable components are stored in `common.py`:
+
+* `node_to_csv.py` retrieves information from broker connected nodes and stores them locally. Import statistics and import errors are stored in CSV files. Resource information is written into text files.
+* `csv_to_confluence.py` takes the generated files and fills a HTML template of a Confluence page with their content. The template is then uploaded to Confluence. Existing pages on Confluence are updated in the same way.
+
+## Usage
+
+A JSON configuration file with the following key-value pairs is required to run the scripts (see also the example in the integration tests):
+
+| Parameter                | Description                                                                                                                                                                                             | Example                  |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| BROKER_URL               | URL to your broker server                                                                                                                                                                               | http://localhost:8080    |
+| ADMIN_API_KEY            | API key of your broker server administrator                                                                                                                                                             | xxxAdmin1234             |
+| ROOT_DIR                 | Working directory of the script. Directories for each connected node to store the retrieved information are created here.                                                                               | /opt                     |
+| CONFLUENCE_RESOURCES_DIR | Path to the directory with HTML templates                                                                                                                                                               | /opt/resources           |
+| CONFLUENCE_URL           | URL to your confluence server                                                                                                                                                                           | http://my-confluence.com |
+| CONFLUENCE_SPACE         | Your Confluence space where the pages with node information should be created                                                                                                                           | MY_SPACE                 |
+| CONFLUENCE_PARENT_PAGE   | Within the script, a separate parent page is created for the pages with broker node information. This page here is the parent of the Confluence page containing the pages with broker node information. | Broker Node Information  |
+| CONFLUENCE_TOKEN         | Your token for authentication in Confluence                                                                                                                                                             | jAzMjQ4Omy               |
+| CONFLUENCE_MAPPING_JSON  | Path to the confluence json mapping file                                                                                                                                                                | /opt/mapping.json        |
+
+The configuration file must be passed to the scripts as an input argument. The script `common.py` must be located in the same folder as the executed script:
+
+```
+python3 node_to_csv.py {PATH_TO_SETTINGS_FILE}
+```
+
+Additionally, the script `csv_to_confluence.py` needs a mapping table to map the ID of the broker nodes to a human-readable name. This name also acts as the name of the created Confluence page. Inside the mapping table, the optional keys `JIRA_LABELS` and `MINIMUM_DAILY_IMPORTS` can be set. From the list of `JIRA_LABELS` a JIRA query is defined and passed to a table for JIRA tickets inside the Confluence page. The key `MINIMUM_DAILY_IMPORTS` is used by the script for an additional check of the daily imports of a single node. The status of the node is changed accordingly, should the daily import be below the defined limit.
+
+```
+"99": {
+    "COMMON": "[99] Default Clinic",
+    "JIRA_LABELS": [
+      "label1",
+      "label2",
+    ],
+    "MINIMUM_DAILY_IMPORTS": "99"
+```
+
+## Testing
+
+To test the script, **integration-test.bat** and **integration-test.sh** are attached. To run an integration test, a running instance of [Docker](https://www.docker.com/) is required. The script will create a container to simulate the [AKTIN Broker Server](https://github.com/aktin/broker/tree/master/broker-server) and a second container to run the scripts on. 
