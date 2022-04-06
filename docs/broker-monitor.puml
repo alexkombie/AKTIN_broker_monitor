@@ -54,14 +54,11 @@ class ErrorCSVHandler {
 class "**BrokerNodeConnection**" as BrokerNodeConnection {
 * uses REST endpoint of broker-server to get
 information about connected broker nodes
-* Responses are converted to custom objects
-* Broker connection is created on initialization
 }
 
 class "**ConfluenceConnection**" as ConfluenceConnection {
 * uses Atlassian Python API to execute CRUD
 operations on confluence pages
-* Confluence conncetion is created on initialization
 }
 
 class "**ConfluenceNodeMapper**" as ConfluenceNodeMapper {
@@ -153,10 +150,8 @@ information to confluence page template
 }
 
 class TemplatePageStatusChecker {
-* checks and sets status light in confluence
-page template
-* States are ONLINE, OFFLINE, NO IMPORTS,
-DEVIATING IMPORTS and HIGH ERROR RATE
+* checks and sets status of node in
+confluence page template
 }
 
 class TemplatePageJiraTableWriter {

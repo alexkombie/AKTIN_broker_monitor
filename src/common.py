@@ -268,6 +268,9 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
 
 
 class ConfluenceConnection(metaclass=SingletonMeta):
+    """
+    Confluence conncetion is created on initialization
+    """
 
     def __init__(self):
         confluence_url = os.environ['CONFLUENCE_URL']

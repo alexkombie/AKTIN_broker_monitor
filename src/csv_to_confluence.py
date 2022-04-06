@@ -73,6 +73,9 @@ class TemplatePageCSVWriter:
 
 
 class TemplatePageCSVInfoWriter(TemplatePageCSVWriter, TemplatePageContentWriter):
+    """
+    Content of info csv is written into predefined elements of the template
+    """
     _CSV_HANDLER = InfoCSVHandler()
 
     def _add_content_to_template_soup(self):
@@ -106,6 +109,9 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVWriter, TemplatePageContentWriter
 
 
 class TemplatePageCSVErrorWriter(TemplatePageCSVWriter, TemplatePageContentWriter):
+    """
+    Content of error csv is written as a html table into the template
+    """
     _CSV_HANDLER = ErrorCSVHandler()
     __NUM_ERRORS: int = 20
 
@@ -157,6 +163,10 @@ class TemplatePageCSVErrorWriter(TemplatePageCSVWriter, TemplatePageContentWrite
 
 
 class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
+    """
+    Content of resource 'versions' is more static than the other resources. Therefore, each value is
+    written into a predefined element. The other resources are more dynamic and the content is just concatted.
+    """
 
     def __init__(self, id_node: str, dir_working=''):
         self.__ID_NODE = id_node
@@ -169,10 +179,6 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
         self.__add_import_scripts_to_template_soup()
 
     def __add_versions_to_template_soup(self):
-        """
-        Resource 'versions' is more static than the other resources. The other resources are more dynamic in
-        scope and are therefore just concatted.
-        """
         versions = self.__load_node_resource_as_dict('versions')
         self._PAGE_TEMPLATE.find(class_='os').string.replace_with(self.__get_value_of_dict(versions, 'os'))
         self._PAGE_TEMPLATE.find(class_='kernel').string.replace_with(self.__get_value_of_dict(versions, 'kernel'))
@@ -229,6 +235,10 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
 
 
 class TemplatePageStatusChecker(TemplatePageContentWriter):
+    """
+    The TemplatePageStatusChecker should always be the last class in the processing pipeline of
+    an confluence page! The status is added as a custom confluence html element.
+    """
 
     def __init__(self, id_node: str):
         mapper = ConfluenceNodeMapper()
@@ -298,6 +308,9 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
         return False
 
     def __is_template_soup_daily_error_rate_above_one(self) -> bool:
+        """
+        Higher tolerance on low imports, as a single error would already lead to HIGH_ERROR_RATE
+        """
         error_rate = self._PAGE_TEMPLATE.find(class_='daily_error_rate').string
         if error_rate == '-':
             return False
@@ -312,6 +325,9 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
 
 
 class TemplatePageJiraTableWriter(TemplatePageContentWriter):
+    """
+    Table for JIRA Tickets is added as a custom confluence html element
+    """
 
     def __init__(self, id_node: str):
         mapper = ConfluenceNodeMapper()
@@ -456,6 +472,9 @@ class ConfluencePageHandler:
 
 
 class CSVBackupManager:
+    """
+    Identical named attachements are overwritten, when uploaded to Confluence.
+    """
 
     def __init__(self, id_node: str, dir_working=''):
         self.__DIR_WORKING = dir_working
