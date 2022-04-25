@@ -506,10 +506,19 @@ class ConfluencePageHandlerManager:
     def __init_parent_page(self):
         if not self.__CONFLUENCE.check_page_existence(self.__CONFLUENCE_PARENT_PAGE):
             macro = bs4.BeautifulSoup(features='html.parser').new_tag('ac:structured-macro', attrs={'ac:name': 'children', 'ac:schema-version': '1'})
+            style = self.__create_ac_parameter_tag('style', 'h2')
+            excerpt_type = self.__create_ac_parameter_tag('excerptType', 'rich content')
+            macro.extend([style, excerpt_type])
             page_parent = bs4.BeautifulSoup(features='html.parser').new_tag('p')
             page_parent.append(macro)
             page_parent = str(page_parent)
             self.__CONFLUENCE.create_confluence_page(self.__CONFLUENCE_PARENT_PAGE, self.__CONFLUENCE_ROOT_PAGE_NAME, page_parent)
+
+    @staticmethod
+    def __create_ac_parameter_tag(name: str, content: str) -> Tag:
+        parameter = bs4.BeautifulSoup(features='html.parser').new_tag('ac:parameter', attrs={'ac:name': name})
+        parameter.append(content)
+        return parameter
 
     def upload_csv_files_as_confluence_pages(self):
         for id_node in self.__DICT_MAPPING.keys():
