@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 # Created on Tue Mar 22 12:00 2022
-# @version: 1.0
+# @version: 1.1
 
 #
 #      Copyright (c) 2022  Alexander Kombeiz
@@ -249,10 +249,12 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
             status = self.__create_status_element('OFFLINE', 'Red')
         elif self.__is_template_soup_not_importing():
             status = self.__create_status_element('NO IMPORTS', 'Red')
+        elif self.__is_template_soup_daily_error_rate_above_threshold(5.0):
+            status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
+        elif self.__is_template_soup_daily_error_rate_above_threshold(1.0):
+            status = self.__create_status_element('LOW ERROR RATE', 'Yellow')
         elif self.__are_template_soup_imports_deviating():
             status = self.__create_status_element('DEVIATING IMPORTS', 'Yellow')
-        elif self.__is_template_soup_daily_error_rate_above_one():
-            status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
         else:
             status = self.__create_status_element('ONLINE', 'Green')
         self._PAGE_TEMPLATE.find(class_='status').replace_with(status)
@@ -307,20 +309,10 @@ class TemplatePageStatusChecker(TemplatePageContentWriter):
                 return True
         return False
 
-    def __is_template_soup_daily_error_rate_above_one(self) -> bool:
-        """
-        Higher tolerance on low imports, as a single error would already lead to HIGH_ERROR_RATE
-        """
+    def __is_template_soup_daily_error_rate_above_threshold(self, threshold: float) -> bool:
         error_rate = self._PAGE_TEMPLATE.find(class_='daily_error_rate').string
         if error_rate == '-':
             return False
-        imported = self._PAGE_TEMPLATE.find(class_='daily_imported').string
-        updated = self._PAGE_TEMPLATE.find(class_='daily_updated').string
-        threshold = 1.0
-        if imported != '-' and updated != '-':
-            sum_imports = int(imported) + int(updated)
-            if sum_imports <= 100:
-                threshold = 5.0
         return float(error_rate) >= threshold
 
 
