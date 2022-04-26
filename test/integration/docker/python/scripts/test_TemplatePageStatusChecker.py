@@ -81,26 +81,32 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
-    def test_error_rate_below_threshold(self):
+    def test_error_rate_below_lower_threshold(self):
         self.__set_value_in_template('daily_error_rate', '0.99')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
-    def test_error_rate_above_threshold(self):
+    def test_error_rate_on_lower_threshold(self):
+        self.__set_value_in_template('daily_error_rate', '1.0')
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
+        self.__check_title_and_color_of_status_element_on_page(page, 'LOW ERROR RATE', 'Yellow')
+
+    def test_error_rate_above_lower_threshold(self):
         self.__set_value_in_template('daily_error_rate', '1.01')
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
+        self.__check_title_and_color_of_status_element_on_page(page, 'LOW ERROR RATE', 'Yellow')
+
+    def test_error_rate_below_higher_threshold(self):
+        self.__set_value_in_template('daily_error_rate', '4.99')
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
+        self.__check_title_and_color_of_status_element_on_page(page, 'LOW ERROR RATE', 'Yellow')
+
+    def test_error_rate_on_higher_threshold(self):
+        self.__set_value_in_template('daily_error_rate', '5.0')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'HIGH ERROR RATE', 'Yellow')
 
-    def test_error_rate_below_threshold_low_imports(self):
-        self.__set_value_in_template('daily_imported', '45')
-        self.__set_value_in_template('daily_updated', '45')
-        self.__set_value_in_template('daily_error_rate', '4.99')
-        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
-        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
-
-    def test_error_rate_above_threshold_low_imports(self):
-        self.__set_value_in_template('daily_imported', '45')
-        self.__set_value_in_template('daily_updated', '45')
+    def test_error_rate_above_higher_threshold(self):
         self.__set_value_in_template('daily_error_rate', '5.01')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE)
         self.__check_title_and_color_of_status_element_on_page(page, 'HIGH ERROR RATE', 'Yellow')
