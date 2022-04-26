@@ -10,16 +10,16 @@ readonly GRE='\e[0;32m'
 
 readonly ROOT_DIR=$(dirname $(cd ..; pwd))
 
-echo -e "${YEL} Build the docker-compose stack ${WHI}"
+echo -e "${YEL}Build the docker-compose stack ${WHI}"
 docker-compose -f docker/docker-compose.yml up -d --force-recreate --build
 
-echo -e "${YEL} Copy python scripts from repository to python container${WHI}"
+echo -e "${YEL}Copy python scripts from repository to python container${WHI}"
 docker cp $ROOT_DIR/src/node_to_csv.py python:/opt/
 docker cp $ROOT_DIR/src/csv_to_confluence.py python:/opt/
 docker cp $ROOT_DIR/src/common.py python:/opt/
 docker cp $ROOT_DIR/src/resources/template_page.html python:/opt/
 
-echo -e "${YEL} Run python unit tests ${WHI}"
+echo -e "${YEL}Run python unit tests ${WHI}"
 docker exec python pytest test_BrokerNodeConnection.py
 docker exec python pytest test_ConfluenceNodeMapper.py
 docker exec python pytest test_SingletonMeta.py
@@ -36,17 +36,17 @@ docker exec python pytest test_TemplatePageJiraTableWriter.py
 docker exec python pytest test_TemplatePageMigrator.py
 
 LIST_CONTAINER=( broker-server python )
-echo -e "${YEL} Stop all container ${WHI}"
+echo -e "${YEL}Stop all container ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
   docker stop $container
 done
 
-echo -e "${YEL} Remove all container ${WHI}"
+echo -e "${YEL}Remove all container ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
   docker rm $container
 done
 
-echo -e "${YEL} Remove all images ${WHI}"
+echo -e "${YEL}Remove all images ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
   docker image rm $container
 done
