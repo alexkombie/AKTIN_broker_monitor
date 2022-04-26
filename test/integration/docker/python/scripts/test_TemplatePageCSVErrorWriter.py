@@ -100,7 +100,7 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
         page = bs4.BeautifulSoup(page_template, 'html.parser')
         table_errors = page.find(class_='table_errors_body')
         count_rows = len(table_errors.find_all('tr'))
-        self.assertEqual(expected_rows, count_rows)
+        self.assertEqual(expected_rows, count_rows - 1)
         count_total_column_items = len(table_errors.find_all('td'))
         self.assertEqual(expected_rows * 3, count_total_column_items)
 
