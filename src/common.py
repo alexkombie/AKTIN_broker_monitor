@@ -342,7 +342,7 @@ def __stop_logger():
 
 
 def load_properties_file_as_environment(path: str):
-    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'CONFLUENCE_RESOURCES_DIR', 'CONFLUENCE_URL',
+    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'RESOURCES_DIR', 'CONFLUENCE_URL',
                          'CONFLUENCE_SPACE', 'CONFLUENCE_TOKEN', 'CONFLUENCE_MAPPING_JSON', 'CONFLUENCE_PARENT_PAGE'}
     if not os.path.isfile(path):
         raise SystemExit('invalid config file path')

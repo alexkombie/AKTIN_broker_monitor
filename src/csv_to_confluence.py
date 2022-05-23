@@ -42,10 +42,7 @@ from common import __stop_logger
 from common import load_properties_file_as_environment
 
 
-# TODO Create Email Sending Service for import status
 # TODO Create summary of the most important values on Parent page
-# TODO Compute deviating threshold automatically
-# TODO move everything bs4 related into own class
 
 class TemplatePageContentWriter(ABC):
     _PAGE_TEMPLATE: bs4.BeautifulSoup = None
@@ -371,7 +368,7 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 class TemplateResourceLoader(metaclass=SingletonMeta):
 
     def __init__(self):
-        self.__DIR_TEMPLATES = os.environ['CONFLUENCE_RESOURCES_DIR']
+        self.__DIR_TEMPLATES = os.environ['RESOURCES_DIR']
 
     def get_resource_as_string(self, name_resource: str) -> str:
         path_resource = os.path.join(self.__DIR_TEMPLATES, name_resource)
