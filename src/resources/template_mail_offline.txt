@@ -1,0 +1,33 @@
+<html>
+	<head>
+	<style>
+	table, th, td {
+	  border: 1px solid black;
+	  border-collapse: collapse;
+	}
+	th, td {
+	  padding: 5px;
+	}
+	th, td {
+	  text-align: center;
+	}
+	</style>
+	</head>
+    <body>
+        <p>Sehr geehrte Damen und Herren,</p>
+
+		<p>Ihr AKTIN-Datawarehouse mit dem Client-Namen: <b>${node_name}</b> meldet sich momentan nicht beim zentralen Broker.</p>
+
+		<p><b>Der letzte Kontakt liegt mindestens ${last_con_absence_time} Tage zurück.</b> Der letzte Kontakt erfolgte am: ${last_con}.</p>
+
+		<p>Der letzte Start des Servers erfolgte am: ${last_server_start}.</p>
+
+		<p><i>Hinweis: Die fehlende Rückmeldung beim Broker kann verschiedene Ursachen haben. Die wahrscheinlichste ist, dass der DWH-Server heruntergefahren oder abgestürzt ist. Auch eine Verbindungsstörung aufgrund einer Änderung an der Firewall o. ä. sind möglich. Bitte prüfen Sie ob ihre AKTIN-Manager-Webseite lokal erreichbar ist und starten Sie ggf. den Server neu.</i></p>
+
+		<p>Diese E-Mail wurde automatisiert erstellt. Für Rückfragen kontaktieren Sie bitte: <a href="mailto:${reply_email}">${reply_email}</a></p>
+
+		<p>Mit freundlichen Grüßen</p>
+
+		<p>${reply_name}</p>
+    </body>
+</html>
