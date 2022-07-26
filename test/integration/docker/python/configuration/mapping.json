@@ -1,23 +1,24 @@
 {
-  "1": {
-    "COMMON": "[1] Clinic1",
-    "JIRA_LABELS": [
-      "label1",
-      "label2"
-    ]
-  },
-  "2": {
-    "COMMON": "[2] Clinic2",
-    "JIRA_LABELS": [
-      "label3"
-    ]
-  },
-  "3": {
-    "COMMON": "[3] ÄÜÖ äüö"
-  },
-  "10": {
-    "COMMON": "[10] Clinic10",
-    "JIRA_LABELS": [],
-    "MINIMUM_DAILY_IMPORTS": "25"
-  }
+    "1": {
+        "COMMON": "[1] Clinic1",
+        "LONG": "Institute of One",
+        "JIRA_LABELS": [
+            "label1",
+            "label2"
+        ]
+    },
+    "2": {
+        "COMMON": "[2] Clinic2",
+        "LONG": "Institute of Two",
+        "JIRA_LABELS": [
+            "label3"
+        ]
+    },
+    "3": {
+        "COMMON": "[3] ÄÜÖ äüö"
+    },
+    "10": {
+        "COMMON": "[10] Clinic10",
+        "JIRA_LABELS": []
+    }
 }

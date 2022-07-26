@@ -22,31 +22,33 @@ docker cp $ROOT_DIR/src/resources/template_page.html python:/opt/
 echo -e "${YEL}Run python unit tests ${WHI}"
 docker exec python pytest test_BrokerNodeConnection.py
 docker exec python pytest test_ConfluenceNodeMapper.py
-docker exec python pytest test_SingletonMeta.py
-docker exec python pytest test_NodeInfoFetcher.py
 docker exec python pytest test_NodeErrorFetcher.py
-docker exec python pytest test_BrokerNodeResourceFetcher.py
-docker exec python pytest test_BrokerNodeFetcherManager.py
-docker exec python pytest test_TemplatePageCSVInfoWriter.py
+docker exec python pytest test_NodeInfoFetcher.py
+docker exec python pytest test_NodeResourceFetcher.py
+docker exec python pytest test_ResourceLoader.py
+docker exec python pytest test_SingletonMeta.py
+docker exec python pytest test_TemplatePageClinicInfoWriter.py
 docker exec python pytest test_TemplatePageCSVErrorWriter.py
-docker exec python pytest test_TemplatePageNodeResourceWriter.py
-docker exec python pytest test_TemplatePageStatusChecker.py
-docker exec python pytest test_TemplateResourceLoader.py
+docker exec python pytest test_TemplatePageCSVInfoWriter.py
+docker exec python pytest test_TemplatePageElementCreator.py
 docker exec python pytest test_TemplatePageJiraTableWriter.py
 docker exec python pytest test_TemplatePageMigrator.py
+docker exec python pytest test_TemplatePageNodeResourceWriter.py
+docker exec python pytest test_TemplatePageStatusChecker.py
+docker exec python pytest test_TimestampHandler.py
 
 LIST_CONTAINER=( broker-server python )
 echo -e "${YEL}Stop all container ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
-  docker stop $container
+    docker stop $container
 done
 
 echo -e "${YEL}Remove all container ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
-  docker rm $container
+    docker rm $container
 done
 
 echo -e "${YEL}Remove all images ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
-  docker image rm $container
+    docker image rm $container
 done

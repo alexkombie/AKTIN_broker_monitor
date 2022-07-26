@@ -1,16 +1,10 @@
 import unittest
-import os
-import requests
+
 import lxml
-from common import BrokerNodeConnection
-from common import load_properties_file_as_environment
-from BrokerNodeDummy import BrokerNodeDummy
-from BrokerNodeDummy import BrokerNodeImports
-from BrokerNodeDummy import BrokerNodeError
-from BrokerNodeDummy import BrokerNodeVersions
-from BrokerNodeDummy import BrokerNodeRscript
-from BrokerNodeDummy import BrokerNodePython
-from BrokerNodeDummy import BrokerNodeImportScripts
+import requests
+from common import BrokerNodeConnection, PropertiesReader
+
+from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeError, BrokerNodeImports, BrokerNodeImportScripts, BrokerNodePython, BrokerNodeRscript, BrokerNodeVersions
 
 
 class TestBrokerNodeConnection(unittest.TestCase):
@@ -19,7 +13,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        load_properties_file_as_environment('settings.json')
+        PropertiesReader().load_properties_as_env_vars('settings.json')
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
         cls.__BROKER_NODE_CONNECTION = BrokerNodeConnection()
 
@@ -28,7 +22,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
         self.__init_new_dummy_and_put_stats_on_node('xxxApiKey123', stats)
         self.__init_new_dummy_and_put_stats_on_node('xxxApiKey567', stats)
         self.__init_new_dummy_and_put_stats_on_node('xxxApiKey890', stats)
-        list_nodes = self.__BROKER_NODE_CONNECTION.get_broker_nodes_list()
+        list_nodes = self.__BROKER_NODE_CONNECTION.get_broker_nodes()
         self.assertEqual(3, len(list_nodes))
 
     def test_get_broker_node_stats(self):
@@ -90,13 +84,11 @@ class TestBrokerNodeConnection(unittest.TestCase):
             _ = self.__BROKER_NODE_CONNECTION.get_broker_node_errors('nonexisting_id')
 
     def test_get_broker_node_versions(self):
-        versions = BrokerNodeVersions('Ubuntu/11.0.13', 'Ubuntu 20.04.1 LTS', '2.4.41-4ubuntu3.9', '12.9-0ubuntu0.20.04.1')
+        versions = BrokerNodeVersions('Ubuntu/11.0.13', 'Ubuntu 20.04.1 LTS')
         self.__DUMMY.put_resource_on_broker(versions, 'versions')
         resource = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'versions')
         self.assertEqual(resource.get('java'), 'Ubuntu/11.0.13')
         self.assertEqual(resource.get('os'), 'Ubuntu 20.04.1 LTS')
-        self.assertEqual(resource.get('apache2'), '2.4.41-4ubuntu3.9')
-        self.assertEqual(resource.get('postgres'), '12.9-0ubuntu0.20.04.1')
         self.assertIsNone(resource.get('wildfly'))
 
     def test_get_broker_node_rscript(self):

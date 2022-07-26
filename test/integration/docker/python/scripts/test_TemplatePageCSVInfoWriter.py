@@ -1,102 +1,100 @@
 import os
 import unittest
+from shutil import rmtree
 
 import bs4
 import pandas as pd
-from csv_to_confluence import TemplatePageCSVInfoWriter
-from csv_to_confluence import TemplateResourceLoader
-from common import InfoCSVHandler
-from common import load_properties_file_as_environment
+from common import InfoCSVHandler, PropertiesReader
+from csv_to_confluence import ResourceLoader, TemplatePageCSVInfoWriter
 
 
 class TestTemplatePageCSVInfoWriter(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
-    __DIR_WORKING: str = None
-    __HANDLER = InfoCSVHandler()
+    __DIR_ROOT: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        load_properties_file_as_environment('settings.json')
-        cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        name_csv = cls.__HANDLER.generate_csv_name(cls.__DEFAULT_NODE_ID)
-        cls.__PATH_CSV = os.path.join(cls.__DIR_WORKING, name_csv)
+        PropertiesReader().load_properties_as_env_vars('settings.json')
+        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        cls.__CSV_HANDLER = InfoCSVHandler()
+        cls.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter()
+        name_csv = InfoCSVHandler().generate_csv_name(cls.__DEFAULT_NODE_ID)
+        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
-        loader = TemplateResourceLoader()
+        loader = ResourceLoader()
         self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+        if not os.path.exists(dir_working):
+            os.makedirs(dir_working)
 
     def tearDown(self):
-        [os.remove(name) for name in os.listdir(self.__DIR_WORKING) if '.csv' in name]
+        [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
 
     def test_write_template_from_one_row(self):
         self.__create_csv1()
-        page = self.__write_current_csv_into_template_page()
+        page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-')
         self.__check_template_page_total_imports(page, '0', '0', '0', '0', '0.0')
         self.__check_template_page_daily_imports(page, '-', '-', '-', '-', '-')
 
+    def __create_csv1(self):
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
+        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+
     def test_write_template_from_multiple_rows(self):
         self.__create_csv2()
-        page = self.__write_current_csv_into_template_page()
+        page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00')
         self.__check_template_page_total_imports(page, '2000', '2000', '2000', '2000', '50.0')
         self.__check_template_page_daily_imports(page, '1000', '1000', '1000', '1000', '50.0')
 
+    def __create_csv2(self):
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
+        df.loc[len(df)] = ['2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00',
+                           '2000', '2000', '2000', '2000', '50.0', '1000', '1000', '1000', '1000', '50.0']
+        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+
     def test_write_template_from_row_with_null_values(self):
         self.__create_csv3()
         with self.assertRaises(AttributeError):
-            _ = self.__write_current_csv_into_template_page()
+            _ = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+
+    def __create_csv3(self):
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', None, '-', None, '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
+        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_empty_csv(self):
         self.__create_empty_csv()
         with self.assertRaises(IndexError):
-            _ = self.__write_current_csv_into_template_page()
+            _ = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+
+    def __create_empty_csv(self):
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_missing_csv(self):
         with self.assertRaises(FileNotFoundError):
-            _ = TemplatePageCSVInfoWriter('99', self.__DIR_WORKING)
+            _ = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, '99')
 
     def test_write_from_missing_csv_rows(self):
         self.__create_csv1_with_missing_rows()
         with self.assertRaises(ValueError):
-            _ = self.__write_current_csv_into_template_page()
+            _ = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+
+    def __create_csv1_with_missing_rows(self):
+        df = pd.DataFrame(columns=['date', 'last_contact', 'last_start'])
+        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00']
+        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_into_missing_template_keys(self):
         template = bs4.BeautifulSoup(self.__TEMPLATE, 'html.parser')
         with self.assertRaises(AttributeError):
             template.find(class_='nonexisting').string.replace_with('value')
-
-    def __create_csv1(self):
-        df = pd.DataFrame(columns=self.__HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        self.__HANDLER.save_df_to_csv(df, self.__PATH_CSV)
-
-    def __create_csv2(self):
-        df = pd.DataFrame(columns=self.__HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        df.loc[len(df)] = ['2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00',
-                           '2000', '2000', '2000', '2000', '50.0', '1000', '1000', '1000', '1000', '50.0']
-        self.__HANDLER.save_df_to_csv(df, self.__PATH_CSV)
-
-    def __create_csv3(self):
-        df = pd.DataFrame(columns=self.__HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', None, '-', None, '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        self.__HANDLER.save_df_to_csv(df, self.__PATH_CSV)
-
-    def __create_empty_csv(self):
-        df = pd.DataFrame(columns=self.__HANDLER.get_csv_columns())
-        self.__HANDLER.save_df_to_csv(df, self.__PATH_CSV)
-
-    def __create_csv1_with_missing_rows(self):
-        df = pd.DataFrame(columns=['date', 'last_contact', 'last_start'])
-        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00']
-        self.__HANDLER.save_df_to_csv(df, self.__PATH_CSV)
-
-    def __write_current_csv_into_template_page(self) -> str:
-        writer = TemplatePageCSVInfoWriter(self.__DEFAULT_NODE_ID, self.__DIR_WORKING)
-        page = writer.add_content_to_template_page(self.__TEMPLATE)
-        return page
 
     def __check_template_page_dates(self, page_template: str, last_check: str, last_contact: str, last_start: str, last_write: str, last_reject: str):
         page = bs4.BeautifulSoup(page_template, 'html.parser')

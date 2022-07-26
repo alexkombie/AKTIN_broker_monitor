@@ -23,13 +23,16 @@
 import json
 import logging
 import os
+from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
-from atlassian import Confluence
-from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 
 import lxml.etree as ET
 import pandas as pd
 import requests
+from atlassian import Confluence
+from dateutil import parser
+from pytz import timezone
 
 
 class SingletonMeta(type):
@@ -40,16 +43,26 @@ class SingletonMeta(type):
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
+            cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
-# TODO: Make implementations of CSVHandler Singletons
-class CSVHandler(ABC):
+class SingletonABCMeta(ABCMeta):
+    """
+    Meta class to make abstract python classes a Singleton
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonABCMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class CSVHandler(ABC, metaclass=SingletonABCMeta):
+    _CSV_CATEGORY: str
     __CSV_SEPARATOR: str = ';'
     __CSV_ENCODING: str = 'UTF-8'
-    _CSV_CATEGORY: str
     __TIMEZONE: str = 'Europe/Berlin'
 
     def save_df_to_csv(self, df: pd.DataFrame, path_csv: str):
@@ -66,6 +79,14 @@ class CSVHandler(ABC):
     def generate_csv_name_with_custom_year(self, id_node: str, year: str) -> str:
         name_csv = '_'.join([id_node, self._CSV_CATEGORY, year])
         return ''.join([name_csv, '.csv'])
+
+    def init_csv_file_if_not_exists(self, path_csv: str, name_csv: str = None) -> str:
+        if name_csv:
+            path_csv = os.path.join(path_csv, name_csv)
+        if not os.path.isfile(path_csv):
+            df = pd.DataFrame(columns=self.get_csv_columns())
+            self.save_df_to_csv(df, path_csv)
+        return path_csv
 
     @abstractmethod
     def get_csv_columns(self) -> list:
@@ -88,6 +109,49 @@ class ErrorCSVHandler(CSVHandler):
         return ['timestamp', 'repeats', 'content']
 
 
+class TimestampHandler(metaclass=SingletonMeta):
+
+    def __init__(self):
+        self.__TIMEZONE = timezone('Europe/Berlin')
+
+    def get_current_date(self) -> str:
+        return str(datetime.now(self.__TIMEZONE))
+
+    def get_yesterdays_date(self) -> str:
+        date = datetime.now(self.__TIMEZONE)
+        date = date - timedelta(days=1)
+        return str(date)
+
+    def get_current_year(self) -> str:
+        date = datetime.now(self.__TIMEZONE)
+        return str(date.year)
+
+    @staticmethod
+    def get_year_from_date_string(date: str) -> str:
+        d = parser.parse(date)
+        return str(d.year)
+
+    @staticmethod
+    def get_YMD_from_date_string(date: str) -> str:
+        d = parser.parse(date)
+        return d.strftime('%Y-%m-%d')
+
+    @staticmethod
+    def get_YMD_HMS_from_date_string(date: str) -> str:
+        d = parser.parse(date)
+        return d.strftime('%Y-%m-%d %H:%M:%S')
+
+    def get_timedelta_in_absolute_hours(self, date1: str, date2: str) -> int:
+        """
+        Timezone information is ignored beacuse of possible inconsistencies
+        of inputs (for example: date1 has timezone information, date2 has none)
+        """
+        d1 = parser.parse(self.get_YMD_HMS_from_date_string(date1))
+        d2 = parser.parse(self.get_YMD_HMS_from_date_string(date2))
+        delta = d2 - d1
+        return abs(delta.total_seconds() // 3600)
+
+
 class BrokerNodeConnection(metaclass=SingletonMeta):
 
     def __init__(self):
@@ -106,7 +170,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             url = '{}/{}'.format(url, item)
         return url
 
-    def get_broker_nodes_list(self) -> list:
+    def get_broker_nodes(self) -> list:
         url = self.__append_to_broker_url('broker', 'node')
         tree = self.__get_processed_response(url)
         return [node.find('id').text for node in tree.getchildren()]
@@ -121,6 +185,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
                 tree.find('last-contact').text)
         return node
 
+    # TODO: How to set inner class as return type?
     def get_broker_node_stats(self, id_node: str):
         url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
         tree = self.__get_processed_response(url)
@@ -134,14 +199,14 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
                 tree.find('failed').text)
         return stats
 
-    def get_broker_node_errors(self, id_node: str):
+    def get_broker_node_errors(self, id_node: str) -> list:
         url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
         tree = self.__get_processed_response(url)
         errors = []
         for elem in tree.find('last-errors').getchildren():
             error = self.BrokerNodeError(
-                    elem.get('timestamp'),
                     elem.get('repeats'),
+                    elem.get('timestamp'),
                     elem.text)
             errors.append(error)
         return errors
@@ -161,7 +226,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             resources[elem.get('key')] = elem.text
         return resources
 
-    def __get_processed_response(self, url: str) -> ET._ElementTree:
+    def __get_processed_response(self, url: str) -> ET.ElementTree:
         """
         Returns processed XML tree object without namespace from GET request
         """
@@ -177,7 +242,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         return {'Authorization': ' '.join(['Bearer', self.__ADMIN_API_KEY]), 'Connection': 'keep-alive', 'Accept': 'application/xml'}
 
     @staticmethod
-    def __remove_namespace_from_tree(tree: ET._ElementTree) -> ET._ElementTree:
+    def __remove_namespace_from_tree(tree: ET.ElementTree) -> ET.ElementTree:
         """
         To enable search/processing via xpath
         """
@@ -211,7 +276,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     @dataclass()
     class BrokerNodeStats:
 
-        __DWH_START: str
+        __LAST_START: str
         __LAST_WRITE: str
         __LAST_REJECT: str
         __IMPORTED: str
@@ -221,7 +286,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
 
         @property
         def dwh_start(self) -> str:
-            return self.__DWH_START
+            return self.__LAST_START
 
         @property
         def last_write(self) -> str:
@@ -250,8 +315,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     @dataclass()
     class BrokerNodeError:
 
-        __TIMESTAMP: str
         __REPEATS: str
+        __TIMESTAMP: str
         __CONTENT: str
 
         @property
@@ -267,9 +332,21 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             return self.__CONTENT
 
 
+class ResourceLoader(metaclass=SingletonMeta):
+
+    def __init__(self):
+        self.__DIR_RESOURCES = os.environ['RESOURCES_DIR']
+
+    def get_resource_as_string(self, name_resource: str) -> str:
+        path_resource = os.path.join(self.__DIR_RESOURCES, name_resource)
+        with open(path_resource, 'r') as resource:
+            content = resource.read()
+        return content
+
+
 class ConfluenceConnection(metaclass=SingletonMeta):
     """
-    Confluence conncetion is created on initialization
+    Confluence connection is created on initialization
     """
 
     def __init__(self):
@@ -278,7 +355,7 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         self.__SPACE = os.environ['CONFLUENCE_SPACE']
         self.__CONFLUENCE = Confluence(url=confluence_url, token=confluence_token)
 
-    def check_page_existence(self, name_page: str) -> bool:
+    def does_page_exists(self, name_page: str) -> bool:
         return self.__CONFLUENCE.page_exists(self.__SPACE, name_page)
 
     def get_page_content(self, name_page: str) -> str:
@@ -289,7 +366,7 @@ class ConfluenceConnection(metaclass=SingletonMeta):
 
     def upload_csv_as_attachement_to_page(self, name_page: str, path_csv: str):
         """
-        Identical files are automatically replaced on confluence
+        Identical named files are automatically replaced on confluence
         """
         id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
         self.__CONFLUENCE.attach_file(path_csv, content_type='text/csv', page_id=id_page)
@@ -314,8 +391,8 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
             dict_mapping = json.load(json_file)
         return dict_mapping
 
-    def get_mapping_dict(self) -> dict:
-        return self.__DICT_MAPPING
+    def get_all_keys(self) -> list:
+        return self.__DICT_MAPPING.keys()
 
     def get_node_from_mapping_dict(self, node: str) -> dict:
         if node in self.__DICT_MAPPING:
@@ -330,27 +407,46 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
             return None
 
 
-def __init_logger():
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s',
-                        handlers=[logging.StreamHandler()])
+class MyLogger(metaclass=SingletonMeta):
+
+    @staticmethod
+    def init_logger():
+        logging.basicConfig(level=logging.INFO,
+                            format='%(asctime)s %(levelname)s %(message)s',
+                            handlers=[logging.StreamHandler()])
+
+    @staticmethod
+    def stop_logger():
+        [logging.root.removeHandler(handler) for handler in logging.root.handlers[:]]
+        logging.shutdown()
 
 
-def __stop_logger():
-    [logging.root.removeHandler(handler) for handler in logging.root.handlers[:]]
-    logging.shutdown()
+class PropertiesReader(metaclass=SingletonMeta):
+    __SET_REQUIRED_KEYS = {'BROKER_URL',
+                           'ADMIN_API_KEY',
+                           'ROOT_DIR',
+                           'RESOURCES_DIR',
+                           'CONFLUENCE_URL',
+                           'CONFLUENCE_SPACE',
+                           'CONFLUENCE_TOKEN',
+                           'CONFLUENCE_MAPPING_JSON'
+                           }
 
+    def load_properties_as_env_vars(self, path: str):
+        properties = self.__load_properties_file(path)
+        self.__validate_properties(properties)
+        for key in self.__SET_REQUIRED_KEYS:
+            os.environ[key] = properties.get(key)
 
-def load_properties_file_as_environment(path: str):
-    set_required_keys = {'BROKER_URL', 'ADMIN_API_KEY', 'ROOT_DIR', 'RESOURCES_DIR', 'CONFLUENCE_URL',
-                         'CONFLUENCE_SPACE', 'CONFLUENCE_TOKEN', 'CONFLUENCE_MAPPING_JSON', 'CONFLUENCE_PARENT_PAGE'}
-    if not os.path.isfile(path):
-        raise SystemExit('invalid config file path')
-    with open(path) as file_json:
-        dict_config = json.load(file_json)
-    set_found_keys = set(dict_config.keys())
-    set_matched_keys = set_required_keys.intersection(set_found_keys)
-    if set_matched_keys != set_required_keys:
-        raise SystemExit('following keys are missing in config file: {0}'.format(set_required_keys.difference(set_matched_keys)))
-    for key in set_required_keys:
-        os.environ[key] = dict_config.get(key)
+    @staticmethod
+    def __load_properties_file(path: str) -> dict:
+        if not os.path.isfile(path):
+            raise SystemExit('invalid config file path')
+        with open(path) as file_json:
+            return json.load(file_json)
+
+    def __validate_properties(self, properties: dict):
+        set_found_keys = set(properties.keys())
+        set_matched_keys = self.__SET_REQUIRED_KEYS.intersection(set_found_keys)
+        if set_matched_keys != self.__SET_REQUIRED_KEYS:
+            raise SystemExit('following keys are missing in config file: {0}'.format(self.__SET_REQUIRED_KEYS.difference(set_matched_keys)))

@@ -1,6 +1,6 @@
 import os
-from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 import requests
 
@@ -55,6 +55,18 @@ class BrokerNodeError(Payload):
 
 @dataclass()
 class BrokerNodeVersions(Payload):
+    __JAVA: str
+    __OS: str
+
+    def to_xml_string(self) -> str:
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>versions</comment>" + \
+               "<entry key=\"java\">" + self.__JAVA + "</entry>" + \
+               "<entry key=\"os\">" + self.__OS + "</entry>" + \
+               "</properties>"
+
+
+@dataclass()
+class BrokerNodeVersions2(Payload):
     __JAVA: str
     __OS: str
     __APACHE2: str

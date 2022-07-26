@@ -1,32 +1,27 @@
 import unittest
-from common import load_properties_file_as_environment
-from common import ConfluenceNodeMapper
+
+from common import ConfluenceNodeMapper, PropertiesReader
 
 
 class TestConfluenceNodeMapper(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        load_properties_file_as_environment('settings.json')
+        PropertiesReader().load_properties_as_env_vars('settings.json')
         cls.__CONFLUENCE_NODE_MAPPER = ConfluenceNodeMapper()
 
     def test_get_mapping_dict(self):
-        dict_mapping = self.__CONFLUENCE_NODE_MAPPER.get_mapping_dict()
-        self.assertEqual(4, len(dict_mapping.keys()))
-        self.assertEqual('[1] Clinic1', dict_mapping['1']['COMMON'])
-        self.assertEqual('[2] Clinic2', dict_mapping['2']['COMMON'])
-        self.assertEqual('[3] ÄÜÖ äüö', dict_mapping['3']['COMMON'])
-        self.assertEqual('[10] Clinic10', dict_mapping['10']['COMMON'])
-        with self.assertRaises(KeyError):
-            _ = dict_mapping['4']['COMMON']
+        list_keys = self.__CONFLUENCE_NODE_MAPPER.get_all_keys()
+        self.assertEqual(4, len(list_keys))
 
     def test_get_node(self):
         node1 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('1')
         self.assertEqual('[1] Clinic1', node1['COMMON'])
-        self.assertEqual(['label1','label2'], node1['JIRA_LABELS'])
+        self.assertEqual(['label1', 'label2'], node1['JIRA_LABELS'])
         node10 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('10')
         self.assertEqual('[10] Clinic10', node10['COMMON'])
-        self.assertEqual('25', node10['MINIMUM_DAILY_IMPORTS'])
+        with self.assertRaises(KeyError):
+            _ = node10['NONEXISTING']
 
     def test_get_nonexisting_node(self):
         node = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('99')

@@ -1,0 +1,226 @@
+@startuml
+hide methods
+
+title Diagram of csv_to_confluence.py
+
+entity "<size:18>CONFLUENCE</size>" as confluence
+entity confluence #aliceblue;line:blue;text:blue
+hide confluence members
+hide confluence circle
+
+entity "JSON file with configuration" as settings {
+* URL broker-server
+* API Key broker-server
+* Working directory of scripts
+* Path to resource directory
+* Confluence URL
+* Confluence Space
+* Confluence Token
+* Path to Confluence mapping file
+}
+entity settings #aliceblue;line:blue;text:blue
+hide settings circle
+
+entity "JSON file with confluence node mapping" as mapping {
+* maps id of a node to its common name
+* maps id of a node to its institution name
+* optional jira query labels can be set for id
+}
+entity mapping #aliceblue;line:blue;text:blue
+hide mapping circle
+
+'###################################################################'
+
+package "common.py" as common <<Package>> {
+abstract class CSVHandler {
+* initializes csv file in a path
+* operations for reading a csv file as a dataframe
+or writing a dataframe to a csv
+}
+
+class InfoCSVHandler {
+* generates info csv name
+* knows columns of info csv
+}
+
+class ErrorCSVHandler {
+* generates error csv name
+* knows columns of error csv
+}
+
+class TimestampHandler {
+* gets current date information
+* extracts information from given dates
+* operations for time delta
+}
+
+class "**ResourceLoader**" as ResourceLoader {
+* loads resource files from
+resource directory
+}
+
+class "**ConfluenceConnection**" as ConfluenceConnection {
+* uses Atlassian Python API to execute CRUD
+operations on confluence pages
+}
+
+class "**ConfluenceNodeMapper**" as ConfluenceNodeMapper {
+* loads json file with confluence node mapping
+as python dictionary
+}
+
+class MyLogger {
+* starts/stops logging
+}
+
+class PropertiesReader {
+* validates and loads given settings file
+as python environment variables
+}
+hide PropertiesReader circle
+note top of PropertiesReader: Classes with bold names need items\nfrom JSON configuration file
+}
+
+InfoCSVHandler -u-|> CSVHandler
+ErrorCSVHandler -u-|> CSVHandler
+
+ConfluenceConnection -d--> confluence
+ConfluenceNodeMapper -d--> mapping
+PropertiesReader --> settings
+
+'###################################################################'
+
+package "csv_to_confluence.py" as csv_to_confluence {
+class TemplatePageElementCreator {
+* creates html and confluence elements
+for confluence page
+}
+
+abstract class "**TemplatePageCSVContentWriter**" as TemplatePageCSVContentWriter {
+* converts confluence page template to html soup
+* provides abstract method to write information
+from csv file into html soup
+}
+
+class TemplatePageCSVInfoWriter {
+* writes csv import stats into confluence
+page template
+}
+
+class TemplatePageCSVErrorWriter {
+* writes csv error stats into confluence
+page template
+}
+
+class TemplatePageStatusChecker {
+* checks and sets import/connection status of
+confluence page template
+}
+
+class TemplatePageClinicInfoWriter {
+* adds static information about clinic to
+confluence page template on creation
+}
+
+abstract class "**TemplatePageContentWriter**" as TemplatePageContentWriter {
+* converts confluence page template to html soup
+* provides abstract method to write information
+into html soup
+}
+
+class TemplatePageNodeResourceWriter {
+* loads node resources from txt file and writes
+information to confluence page template
+}
+
+class TemplatePageJiraTableWriter {
+* adds jira table to confluence page template
+}
+
+class TemplatePageMigrator {
+* checks confluence page for current template version
+* migrates static information of confluence page to
+newer template
+}
+
+class ConfluenceClinicContactGrabber {
+* grabs information about clinic correspondants
+from confluence email page and writes them into
+confluence page template
+}
+
+abstract class ConfluenceHandler {
+* class to bundle common classes and variables
+needed for Confluence
+}
+
+class ConfluencePageHandler {
+* creates new pages for broker nodes on confluence
+* updates content on existing broker node pages
+* updates template of broker node pages to newer version
+}
+
+class "**FileBackupManager**" as FileBackupManager {
+* uploads broker node files as attachement to
+confluence page
+}
+
+class "**ConfluencePageHandlerManager**" as ConfluencePageHandlerManager {
+* main class to run confluence page creation
+* initializes and executes ConfluencePageHandler
+* creates confluence page with summarization of
+all connected nodes as parent page
+}
+}
+
+TemplatePageCSVContentWriter -d------> CSVHandler
+
+TemplatePageCSVInfoWriter -d---|> TemplatePageCSVContentWriter
+
+TemplatePageCSVErrorWriter -d---|> TemplatePageCSVContentWriter
+TemplatePageCSVErrorWriter -d--> TemplatePageElementCreator
+
+TemplatePageStatusChecker -d---|> TemplatePageCSVContentWriter
+TemplatePageStatusChecker -d--> TemplatePageElementCreator
+TemplatePageStatusChecker --> TimestampHandler
+
+TemplatePageClinicInfoWriter -d---|> TemplatePageCSVContentWriter
+TemplatePageClinicInfoWriter --> ConfluenceNodeMapper
+TemplatePageClinicInfoWriter -d--> TemplatePageElementCreator
+TemplatePageClinicInfoWriter --> TimestampHandler
+
+TemplatePageNodeResourceWriter -d---|> TemplatePageContentWriter
+
+TemplatePageJiraTableWriter -d---|> TemplatePageContentWriter
+TemplatePageJiraTableWriter --> ConfluenceNodeMapper
+TemplatePageJiraTableWriter --> TimestampHandler
+
+TemplatePageMigrator --> ResourceLoader
+TemplatePageMigrator -d--> TemplatePageElementCreator
+
+ConfluenceClinicContactGrabber -d---|> TemplatePageContentWriter
+ConfluenceClinicContactGrabber --> ConfluenceConnection
+ConfluenceClinicContactGrabber -d--> TemplatePageElementCreator
+
+ConfluenceHandler --> ConfluenceConnection
+ConfluenceHandler --> ConfluenceNodeMapper
+
+ConfluencePageHandler ---|> ConfluenceHandler
+ConfluencePageHandler ---> ResourceLoader
+ConfluencePageHandler ---> TemplatePageClinicInfoWriter
+ConfluencePageHandler ---> TemplatePageMigrator
+ConfluencePageHandler ---> TemplatePageCSVInfoWriter
+ConfluencePageHandler ---> TemplatePageCSVErrorWriter
+ConfluencePageHandler ---> TemplatePageNodeResourceWriter
+ConfluencePageHandler ---> TemplatePageJiraTableWriter
+ConfluencePageHandler ---> TemplatePageStatusChecker
+ConfluencePageHandler ---> ConfluenceClinicContactGrabber
+
+FileBackupManager --|> ConfluenceHandler
+
+ConfluencePageHandlerManager --|> ConfluenceHandler
+ConfluencePageHandlerManager --> ConfluencePageHandler
+ConfluencePageHandlerManager --> FileBackupManager
+ConfluencePageHandlerManager --> TemplatePageElementCreator
+
+@enduml

@@ -1,35 +1,39 @@
 import os
 import unittest
+from shutil import rmtree
 
 import bs4
-from csv_to_confluence import TemplatePageNodeResourceWriter
-from csv_to_confluence import TemplateResourceLoader
-from common import load_properties_file_as_environment
+from common import PropertiesReader
+from csv_to_confluence import ResourceLoader, TemplatePageNodeResourceWriter
 
 
 class TestTemplatePageNodeResourceWriter(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
-    __DIR_WORKING: str = None
+    __DIR_ROOT: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        load_properties_file_as_environment('settings.json')
-        cls.__DIR_WORKING = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        PropertiesReader().load_properties_as_env_vars('settings.json')
+        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        cls.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter()
 
     def setUp(self):
-        loader = TemplateResourceLoader()
+        loader = ResourceLoader()
         self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+        if not os.path.exists(dir_working):
+            os.makedirs(dir_working)
 
     def tearDown(self):
-        [os.remove(name) for name in os.listdir(self.__DIR_WORKING) if '.txt' in name]
+        [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
 
     def test_write_resources_into_template(self):
         self.__create_versions_resource_file()
         self.__create_rscript_resource_file()
         self.__create_python_resource_file()
         self.__create_import_scripts_resource_file()
-        page = self.__write_current_resouces_into_template_page()
+        page = self.__NODE_RESOURCE_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_key_of_template(page, 'java', 'Ubuntu/11.0.11')
         self.__check_key_of_template(page, 'os', 'Ubuntu 20.04.2 LTS')
         self.__check_key_of_template(page, 'apache2', '2.4.41-4ubuntu3.8')
@@ -45,7 +49,7 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
     def test_write_missing_resource_file_into_template(self):
         self.__create_python_resource_file()
         self.__create_import_scripts_resource_file()
-        page = self.__write_current_resouces_into_template_page()
+        page = self.__NODE_RESOURCE_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_key_of_template(page, 'java', '-')
         self.__check_key_of_template(page, 'os', '-')
         self.__check_key_of_template(page, 'apache2', '-')
@@ -63,7 +67,7 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
         self.__create_empty_resource_file('rscript')
         self.__create_python_resource_file()
         self.__create_import_scripts_resource_file()
-        page = self.__write_current_resouces_into_template_page()
+        page = self.__NODE_RESOURCE_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_key_of_template(page, 'java', '-')
         self.__check_key_of_template(page, 'os', '-')
         self.__check_key_of_template(page, 'apache2', '-')
@@ -120,16 +124,11 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
 
     def __generate_resource_file_path(self, name_resource: str) -> str:
         name_file = ''.join([self.__DEFAULT_NODE_ID, '_', name_resource, '.txt'])
-        return os.path.join(self.__DIR_WORKING, name_file)
+        return os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID, name_file)
 
     def __check_key_of_template(self, page_template: str, key: str, value_expected: str):
         page = bs4.BeautifulSoup(page_template, 'html.parser')
         self.assertEqual(value_expected, page.find(class_=key).string)
-
-    def __write_current_resouces_into_template_page(self) -> str:
-        writer = TemplatePageNodeResourceWriter(self.__DEFAULT_NODE_ID, self.__DIR_WORKING)
-        page = writer.add_content_to_template_page(self.__TEMPLATE)
-        return page
 
 
 if __name__ == '__main__':

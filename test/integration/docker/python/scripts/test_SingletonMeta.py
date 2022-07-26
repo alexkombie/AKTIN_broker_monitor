@@ -1,18 +1,13 @@
 import unittest
 
-from common import load_properties_file_as_environment
-from common import InfoCSVHandler
-from common import ErrorCSVHandler
-from common import BrokerNodeConnection
-from common import ConfluenceConnection
-from common import ConfluenceNodeMapper
+from common import BrokerNodeConnection, ConfluenceConnection, ConfluenceNodeMapper, PropertiesReader
 
 
 class TestSingletonMeta(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        load_properties_file_as_environment('settings.json')
+        PropertiesReader().load_properties_as_env_vars('settings.json')
 
     def test_BrokerNodeConnection(self):
         connection1 = BrokerNodeConnection()

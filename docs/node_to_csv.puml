@@ -1,0 +1,119 @@
+@startuml
+hide methods
+
+title Diagram of node_to_csv.py
+
+entity "<size:18>AKTIN Broker</size>" as broker
+entity broker #aliceblue;line:blue;text:blue
+hide broker members
+hide broker circle
+
+entity "JSON file with configuration" as settings {
+* URL broker-server
+* API Key broker-server
+* Working directory of scripts
+* Path to resource directory
+* Confluence URL
+* Confluence Space
+* Confluence Token
+* Path to Confluence mapping file
+}
+entity settings #aliceblue;line:blue;text:blue
+hide settings circle
+
+'###################################################################'
+
+package "common.py" as common <<Package>> {
+abstract class CSVHandler {
+* initializes csv file in a path
+* operations for reading a csv file as a dataframe
+or writing a dataframe to a csv
+}
+
+class InfoCSVHandler {
+* generates info csv name
+* knows columns of info csv
+}
+
+class ErrorCSVHandler {
+* generates error csv name
+* knows columns of error csv
+}
+
+class TimestampHandler {
+* gets current date information
+* extracts information from given dates
+* operations for time delta
+}
+
+class "**BrokerNodeConnection**" as BrokerNodeConnection {
+* uses REST endpoint of broker-server to get
+information about connected broker nodes
+}
+
+class MyLogger {
+* starts/stops logging
+}
+
+class PropertiesReader {
+* validates and loads given settings file
+as python environment variables
+}
+hide PropertiesReader circle
+note top of PropertiesReader: Classes with bold names need items\nfrom JSON configuration file
+}
+
+InfoCSVHandler --|> CSVHandler
+ErrorCSVHandler --|> CSVHandler
+
+BrokerNodeConnection -d--> broker
+PropertiesReader --> settings
+
+'###################################################################'
+
+package "node_to_csv.py" as node_to_csv <<Package>> {
+abstract class "**BrokerNodeFetcher**" as BrokerNodeFetcher {
+* helper functions and variables to fetch broker node
+information and save them in a file
+* initializes directory for node to fetch information to
+}
+
+class NodeInfoFetcher {
+* fetches broker node last-contact, startup
+and import stats into csv file
+* computes daily imports and error rate from
+differences to previous day
+}
+
+class NodeErrorFetcher {
+* fetches broker node errors into csv file
+}
+
+class NodeResourceFetcher {
+* fetches broker node resource information to text file
+* keeps track of changes to node resources in a log file
+}
+
+class NodeFetcherManager {
+* main class to run broker node fetching
+* initializes and executes fetcher
+}
+}
+
+BrokerNodeFetcher --> BrokerNodeConnection
+BrokerNodeFetcher --> TimestampHandler
+
+NodeInfoFetcher --|> BrokerNodeFetcher
+NodeInfoFetcher ----> InfoCSVHandler
+
+NodeErrorFetcher --|> BrokerNodeFetcher
+NodeErrorFetcher ----> ErrorCSVHandler
+
+NodeResourceFetcher --|> BrokerNodeFetcher
+
+NodeFetcherManager --> BrokerNodeConnection
+NodeFetcherManager --> NodeInfoFetcher
+NodeFetcherManager --> NodeErrorFetcher
+NodeFetcherManager --> NodeResourceFetcher
+
+@enduml
