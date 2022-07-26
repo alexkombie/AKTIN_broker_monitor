@@ -14,10 +14,9 @@ A JSON configuration file with the following key-value pairs is required to run 
 | BROKER_URL               | URL to your broker server                                                                                                                                                                               | http://localhost:8080    |
 | ADMIN_API_KEY            | API key of your broker server administrator                                                                                                                                                             | xxxAdmin1234             |
 | ROOT_DIR                 | Working directory of the script. Directories for each connected node to store the retrieved information are created here.                                                                               | /opt                     |
-| CONFLUENCE_RESOURCES_DIR | Path to the directory with HTML templates                                                                                                                                                               | /opt/resources           |
+| RESOURCES_DIR | Path to the directory with HTML templates and other resources                                                                                                                                                            | /opt/resources           |
 | CONFLUENCE_URL           | URL to your confluence server                                                                                                                                                                           | http://my-confluence.com |
 | CONFLUENCE_SPACE         | Your Confluence space where the pages with node information should be created                                                                                                                           | MY_SPACE                 |
-| CONFLUENCE_PARENT_PAGE   | Within the script, a separate parent page is created for the pages with broker node information. This page here is the parent of the Confluence page containing the pages with broker node information. | Broker Node Information  |
 | CONFLUENCE_TOKEN         | Your token for authentication in Confluence                                                                                                                                                             | jAzMjQ4Omy               |
 | CONFLUENCE_MAPPING_JSON  | Path to the confluence json mapping file                                                                                                                                                                | /opt/mapping.json        |
 
@@ -27,7 +26,7 @@ The configuration file must be passed to the scripts as an input argument. The s
 python3 node_to_csv.py {PATH_TO_SETTINGS_FILE}
 ```
 
-Additionally, the script `csv_to_confluence.py` needs a mapping table to map the ID of the broker nodes to a human-readable name. This name also acts as the name of the created Confluence page. Inside the mapping table, the optional keys `JIRA_LABELS` and `MINIMUM_DAILY_IMPORTS` can be set. From the list of `JIRA_LABELS` a JIRA query is defined and passed to a table for JIRA tickets inside the Confluence page. The key `MINIMUM_DAILY_IMPORTS` is used by the script for an additional check of the daily imports of a single node. The status of the node is changed accordingly, should the daily import be below the defined limit.
+Additionally, the script `csv_to_confluence.py` needs a mapping table to map the ID of the broker nodes to a human-readable name. This name also acts as the name of the created Confluence page. Inside the mapping table, the optional keys `JIRA_LABELS` and `LONG` can be set. From the list of `JIRA_LABELS` a JIRA query is defined and passed to a table for JIRA tickets inside the Confluence page. The key `LONG` is used by the script as the "official" name of the node (while `COMMON` is used as the name of the confluence page).
 
 ```
 "99": {
@@ -36,9 +35,9 @@ Additionally, the script `csv_to_confluence.py` needs a mapping table to map the
       "label1",
       "label2",
     ],
-    "MINIMUM_DAILY_IMPORTS": "99"
+    "LONG": "Institute of Ninety-Nine"
 ```
 
 ## Testing
 
-To test the script, **integration-test.bat** and **integration-test.sh** are attached. To run an integration test, a running instance of [Docker](https://www.docker.com/) is required. The script will create a container to simulate the [AKTIN Broker Server](https://github.com/aktin/broker/tree/master/broker-server) and a second container to run the scripts on. 
+To test the script, **integration-test.bat** and **integration-test.sh** are attached. To run an integration test, a running instance of [Docker](https://www.docker.com/) is required. The script will create a container to simulate the [AKTIN Broker Server](https://github.com/aktin/broker/tree/master/broker-server) and a second container to run the scripts on. Every class of the scripts, which does not need a connection to Confluence, is tested within the integration tests.
