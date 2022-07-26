@@ -300,16 +300,16 @@ class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
 
     def _add_content_to_template_soup(self):
         self.__add_clinic_name()
-        self.__add_participation_start_date()
+        self.__add_monitoring_start_date()
 
     def __add_clinic_name(self):
         name_clinic = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'LONG')
         self._PAGE_TEMPLATE.find(class_='clinic_name').string.replace_with(name_clinic)
 
-    def __add_participation_start_date(self):
-        first_start = self._DF['last_start'].iloc[0]
-        start_participation = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string(first_start)
-        element_time = self.__ELEMENT_CREATOR.create_html_element('time', {'datetime': start_participation})
+    def __add_monitoring_start_date(self):
+        first_monitoring = self._DF['date'].iloc[0]
+        start_monitoring = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string(first_monitoring)
+        element_time = self.__ELEMENT_CREATOR.create_html_element('time', {'datetime': start_monitoring})
         td = self.__ELEMENT_CREATOR.create_html_element('td', {'class': 'online_since'})
         td.append(element_time)
         self._PAGE_TEMPLATE.find(class_='online_since').replace_with(td)

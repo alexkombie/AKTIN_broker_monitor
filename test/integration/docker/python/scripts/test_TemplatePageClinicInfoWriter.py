@@ -65,13 +65,13 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         name = html.find(class_='clinic_name').string
         self.assertEqual(expected_clinic_name, name)
 
-    def test_participation_start_date(self):
+    def test_monitoring_start_date(self):
         id_node = '1'
         self.__init_working_dir_with_default_csv_for_node(id_node)
         page = self.__CLINIC_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, id_node)
-        self.__check_participation_start_date_of_page(page, '2022-03-03')
+        self.__check_monitoring_start_date_of_page(page, '2022-01-01')
 
-    def test_participation_start_date_empty_csv(self):
+    def test_monitoring_start_date_empty_csv(self):
         id_node = '1'
         self.__init_working_dir_with_empty_csv_for_node(id_node)
         with self.assertRaises(IndexError):
@@ -86,7 +86,7 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         path_csv = os.path.join(dir_working, name_csv)
         self.__CSV_HANDLER.save_df_to_csv(df, path_csv)
 
-    def test_participation_start_date_no_csv(self):
+    def test_monitoring_start_date_no_csv(self):
         id_node = '1'
         self.__init_working_dir(id_node)
         with self.assertRaises(FileNotFoundError):
@@ -97,7 +97,7 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
 
-    def __check_participation_start_date_of_page(self, page: str, expected_start_date: str):
+    def __check_monitoring_start_date_of_page(self, page: str, expected_start_date: str):
         html = bs4.BeautifulSoup(page, 'html.parser')
         date = html.find_all('time')[0].get('datetime')
         self.assertEqual(expected_start_date, date)
