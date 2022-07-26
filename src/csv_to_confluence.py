@@ -712,9 +712,10 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
     def __create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
         template = self.__ELEMENT_CREATOR.convert_element_to_soup(page_confluence)
         link_node = self.__ELEMENT_CREATOR.create_ac_link_element(name_common)
-        node = self.__ELEMENT_CREATOR.create_table_data_element(link_node, centered=True)
+        node = self.__ELEMENT_CREATOR.create_html_element('td', {'style': 'text-align: left;'})
+        node.append(link_node)
         element_status = template.find(class_='status')
-        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0])
+        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0], centered=True)
         last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
         last_contact = self.__create_table_data_from_page_template_key(template, 'last_contact')
         last_start = self.__create_table_data_from_page_template_key(template, 'last_start')
@@ -726,7 +727,7 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
     def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
         value = template_page.find(class_=key).string
-        td = self.__ELEMENT_CREATOR.create_table_data_element(value)
+        td = self.__ELEMENT_CREATOR.create_table_data_element(value, centered=True)
         return td
 
 
