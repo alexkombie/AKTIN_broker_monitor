@@ -548,8 +548,6 @@ class TemplatePageMigrator:
         soup_new = self.__migrate_key_from_old_to_new_template('online_since', soup_old, soup_new)
         soup_new = self.__migrate_key_from_old_to_new_template('information_system', soup_old, soup_new)
         soup_new = self.__migrate_key_from_old_to_new_template('interface_import', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('contact_ed', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('contact_it', soup_old, soup_new)
         return soup_new
 
     def __migrate_id_information_to_new_template(self, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:

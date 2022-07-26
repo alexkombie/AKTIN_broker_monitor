@@ -48,8 +48,6 @@ class TestTemplatePageMigrator(unittest.TestCase):
         html.find(class_='online_since').replace_with(self.__create_datetime_tag())
         html.find(class_='information_system').string.replace_with('information_system')
         html.find(class_='interface_import').string.replace_with('interface_import')
-        html.find(class_='contact_ed').string.replace_with('contact_ed')
-        html.find(class_='contact_it').string.replace_with('contact_it')
         self.__TEMPLATE = str(html)
 
     @staticmethod
@@ -65,8 +63,6 @@ class TestTemplatePageMigrator(unittest.TestCase):
         self.assertEqual('<td class="online_since"><time datetime="2020-01-01"></time></td>', str(html.find(class_='online_since')))
         self.assertEqual('information_system', html.find(class_='information_system').string)
         self.assertEqual('interface_import', html.find(class_='interface_import').string)
-        self.assertEqual('contact_ed', html.find(class_='contact_ed').string)
-        self.assertEqual('contact_it', html.find(class_='contact_it').string)
 
     def __set_default_id_information(self):
         html = bs4.BeautifulSoup(self.__TEMPLATE, 'html.parser')
