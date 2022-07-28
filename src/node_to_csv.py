@@ -157,12 +157,16 @@ class NodeInfoFetcher(BrokerNodeFetcher):
                 'daily_error_rate': daily_error_rate}
 
     def __generate_row_stats(self, node_broker: BrokerNodeConnection.BrokerNode, node_stats: BrokerNodeConnection.BrokerNodeStats) -> dict:
+        """
+        'last_contact' seems to be in UTC, the other dates are in local timezone
+        """
         imported = int(node_stats.imported)
         updated = int(node_stats.updated)
         invalid = int(node_stats.invalid)
         failed = int(node_stats.failed)
+        last_contact = self._TIMESTAMP_HANDLER.convert_utc_to_local_date_string(node_broker.last_contact)
         return {'date':         self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(self._TIMESTAMP_HANDLER.get_current_date()),
-                'last_contact': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_broker.last_contact),
+                'last_contact': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(last_contact),
                 'last_start':   self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.dwh_start),
                 'last_write':   self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.last_write) if node_stats.last_write is not None else '-',
                 'last_reject':  self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.last_reject) if node_stats.last_reject is not None else '-',
@@ -226,6 +230,7 @@ class NodeErrorFetcher(BrokerNodeFetcher):
     def __convert_error_to_row(self, error: BrokerNodeConnection.BrokerNodeError) -> pd.DataFrame:
         """
         The var 'repeats' from broker-server can be None, if the error occured just once.
+        Var 'timestamp' is in local timezone.
         """
         new_row = {
             'timestamp': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(error.timestamp),
