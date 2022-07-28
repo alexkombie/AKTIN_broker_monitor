@@ -1,0 +1,5 @@
+{
+    "EMAIL_HOST": "CHANGEME",
+    "EMAIL_USER": "CHANGEME",
+    "EMAIL_PASSWORD": "CHANGEME"
+}

@@ -2,7 +2,7 @@ import unittest
 
 import bs4
 from common import PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageJiraTableWriter
+from csv_to_confluence import TemplatePageLoader, TemplatePageJiraTableWriter
 
 
 class TestTemplatePageJiraTableWriter(unittest.TestCase):
@@ -14,8 +14,8 @@ class TestTemplatePageJiraTableWriter(unittest.TestCase):
         cls.__JIRA_TABLE_WRITER = TemplatePageJiraTableWriter()
 
     def setUp(self):
-        loader = ResourceLoader()
-        self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        self.__TEMPLATE = loader.get_template_page()
 
     def test_jira_table_1(self):
         page = self.__JIRA_TABLE_WRITER.add_content_to_template_page(self.__TEMPLATE, '1')

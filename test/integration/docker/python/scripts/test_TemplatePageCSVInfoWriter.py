@@ -5,7 +5,7 @@ from shutil import rmtree
 import bs4
 import pandas as pd
 from common import InfoCSVHandler, PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageCSVInfoWriter
+from csv_to_confluence import TemplatePageLoader, TemplatePageCSVInfoWriter
 
 
 class TestTemplatePageCSVInfoWriter(unittest.TestCase):
@@ -23,8 +23,8 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
-        loader = ResourceLoader()
-        self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        self.__TEMPLATE = loader.get_template_page()
         dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)

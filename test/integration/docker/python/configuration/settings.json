@@ -6,5 +6,6 @@
     "CONFLUENCE_URL": "",
     "CONFLUENCE_SPACE": "",
     "CONFLUENCE_TOKEN": "",
-    "CONFLUENCE_MAPPING_JSON": "/opt/mapping.json"
+    "CONFLUENCE_MAPPING_JSON": "/opt/mapping.json",
+    "EMAIL_CONFIG_JSON": "/opt/email_config.json"
 }

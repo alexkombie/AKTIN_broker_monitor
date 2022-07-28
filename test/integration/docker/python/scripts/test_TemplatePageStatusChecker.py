@@ -6,7 +6,7 @@ from shutil import rmtree
 import bs4
 import pandas as pd
 from common import InfoCSVHandler, PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageCSVInfoWriter, TemplatePageStatusChecker
+from csv_to_confluence import TemplatePageLoader, TemplatePageCSVInfoWriter, TemplatePageStatusChecker
 from pytz import timezone
 
 
@@ -27,8 +27,8 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
-        loader = ResourceLoader()
-        page = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        page = loader.get_template_page()
         html = bs4.BeautifulSoup(page, 'html.parser')
         html.find(class_='last_contact').string.replace_with(self.__CURRENT_YMD_HMS)
         html.find(class_='last_write').string.replace_with(self.__CURRENT_YMD_HMS)

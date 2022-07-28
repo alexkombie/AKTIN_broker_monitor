@@ -1,0 +1,148 @@
+@startuml
+hide methods
+
+title Diagram of email_service.py
+
+entity "<size:18>CONFLUENCE</size>" as confluence
+entity confluence #aliceblue;line:blue;text:blue
+hide confluence members
+hide confluence circle
+
+entity "JSON file with configuration" as settings {
+* URL broker-server
+* API Key broker-server
+* Working directory of scripts
+* Path to resource directory
+* Confluence URL
+* Confluence Space
+* Confluence Token
+* Path to Confluence mapping file
+* Path to Email configuration file
+}
+entity settings #aliceblue;line:blue;text:blue
+hide settings circle
+
+entity "JSON file with confluence node mapping" as mapping {
+* maps id of a node to its common name
+* maps id of a node to its institution name
+* optional jira query labels can be set for id
+}
+entity mapping #aliceblue;line:blue;text:blue
+hide mapping circle
+
+entity "<size:18>E-Mail Server</size>" as email
+entity email #aliceblue;line:blue;text:blue
+hide email members
+hide email circle
+
+
+'###################################################################'
+
+package "common.py" as common <<Package>> {
+abstract class "**ResourceLoader**" as ResourceLoader {
+* loads resource files from
+resource directory
+}
+
+class "**ConfluenceConnection**" as ConfluenceConnection {
+* uses Atlassian Python API to execute CRUD
+operations on confluence pages
+}
+
+class "**ConfluenceNodeMapper**" as ConfluenceNodeMapper {
+* loads json file with confluence node mapping
+as python dictionary
+}
+
+class TimestampHandler {
+* gets current date information
+* extracts information from given dates
+* operations for time delta
+}
+
+class MyLogger {
+* starts/stops logging
+}
+
+class PropertiesReader {
+* validates and loads given settings file
+as python environment variables
+}
+hide PropertiesReader circle
+note top of PropertiesReader: Classes with bold names need items\nfrom JSON configuration file
+}
+
+ConfluenceConnection -d--> confluence
+ConfluenceNodeMapper -d--> mapping
+PropertiesReader --> settings
+
+'###################################################################'
+
+package "email_service.py" as email_service <<Package>> {
+abstract class "**MailServerConnection**" as MailServerConnection {
+* connects to mail server with given configuration
+file from properties
+}
+
+class MailSender {
+* sends given message object to given receiver
+}
+
+abstract class MailTemplateHandler {
+* contains helper variables and abstract method to load
+email template and fill its placeholder
+}
+
+class OfflineMailTemplateHandler {
+* loads mail template for status "offline" and fills
+template with information from given page template
+}
+
+class NoImportsMailTemplateHandler {
+* loads mail template for status "no imports" and fills
+template with information from given page template
+}
+
+class ConfluencePageRecipientsExtractor {
+* extracts contact information about clinic
+correspondants from confluence email page
+}
+
+class TemplatePageEmergencyStatusChecker {
+* checks status of confluence page template
+for status "offline" or "no imports"
+}
+
+class "**ConsecutiveSentEmailsCounter**" as ConsecutiveSentEmailsCounter {
+* keeps track about already informed nodes
+about emergency status via json file
+}
+
+class NodeEventNotifierManager {
+* checks status of confluence page and informs
+clinic correspondants in case of emergency
+}
+}
+
+MailServerConnection ---> email
+
+MailSender --|> MailServerConnection
+
+MailTemplateHandler ---|> ResourceLoader
+OfflineMailTemplateHandler --|> MailTemplateHandler
+NoImportsMailTemplateHandler --|> MailTemplateHandler
+
+ConfluencePageRecipientsExtractor ---> ConfluenceConnection
+
+ConsecutiveSentEmailsCounter --> TimestampHandler
+
+NodeEventNotifierManager --> MailSender
+NodeEventNotifierManager --> OfflineMailTemplateHandler
+NodeEventNotifierManager --> NoImportsMailTemplateHandler
+NodeEventNotifierManager --> ConfluencePageRecipientsExtractor
+NodeEventNotifierManager --> TemplatePageEmergencyStatusChecker
+NodeEventNotifierManager --> ConsecutiveSentEmailsCounter
+NodeEventNotifierManager --> ConfluenceConnection
+NodeEventNotifierManager --> ConfluenceNodeMapper
+
+@enduml

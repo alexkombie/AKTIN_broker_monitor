@@ -5,7 +5,7 @@ from shutil import rmtree
 import bs4
 import pandas as pd
 from common import InfoCSVHandler, PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageClinicInfoWriter
+from csv_to_confluence import TemplatePageLoader, TemplatePageClinicInfoWriter
 
 
 class TestTemplatePageClinicInfoWriter(unittest.TestCase):
@@ -20,8 +20,8 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         cls.__CSV_HANDLER = InfoCSVHandler()
 
     def setUp(self):
-        loader = ResourceLoader()
-        self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        self.__TEMPLATE = loader.get_template_page()
 
     def tearDown(self):
         [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]

@@ -17,6 +17,7 @@ entity "JSON file with configuration" as settings {
 * Confluence Space
 * Confluence Token
 * Path to Confluence mapping file
+* Path to Email configuration file
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle

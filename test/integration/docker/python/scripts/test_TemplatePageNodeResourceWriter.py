@@ -4,7 +4,7 @@ from shutil import rmtree
 
 import bs4
 from common import PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageNodeResourceWriter
+from csv_to_confluence import TemplatePageLoader, TemplatePageNodeResourceWriter
 
 
 class TestTemplatePageNodeResourceWriter(unittest.TestCase):
@@ -19,8 +19,8 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
         cls.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter()
 
     def setUp(self):
-        loader = ResourceLoader()
-        self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        self.__TEMPLATE = loader.get_template_page()
         dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)

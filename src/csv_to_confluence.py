@@ -74,6 +74,14 @@ class TemplatePageElementCreator(metaclass=SingletonMeta):
         return bs4.BeautifulSoup(str(element), self.__PARSER)
 
 
+class TemplatePageLoader(ResourceLoader):
+    __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
+    __ENCODING: str = 'utf-8'
+
+    def get_template_page(self) -> str:
+        return self._get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE, self.__ENCODING)
+
+
 class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
     _CSV_HANDLER: CSVHandler
 
@@ -521,14 +529,13 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
 
 
 class TemplatePageMigrator:
-    __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
 
     def __init__(self):
-        self.__RESOURCE_LOADER = ResourceLoader()
+        self.__LOADER = TemplatePageLoader()
         self.__ELEMENT_CREATOR = TemplatePageElementCreator()
 
     def is_template_page_outdated(self, page_template: str) -> bool:
-        current_page_template = self.__RESOURCE_LOADER.get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE)
+        current_page_template = self.__LOADER.get_template_page()
         template_new = self.__ELEMENT_CREATOR.convert_element_to_soup(current_page_template)
         version_new = template_new.find(class_='version_template').string
         template_old = bs4.BeautifulSoup(page_template, 'html.parser')
@@ -536,7 +543,7 @@ class TemplatePageMigrator:
         return version_new != version_old
 
     def migrate_page_template_to_newer_version(self, page_template: str) -> str:
-        current_page_template = self.__RESOURCE_LOADER.get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE)
+        current_page_template = self.__LOADER.get_template_page()
         template_new = self.__ELEMENT_CREATOR.convert_element_to_soup(current_page_template)
         template_old = bs4.BeautifulSoup(page_template, 'html.parser')
         template_new = self.__migrate_clinic_information_to_new_template(template_old, template_new)
@@ -567,7 +574,6 @@ class TemplatePageMigrator:
 
 
 class ConfluenceHandler(ABC, metaclass=SingletonABCMeta):
-    _FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
     _CONFLUENCE_ROOT_PAGE: str = 'Support'
     _CONFLUENCE_PARENT_PAGE: str = 'Support Log Broker-Monitor'
 
@@ -584,7 +590,7 @@ class ConfluencePageHandler(ConfluenceHandler):
 
     def __init__(self):
         super().__init__()
-        self.__LOADER = ResourceLoader()
+        self.__LOADER = TemplatePageLoader()
         self.__CLINIC_INFO_WRITER = TemplatePageClinicInfoWriter()
         self.__MIGRATOR = TemplatePageMigrator()
         self.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter()
@@ -597,7 +603,7 @@ class ConfluencePageHandler(ConfluenceHandler):
     def upload_node_information_as_confluence_page(self, id_node: str):
         common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON')
         if not self._CONFLUENCE.does_page_exists(common_name):
-            page = self.__LOADER.get_resource_as_string(self._FILENAME_TEMPLATE_PAGE)
+            page = self.__LOADER.get_template_page()
             page = self.__CLINIC_INFO_WRITER.add_content_to_template_page(page, id_node)
             self._CONFLUENCE.create_confluence_page(common_name, self._CONFLUENCE_PARENT_PAGE, page)
         page = self._CONFLUENCE.get_page_content(common_name)

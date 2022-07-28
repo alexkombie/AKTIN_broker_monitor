@@ -14,6 +14,8 @@ class TestSingletonMeta(unittest.TestCase):
         date_yesterday = self.__TIMESTAMP_HANDLER.get_yesterdays_date()
         timedelta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_yesterday, date_today)
         self.assertEqual(24, timedelta)
+        timedelta2 = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_today, date_yesterday)
+        self.assertEqual(24, timedelta2)
 
     def test_get_year_from_date_string(self):
         time = self.__TIMESTAMP_HANDLER.get_year_from_date_string('202201011230')

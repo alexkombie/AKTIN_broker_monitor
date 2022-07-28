@@ -3,7 +3,7 @@ import unittest
 import bs4
 from bs4.element import Tag
 from common import PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageMigrator
+from csv_to_confluence import TemplatePageLoader, TemplatePageMigrator
 
 
 class TestTemplatePageMigrator(unittest.TestCase):
@@ -15,8 +15,8 @@ class TestTemplatePageMigrator(unittest.TestCase):
         cls.__MIGRATOR = TemplatePageMigrator()
 
     def setUp(self):
-        loader = ResourceLoader()
-        self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        self.__TEMPLATE = loader.get_template_page()
 
     def test_not_outdated_version(self):
         is_outdated = self.__MIGRATOR.is_template_page_outdated(self.__TEMPLATE)

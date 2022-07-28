@@ -6,7 +6,7 @@ import bs4
 import pandas as pd
 
 from common import ErrorCSVHandler, PropertiesReader
-from csv_to_confluence import ResourceLoader, TemplatePageCSVErrorWriter
+from csv_to_confluence import TemplatePageLoader, TemplatePageCSVErrorWriter
 
 
 class TestTemplatePageCSVErrorWriter(unittest.TestCase):
@@ -24,8 +24,8 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
-        loader = ResourceLoader()
-        self.__TEMPLATE = loader.get_resource_as_string('template_page.html')
+        loader = TemplatePageLoader()
+        self.__TEMPLATE = loader.get_template_page()
         dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)

@@ -332,14 +332,14 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             return self.__CONTENT
 
 
-class ResourceLoader(metaclass=SingletonMeta):
+class ResourceLoader(ABC, metaclass=SingletonABCMeta):
 
     def __init__(self):
         self.__DIR_RESOURCES = os.environ['RESOURCES_DIR']
 
-    def get_resource_as_string(self, name_resource: str) -> str:
+    def _get_resource_as_string(self, name_resource: str, encoding: str) -> str:
         path_resource = os.path.join(self.__DIR_RESOURCES, name_resource)
-        with open(path_resource, 'r') as resource:
+        with open(path_resource, 'r', encoding=encoding) as resource:
             content = resource.read()
         return content
 
@@ -429,7 +429,8 @@ class PropertiesReader(metaclass=SingletonMeta):
                            'CONFLUENCE_URL',
                            'CONFLUENCE_SPACE',
                            'CONFLUENCE_TOKEN',
-                           'CONFLUENCE_MAPPING_JSON'
+                           'CONFLUENCE_MAPPING_JSON',
+                           'EMAIL_CONFIG_JSON'
                            }
 
     def load_properties_as_env_vars(self, path: str):

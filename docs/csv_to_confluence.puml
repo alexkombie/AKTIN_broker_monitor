@@ -17,6 +17,7 @@ entity "JSON file with configuration" as settings {
 * Confluence Space
 * Confluence Token
 * Path to Confluence mapping file
+* Path to Email configuration file
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle
@@ -54,7 +55,7 @@ class TimestampHandler {
 * operations for time delta
 }
 
-class "**ResourceLoader**" as ResourceLoader {
+abstract class "**ResourceLoader**" as ResourceLoader {
 * loads resource files from
 resource directory
 }
@@ -94,6 +95,11 @@ package "csv_to_confluence.py" as csv_to_confluence {
 class TemplatePageElementCreator {
 * creates html and confluence elements
 for confluence page
+}
+
+class TemplatePageLoader {
+* loads confluence page template from
+resources directory
 }
 
 abstract class "**TemplatePageCSVContentWriter**" as TemplatePageCSVContentWriter {
@@ -173,6 +179,8 @@ all connected nodes as parent page
 }
 }
 
+TemplatePageLoader --|> ResourceLoader
+
 TemplatePageCSVContentWriter -d------> CSVHandler
 
 TemplatePageCSVInfoWriter -d---|> TemplatePageCSVContentWriter
@@ -195,7 +203,7 @@ TemplatePageJiraTableWriter -d---|> TemplatePageContentWriter
 TemplatePageJiraTableWriter --> ConfluenceNodeMapper
 TemplatePageJiraTableWriter --> TimestampHandler
 
-TemplatePageMigrator --> ResourceLoader
+TemplatePageMigrator ---> TemplatePageLoader
 TemplatePageMigrator -d--> TemplatePageElementCreator
 
 ConfluenceClinicContactGrabber -d---|> TemplatePageContentWriter
@@ -206,7 +214,7 @@ ConfluenceHandler --> ConfluenceConnection
 ConfluenceHandler --> ConfluenceNodeMapper
 
 ConfluencePageHandler ---|> ConfluenceHandler
-ConfluencePageHandler ---> ResourceLoader
+ConfluencePageHandler ---> TemplatePageLoader
 ConfluencePageHandler ---> TemplatePageClinicInfoWriter
 ConfluencePageHandler ---> TemplatePageMigrator
 ConfluencePageHandler ---> TemplatePageCSVInfoWriter
