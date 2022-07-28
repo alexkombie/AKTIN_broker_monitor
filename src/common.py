@@ -151,6 +151,10 @@ class TimestampHandler(metaclass=SingletonMeta):
         delta = d2 - d1
         return abs(delta.total_seconds() // 3600)
 
+    def convert_utc_to_local_date_string(self, date: str) -> str:
+        d = parser.parse(date).astimezone(self.__TIMEZONE)
+        return str(d)
+
 
 class BrokerNodeConnection(metaclass=SingletonMeta):
 
