@@ -23,9 +23,12 @@
 import json
 import logging
 import os
+import smtplib
 from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from email.mime.text import MIMEText
+from smtplib import SMTP_SSL as SMTP
 
 import lxml.etree as ET
 import pandas as pd
@@ -409,6 +412,60 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
             return self.__DICT_MAPPING[node][key]
         else:
             return None
+
+
+class MailServerConnection(metaclass=SingletonABCMeta):
+    _CONNECTION: smtplib.SMTP_SSL = None
+
+    __SET_REQUIRED_KEYS = {'EMAIL_HOST',
+                           'EMAIL_USER',
+                           'EMAIL_PASSWORD'
+                           }
+
+    def __init__(self):
+        dict_email = self.__load_json_file_as_dict(os.environ['EMAIL_CONFIG_JSON'])
+        self.__validate_properties(dict_email)
+        self.__DICT_EMAIL = dict_email
+        self._SENDER = self.__DICT_EMAIL['EMAIL_USER']
+
+    @staticmethod
+    def __load_json_file_as_dict(path_file: str) -> dict:
+        with open(path_file, encoding='utf-8') as json_file:
+            dict_email = json.load(json_file)
+        return dict_email
+
+    def __validate_properties(self, properties: dict):
+        set_found_keys = set(properties.keys())
+        set_matched_keys = self.__SET_REQUIRED_KEYS.intersection(set_found_keys)
+        if set_matched_keys != self.__SET_REQUIRED_KEYS:
+            raise SystemExit('following keys are missing in email config file: {0}'.format(self.__SET_REQUIRED_KEYS.difference(set_matched_keys)))
+
+    def _connect(self):
+        host = self.__DICT_EMAIL['EMAIL_HOST']
+        self._CONNECTION = SMTP(host)
+        user = self.__DICT_EMAIL['EMAIL_USER']
+        password = self.__DICT_EMAIL['EMAIL_PASSWORD']
+        self._CONNECTION.login(user, password)
+
+    def _close(self):
+        if self._CONNECTION:
+            self._CONNECTION.close()
+
+
+class MailSender(MailServerConnection):
+
+    def __init__(self):
+        super().__init__()
+        self._connect()
+
+    def __del__(self):
+        self._close()
+
+    def send_mail(self, list_receiver: list, mail: MIMEText):
+        receivers = ','.join(list_receiver)
+        mail['From'] = self._SENDER
+        mail['To'] = receivers
+        self._CONNECTION.sendmail(self._SENDER, receivers, mail.as_string())
 
 
 class MyLogger(metaclass=SingletonMeta):
