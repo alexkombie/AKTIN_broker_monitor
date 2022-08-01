@@ -29,6 +29,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 from common import BrokerNodeConnection, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, SingletonABCMeta, TimestampHandler
+from my_error_notifier import MyErrorNotifier
 
 
 class BrokerNodeFetcher(ABC, metaclass=SingletonABCMeta):
@@ -360,6 +361,8 @@ def main(path_config: str):
         manager.fetch_broker_node_information()
     except Exception as e:
         logging.exception(e)
+        notifier = MyErrorNotifier('node_to_csv.py')
+        notifier.notify_me(str(e))
     finally:
         logger.stop_logger()
 

@@ -12,6 +12,7 @@ docker cp %RootDirPath%/src/common.py python:/opt/
 docker cp %RootDirPath%/src/node_to_csv.py python:/opt/
 docker cp %RootDirPath%/src/csv_to_confluence.py python:/opt/
 docker cp %RootDirPath%/src/email_service.py python:/opt/
+docker cp %RootDirPath%/src/my_error_notifier.py python:/opt/
 docker cp %RootDirPath%/src/resources/template_page.html python:/opt/
 docker cp %RootDirPath%/src/resources/template_mail_offline.html python:/opt/
 docker cp %RootDirPath%/src/resources/template_mail_no_imports.html python:/opt/
