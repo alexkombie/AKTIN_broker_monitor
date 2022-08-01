@@ -17,7 +17,9 @@ entity "JSON file with configuration" as settings {
 * Confluence Space
 * Confluence Token
 * Path to Confluence mapping file
-* Path to Email configuration file
+* E-Mail-Server URL
+* E-Mail-Server User
+* E-Mail-Server Password
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle
@@ -60,6 +62,15 @@ class TimestampHandler {
 * operations for time delta
 }
 
+abstract class "**MailServerConnection**" as MailServerConnection {
+* connects to mail server with given configuration
+from properties
+}
+
+class MailSender {
+* sends given message object to given receiver
+}
+
 class MyLogger {
 * starts/stops logging
 }
@@ -72,6 +83,9 @@ hide PropertiesReader circle
 note top of PropertiesReader: Classes with bold names need items\nfrom JSON configuration file
 }
 
+MailServerConnection -d-> email
+MailSender -d-|> MailServerConnection
+
 ConfluenceConnection -d--> confluence
 ConfluenceNodeMapper -d--> mapping
 PropertiesReader --> settings
@@ -79,14 +93,7 @@ PropertiesReader --> settings
 '###################################################################'
 
 package "email_service.py" as email_service <<Package>> {
-abstract class "**MailServerConnection**" as MailServerConnection {
-* connects to mail server with given configuration
-file from properties
-}
 
-class MailSender {
-* sends given message object to given receiver
-}
 
 abstract class MailTemplateHandler {
 * contains helper variables and abstract method to load
@@ -114,8 +121,12 @@ for status "offline" or "no imports"
 }
 
 class "**ConsecutiveSentEmailsCounter**" as ConsecutiveSentEmailsCounter {
-* keeps track about already informed nodes
+* keeps track of already informed nodes
 about emergency status via json file
+}
+
+class "**SentMailsLogger**" as SentMailsLogger {
+* keeps track of sent mails to nodes in a log file
 }
 
 class NodeEventNotifierManager {
@@ -124,9 +135,7 @@ clinic correspondants in case of emergency
 }
 }
 
-MailServerConnection ---> email
 
-MailSender --|> MailServerConnection
 
 MailTemplateHandler ---|> ResourceLoader
 OfflineMailTemplateHandler --|> MailTemplateHandler
@@ -136,6 +145,8 @@ ConfluencePageRecipientsExtractor ---> ConfluenceConnection
 
 ConsecutiveSentEmailsCounter --> TimestampHandler
 
+SentMailsLogger --> TimestampHandler
+
 NodeEventNotifierManager --> MailSender
 NodeEventNotifierManager --> OfflineMailTemplateHandler
 NodeEventNotifierManager --> NoImportsMailTemplateHandler
@@ -144,5 +155,6 @@ NodeEventNotifierManager --> TemplatePageEmergencyStatusChecker
 NodeEventNotifierManager --> ConsecutiveSentEmailsCounter
 NodeEventNotifierManager --> ConfluenceConnection
 NodeEventNotifierManager --> ConfluenceNodeMapper
+NodeEventNotifierManager --> SentMailsLogger
 
 @enduml
