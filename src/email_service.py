@@ -199,6 +199,37 @@ class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
         return delta_in_weeks >= 1
 
 
+class SentMailsLogger(metaclass=SingletonMeta):
+
+    def __init__(self):
+        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__TIMESTAMP_HANDLER = TimestampHandler()
+
+    def log_sent_mail_for_node(self, id_node: str, status: int):
+        dir_working = self.__init_working_directory_if_nonexisting(id_node)
+        path_log = self.__generate_mails_log_path(id_node, dir_working)
+        if status == 1:
+            emergency = 'Offline'
+        elif status == 2:
+            emergency = 'No Imports'
+        else:
+            raise SystemExit('invalid emergency status')
+        with open(path_log, 'a') as log:
+            current = self.__TIMESTAMP_HANDLER.get_current_date()
+            log.write("{0} : Sent mail for status {1} to node id {2}\n".format(current, emergency, id_node))
+
+    def __init_working_directory_if_nonexisting(self, name_folder: str) -> str:
+        dir_working = os.path.join(self.__DIR_ROOT, name_folder)
+        if not os.path.isdir(dir_working):
+            os.makedirs(dir_working)
+        return dir_working
+
+    @staticmethod
+    def __generate_mails_log_path(id_node: str, dir_working: str) -> str:
+        name_file = '_'.join([id_node, 'sent_mails.log'])
+        return os.path.join(dir_working, name_file)
+
+
 class NodeEventNotifierManager:
 
     def __init__(self):
@@ -207,6 +238,7 @@ class NodeEventNotifierManager:
         self.__LIST_NODE_IDS = self.__MAPPER.get_all_keys()
         self.__PAGE_EMERGENCY_STATUS_CHECKER = TemplatePageEmergencyStatusChecker()
         self.__SENT_MAILS_COUNTER = ConsecutiveSentEmailsCounter()
+        self.__SENT_MAILS_LOGGER = SentMailsLogger()
 
     def notify_node_recipients_on_emergency_status(self):
         for id_node in self.__LIST_NODE_IDS:
@@ -229,6 +261,7 @@ class NodeEventNotifierManager:
                     if not self.__SENT_MAILS_COUNTER.was_last_email_sent_more_than_one_week_ago(id_node):
                         continue
                 MailSender().send_mail(recipients, mail)
+                self.__SENT_MAILS_LOGGER.log_sent_mail_for_node(id_node, status)
                 self.__SENT_MAILS_COUNTER.create_or_update_node_entry(id_node)
 
 
