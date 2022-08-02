@@ -191,12 +191,12 @@ class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
             del self.__DICT_TRACKING[id_node]
             self.__save_tracking_json()
 
-    def was_last_email_sent_more_than_one_week_ago(self, id_node: str) -> bool:
+    def was_last_email_sent_less_than_one_week_ago(self, id_node: str) -> bool:
         last_sent = self.__DICT_TRACKING.get(id_node)
         current_date = self.__TIMESTAMP_HANDLER.get_current_date()
         delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(last_sent, current_date)
-        delta_in_weeks = delta // 168
-        return delta_in_weeks >= 1
+        delta_in_weeks = delta / 168
+        return delta_in_weeks < 1
 
 
 class SentMailsLogger(metaclass=SingletonMeta):
@@ -258,7 +258,7 @@ class NodeEventNotifierManager:
                 if not recipients:
                     continue
                 if self.__SENT_MAILS_COUNTER.does_entry_exist_for_node(id_node):
-                    if not self.__SENT_MAILS_COUNTER.was_last_email_sent_more_than_one_week_ago(id_node):
+                    if self.__SENT_MAILS_COUNTER.was_last_email_sent_less_than_one_week_ago(id_node):
                         continue
                 MailSender().send_mail(recipients, mail)
                 self.__SENT_MAILS_LOGGER.log_sent_mail_for_node(id_node, status)
