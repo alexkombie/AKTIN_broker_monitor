@@ -441,10 +441,9 @@ class MailSender(MailServerConnection):
         self._close()
 
     def send_mail(self, list_receiver: list, mail: MIMEText):
-        receivers = ','.join(list_receiver)
         mail['From'] = self._USER
-        mail['To'] = receivers
-        self._CONNECTION.sendmail(self._USER, receivers, mail.as_string())
+        mail['To'] = ', '.join(list_receiver)
+        self._CONNECTION.sendmail(self._USER, list_receiver, mail.as_string())
 
 
 class MyLogger(metaclass=SingletonMeta):
