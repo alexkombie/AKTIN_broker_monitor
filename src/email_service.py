@@ -275,7 +275,7 @@ def main(path_config: str):
         manager.notify_node_recipients_on_emergency_status()
     except Exception as e:
         logging.exception(e)
-        notifier = MyErrorNotifier('email_service.py')
+        notifier = MyErrorNotifier(os.path.basename(__file__))
         notifier.notify_me(str(e))
     finally:
         logger.stop_logger()

@@ -747,7 +747,7 @@ def main(path_config: str):
         manager.upload_summary_for_confluence_pages()
     except Exception as e:
         logging.exception(e)
-        notifier = MyErrorNotifier('csv_to_confluence.py')
+        notifier = MyErrorNotifier(os.path.basename(__file__))
         notifier.notify_me(str(e))
     finally:
         logger.stop_logger()

@@ -361,7 +361,7 @@ def main(path_config: str):
         manager.fetch_broker_node_information()
     except Exception as e:
         logging.exception(e)
-        notifier = MyErrorNotifier('node_to_csv.py')
+        notifier = MyErrorNotifier(os.path.basename(__file__))
         notifier.notify_me(str(e))
     finally:
         logger.stop_logger()
