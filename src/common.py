@@ -237,16 +237,20 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         """
         Returns processed XML tree object without namespace from GET request
         """
-        response = requests.get(url, headers=self.__create_basic_header())
+        response = requests.get(url, headers=self.__create_basic_headers())
         response.raise_for_status()
         tree = ET.fromstring(response.content)
         return self.__remove_namespace_from_tree(tree)
 
-    def __create_basic_header(self) -> dict:
+    def __create_basic_headers(self) -> dict:
         """
         HTTP header for requests to AKTIN Broker
         """
-        return {'Authorization': ' '.join(['Bearer', self.__ADMIN_API_KEY]), 'Connection': 'keep-alive', 'Accept': 'application/xml'}
+        headers = requests.utils.default_headers()
+        headers['Authorization'] = ' '.join(['Bearer', self.__ADMIN_API_KEY])
+        headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+        headers['Accept'] = 'application/xml'
+        return headers
 
     @staticmethod
     def __remove_namespace_from_tree(tree: ET.ElementTree) -> ET.ElementTree:
