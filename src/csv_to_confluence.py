@@ -213,10 +213,10 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     def _add_content_to_template_soup(self):
         if self.__has_csv_a_gap_in_broker_connection():
             status = self.__create_status_element('GAP IN MONITORING', 'Red')
-        elif self.__is_template_soup_offline():
-            status = self.__create_status_element('OFFLINE', 'Red')
         elif self.__is_template_soup_still_testing():
             status = self.__create_status_element('TESTING', 'Blue')
+        elif self.__is_template_soup_offline():
+            status = self.__create_status_element('OFFLINE', 'Red')
         elif self.__is_template_soup_not_importing():
             status = self.__create_status_element('NO IMPORTS', 'Red')
         elif self.__is_template_soup_daily_error_rate_above_threshold(5.0):
