@@ -67,6 +67,7 @@ class OfflineMailTemplateHandler(MailTemplateHandler):
         return mail
 
 
+# TODO if last_write == '-' search real last_write in csv
 class NoImportsMailTemplateHandler(MailTemplateHandler):
     _FILENAME_TEMPLATE: str = 'template_mail_no_imports.html'
 
@@ -74,6 +75,7 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
         soup = bs4.BeautifulSoup(page_template, self._PARSER)
         clinic_name = soup.find(class_='clinic_name').text
         last_write = soup.find(class_='last_write').text
+        last_write = soup.find(class_='last_start').text if last_write == '-' else last_write
         formatted_last_write = self._format_date_string_to_german_format(last_write)
         content = self._get_resource_as_string(self._FILENAME_TEMPLATE, self._ENCODING)
         content = content.replace('${clinic_name}', clinic_name)
