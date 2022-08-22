@@ -31,7 +31,7 @@ import bs4
 import pandas as pd
 from dateutil import parser
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, MailSender, MyLogger, PropertiesReader, ResourceLoader, SingletonMeta, TimestampHandler
+from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, ResourceLoader, SingletonMeta, TimestampHandler
 from my_error_notifier import MyErrorNotifier
 
 
@@ -67,15 +67,20 @@ class OfflineMailTemplateHandler(MailTemplateHandler):
         return mail
 
 
-# TODO if last_write == '-' search real last_write in csv
 class NoImportsMailTemplateHandler(MailTemplateHandler):
     _FILENAME_TEMPLATE: str = 'template_mail_no_imports.html'
+
+    def __init__(self, id_node: str):
+        super().__init__()
+        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__ID_NODE = id_node
+        self.__HANDLER = InfoCSVHandler()
 
     def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
         soup = bs4.BeautifulSoup(page_template, self._PARSER)
         clinic_name = soup.find(class_='clinic_name').text
         last_write = soup.find(class_='last_write').text
-        last_write = soup.find(class_='last_start').text if last_write == '-' else last_write
+        last_write = self.__get_last_import_date_from_csv() if last_write == '-' else last_write
         formatted_last_write = self._format_date_string_to_german_format(last_write)
         content = self._get_resource_as_string(self._FILENAME_TEMPLATE, self._ENCODING)
         content = content.replace('${clinic_name}', clinic_name)
@@ -83,6 +88,20 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
         mail = MIMEText(content, self._TEXT_SUBTYPE, self._ENCODING)
         mail['Subject'] = "Automatische Information: AKTIN DWH Keine Imports"
         return mail
+
+    def __get_last_import_date_from_csv(self) -> str:
+        path_csv = self.__get_csv_file_path()
+        df = self.__HANDLER.read_csv_as_df(path_csv)
+        series = df['last_write']
+        list_idx = series[series == '-'].index
+        series = series.drop(index=list_idx)
+        return series.values[-1]
+
+    def __get_csv_file_path(self) -> str:
+        dir_working = os.path.join(self.__DIR_ROOT, self.__ID_NODE)
+        name_csv = self.__HANDLER.generate_csv_name(self.__ID_NODE)
+        path_csv = os.path.join(dir_working, name_csv)
+        return path_csv
 
 
 class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
@@ -251,7 +270,7 @@ class NodeEventNotifierManager:
                 if status == 1:
                     handler = OfflineMailTemplateHandler()
                 elif status == 2:
-                    handler = NoImportsMailTemplateHandler()
+                    handler = NoImportsMailTemplateHandler(id_node)
                 else:
                     self.__SENT_MAILS_COUNTER.delete_entry_for_node_if_exists(id_node)
                     continue
