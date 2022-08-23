@@ -67,7 +67,7 @@ class TestNodeResourceFetcher(unittest.TestCase):
 
     def test_logging_broker_node_versions(self):
         self.__no_log_creation_on_no_changes()
-        self.__DUMMY.put_resource_on_broker(BrokerNodeVersions('3', '4'), 'versions')
+        self.__DUMMY.put_resource_on_broker(BrokerNodeVersions('3\n', '4\n'), 'versions')
         self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
         self.__DUMMY.put_resource_on_broker(BrokerNodeVersions2('3', '4', '1', '2'), 'versions')
         self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)

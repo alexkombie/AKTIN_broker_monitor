@@ -312,8 +312,14 @@ class NodeResourceFetcher(BrokerNodeFetcher):
     def __clean_dictionary(dictionary: dict) -> dict:
         """
         Set dict values with None to be '-', as file.write() throws exception when a None occurs
+        Remove possible \n from values for better readability
         """
-        return {key: value if value is not None else '-' for key, value in dictionary.items()}
+        for key, value in dictionary.copy().items():
+            if value is None:
+                dictionary[key] = '-'
+            else:
+                dictionary[key] = value.replace('\n', '')
+        return dictionary
 
     @staticmethod
     def __generate_resource_file_path(type_resource: str, id_node: str, dir_working: str) -> str:
