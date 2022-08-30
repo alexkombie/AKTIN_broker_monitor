@@ -126,10 +126,11 @@ class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
     def __extract_ed_recipients_for_node_id(self, id_node: str) -> list:
         """
         For ED contacts, only the main contacts (Hauptansprechpartner) are used (only one in most cases)
+        Contacts can be blacklisted by setting a value in the appropriate column in Confluence.
         """
         list_contacts = []
         df_recipients = self.__get_recipients_df_for_node_id(id_node, 'Notaufnahme')
-        df_main_contact = df_recipients[df_recipients['Hauptansprechpartner?'] != '']
+        df_main_contact = df_recipients[(df_recipients['Hauptansprechpartner?'] != '') & (df_recipients['Abgemeldet von Monitor-Benachrichtigungen?'] == '')]
         series_contacts = df_main_contact['Kontakt']
         for contact in series_contacts:
             list_contacts.append(contact)
@@ -137,11 +138,13 @@ class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
 
     def __extract_it_recipients_for_node_id(self, id_node: str) -> list:
         """
-        For IT contacts, all contacts are used
+        For IT contacts, all contacts are used.
+        Contacts can be blacklisted by setting a value in the appropriate column in Confluence.
         """
         list_contacts = []
         df_recipients = self.__get_recipients_df_for_node_id(id_node, 'IT')
-        series_contacts = df_recipients['Kontakt']
+        df_main_contact = df_recipients[df_recipients['Abgemeldet von Monitor-Benachrichtigungen?'] == '']
+        series_contacts = df_main_contact['Kontakt']
         for contact in series_contacts:
             list_contacts.append(contact)
         return list_contacts
