@@ -43,6 +43,16 @@ class TestConfluenceNodeMapper(unittest.TestCase):
         value = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('2', 'NONEXISTING')
         self.assertIsNone(value)
 
+    def test_get_root_dict(self):
+        dict_root = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('10', 'ROOT')
+        dict_expected = {'PATIENT': '1.2.2'}
+        self.assertTrue(dict_root == dict_expected)
+
+    def test_get_format_dict(self):
+        dict_root = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('3', 'FORMAT')
+        dict_expected = {'PATIENT': '1111', 'ENCOUNTER': '2222', 'BILLING': '3333'}
+        self.assertTrue(dict_root == dict_expected)
+
 
 if __name__ == '__main__':
     unittest.main()

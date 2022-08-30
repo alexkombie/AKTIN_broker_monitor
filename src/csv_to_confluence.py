@@ -312,12 +312,18 @@ class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
         self.__TIMESTAMP_HANDLER = TimestampHandler()
 
     def _add_content_to_template_soup(self):
-        self.__add_clinic_name()
+        self.__add_value_from_mapping_to_page_template('LONG_NAME', 'clinic_name')
+        self.__add_value_from_mapping_to_page_template('HOSPITAL_INFORMATION_SYSTEM', 'information_system')
+        self.__add_value_from_mapping_to_page_template('IMPORT_INTERFACE', 'interface_import')
         self.__add_monitoring_start_date()
+        self.__add_clinic_ids('ROOT')
+        self.__add_clinic_ids('FORMAT')
 
-    def __add_clinic_name(self):
-        name_clinic = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'LONG_NAME')
-        self._PAGE_TEMPLATE.find(class_='clinic_name').string.replace_with(name_clinic)
+    def __add_value_from_mapping_to_page_template(self, key_mapping: str, key_page: str):
+        value = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, key_mapping)
+        if not value or value is None:
+            value = 'changeme'
+        self._PAGE_TEMPLATE.find(class_=key_page).string.replace_with(value)
 
     def __add_monitoring_start_date(self):
         first_monitoring = self._DF['date'].iloc[0]
@@ -326,6 +332,14 @@ class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
         td = self.__ELEMENT_CREATOR.create_html_element('td', {'class': 'online_since'})
         td.append(element_time)
         self._PAGE_TEMPLATE.find(class_='online_since').replace_with(td)
+
+    def __add_clinic_ids(self, type_ids: str):
+        dict_ids = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, type_ids)
+        for key in ['PATIENT', 'ENCOUNTER', 'BILLING']:
+            value = 'changeme'
+            if dict_ids is not None and key in dict_ids:
+                value = dict_ids[key]
+            self._PAGE_TEMPLATE.find(class_='_'.join([type_ids.lower(), key.lower()])).string.replace_with(value)
 
 
 class TemplatePageContentWriter(ABC, metaclass=SingletonABCMeta):
