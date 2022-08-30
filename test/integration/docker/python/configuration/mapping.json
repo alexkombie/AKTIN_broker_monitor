@@ -1,24 +1,44 @@
 {
     "1": {
-        "COMMON": "[1] Clinic1",
-        "LONG": "Institute of One",
+        "COMMON_NAME": "[1] Clinic1",
+        "LONG_NAME": "Institute of One",
         "JIRA_LABELS": [
             "label1",
             "label2"
-        ]
+        ],
+        "HOSPITAL_INFORMATION_SYSTEM": "ABC",
+        "IMPORT_INTERFACE": "DEF"
     },
     "2": {
-        "COMMON": "[2] Clinic2",
-        "LONG": "Institute of Two",
+        "COMMON_NAME": "[2] Clinic2",
+        "LONG_NAME": "Institute of Two",
         "JIRA_LABELS": [
             "label3"
-        ]
+        ],
+        "THRESHOLD_HOURS_FAILURE" : 48
     },
     "3": {
-        "COMMON": "[3] ÄÜÖ äüö"
+        "COMMON_NAME": "[3] ÄÜÖ äüö",
+        "THRESHOLD_HOURS_FAILURE": 12,
+        "ROOT": {
+            "PATIENT": "1.2.2",
+            "ENCOUNTER": "1.2.45",
+            "BILLING": "1.2.47"
+        },
+        "FORMAT": {
+            "PATIENT": "1111",
+            "ENCOUNTER": "2222",
+            "BILLING": "3333"
+        }
     },
     "10": {
-        "COMMON": "[10] Clinic10",
-        "JIRA_LABELS": []
+        "COMMON_NAME": "[10] Clinic10",
+        "JIRA_LABELS": [],
+        "ROOT": {
+            "PATIENT": "1.2.2"
+        },
+        "FORMAT": {
+            "PATIENT": "1111"
+        }
     }
 }
