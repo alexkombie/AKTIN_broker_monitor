@@ -185,6 +185,7 @@ class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
     def __init__(self):
         self.__PATH_TRACKING_JSON = os.path.join(os.environ['ROOT_DIR'], 'tracking_sent_mails.json')
         self.__TIMESTAMP_HANDLER = TimestampHandler()
+        self.__MAPPER = ConfluenceNodeMapper()
         self.__init_tracking_json_if_not_exists()
         self.__load_tracking_json()
 
@@ -212,12 +213,15 @@ class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
             del self.__DICT_TRACKING[id_node]
             self.__save_tracking_json()
 
-    def was_last_email_sent_less_than_one_week_ago(self, id_node: str) -> bool:
+    def was_last_email_sent_less_than_set_week_ago(self, id_node: str) -> bool:
+        threshold_weeks = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'WEEKS_NOTIFICATION_INTERVAL')
+        if not threshold_weeks or threshold_weeks is None:
+            threshold_weeks = 1
         last_sent = self.__DICT_TRACKING.get(id_node)
         current_date = self.__TIMESTAMP_HANDLER.get_current_date()
         delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(last_sent, current_date)
         delta_in_weeks = delta / 168
-        return delta_in_weeks < 1
+        return delta_in_weeks < threshold_weeks
 
 
 class SentMailsLogger(metaclass=SingletonMeta):
@@ -263,7 +267,7 @@ class NodeEventNotifierManager:
 
     def notify_node_recipients_on_emergency_status(self):
         for id_node in self.__LIST_NODE_IDS:
-            name_page = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON')
+            name_page = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
             if self.__CONFLUENCE.does_page_exists(name_page):
                 page = self.__CONFLUENCE.get_page_content(name_page)
                 status = self.__PAGE_EMERGENCY_STATUS_CHECKER.check_for_emergency_status(page)
@@ -279,7 +283,7 @@ class NodeEventNotifierManager:
                 if not recipients:
                     continue
                 if self.__SENT_MAILS_COUNTER.does_entry_exist_for_node(id_node):
-                    if self.__SENT_MAILS_COUNTER.was_last_email_sent_less_than_one_week_ago(id_node):
+                    if self.__SENT_MAILS_COUNTER.was_last_email_sent_less_than_set_week_ago(id_node):
                         continue
                 MailSender().send_mail(recipients, mail)
                 self.__SENT_MAILS_LOGGER.log_sent_mail_for_node(id_node, status)

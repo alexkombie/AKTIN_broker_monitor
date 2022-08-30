@@ -43,6 +43,7 @@ Additionally, the script `csv_to_confluence.py` needs a mapping table (`CONFLUEN
     "HOSPITAL_INFORMATION_SYSTEM" : "HyperHIS",
     "IMPORT_INTERFACE": "SuperImporter V3.3",
     "THRESHOLD_HOURS_FAILURE" : 48,
+    "WEEKS_NOTIFICATION_INTERVAL" : 2,
     "ROOT": {
         "PATIENT": "1.2.2",
         "ENCOUNTER": "1.2.45",
@@ -63,6 +64,7 @@ Additionally, the script `csv_to_confluence.py` needs a mapping table (`CONFLUEN
 | LONG_NAME                   | Official name of the node/the institution. If this key is empty, the value "changeme" is used.                                                                                                                    | Institute of Ninety-Nine                                                 |
 | JIRA_LABELS                 | List of labels to define a JIRA query and pass to a table for JIRA tickets inside the Confluence page. If this key is empty, an empty JIRA table is created in the Confluence page.                               | ["label1", "label2"]                                                     |
 | THRESHOLD_HOURS_FAILURE     | Integer, after how many hours of no imports/no broker contact the status of the node is changed. If this key is empty, a default value of 24 is used.                                                             | 48                                                                       |
+| WEEKS_NOTIFICATION_INTERVAL | Integer, after how many weeks after last notification the node should be notified again, if its state did not change. If this key is empty, a default value of 1 is used.                                         | 1                                                                        |
 | HOSPITAL_INFORMATION_SYSTEM | The hospital information system used by the node. If this key is empty, the value "changeme" is used.                                                                                                             | HyperHIS                                                                 |
 | IMPORT_INTERFACE            | The AKTIN import interface used by the node. If this key is empty, the value "changeme" is used.                                                                                                                  | SuperImporter V3.3                                                       |
 | ROOT                        | The root ids used in the CDAs of the node. "PATIENT", "ENCOUNTER" and "BILLING" are the only possible keys. Other keys are ignored. If a key is missing, the value "changeme" is used instead.                    | {"PATIENT": "1.2.2",<br/>"ENCOUNTER": "1.2.45",<br/>"BILLING": "1.2.47"} |
