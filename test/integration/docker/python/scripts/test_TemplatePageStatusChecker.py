@@ -6,7 +6,7 @@ from shutil import rmtree
 import bs4
 import pandas as pd
 from common import InfoCSVHandler, PropertiesReader
-from csv_to_confluence import TemplatePageLoader, TemplatePageCSVInfoWriter, TemplatePageStatusChecker
+from csv_to_confluence import TemplatePageCSVInfoWriter, TemplatePageLoader, TemplatePageStatusChecker
 from pytz import timezone
 
 
@@ -27,6 +27,10 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(self.__DEFAULT_NODE_ID)
+
+    def __init_testing_template(self):
         loader = TemplatePageLoader()
         page = loader.get_template_page()
         html = bs4.BeautifulSoup(page, 'html.parser')
@@ -35,14 +39,15 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         html.find(class_='daily_imported').string.replace_with('1000')
         html.find(class_='daily_error_rate').string.replace_with('0.0')
         self.__TEMPLATE = str(html)
-        self.__init_working_dir_with_empty_csv()
 
-    def __init_working_dir_with_empty_csv(self):
-        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+    def __init_working_dir_with_empty_csv(self, id_node: str):
+        dir_working = os.path.join(self.__DIR_ROOT, id_node)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        name_csv = self.__CSV_HANDLER.generate_csv_name(id_node)
+        path_csv = os.path.join(self.__DIR_ROOT, id_node, name_csv)
+        self.__CSV_HANDLER.save_df_to_csv(df, path_csv)
 
     def tearDown(self):
         [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
@@ -57,11 +62,29 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
+    def test_last_contact_less_than_one_day_ago_updated_threshold(self):
+        id_node = '3'
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(id_node)
+        date_yesterday = self.__get_current_date_moved_back_by_days_and_hours(0, 23)
+        self.__set_value_in_template('last_contact', date_yesterday)
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
+        self.__check_title_and_color_of_status_element_on_page(page, 'OFFLINE', 'Red')
+
     def test_last_contact_more_than_one_day_ago(self):
         date_past = self.__get_current_date_moved_back_by_days_and_hours(1, 1)
         self.__set_value_in_template('last_contact', date_past)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'OFFLINE', 'Red')
+
+    def test_last_contact_more_than_one_day_ago_updated_threshold(self):
+        id_node = '2'
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(id_node)
+        date_past = self.__get_current_date_moved_back_by_days_and_hours(1, 1)
+        self.__set_value_in_template('last_contact', date_past)
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
+        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
     def test_last_write_less_than_one_day_ago(self):
         date_yesterday = self.__get_current_date_moved_back_by_days_and_hours(0, 23)
@@ -69,11 +92,29 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
+    def test_last_write_less_than_one_day_ago_updated_threshold(self):
+        id_node = '3'
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(id_node)
+        date_yesterday = self.__get_current_date_moved_back_by_days_and_hours(0, 23)
+        self.__set_value_in_template('last_write', date_yesterday)
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
+        self.__check_title_and_color_of_status_element_on_page(page, 'NO IMPORTS', 'Red')
+
     def test_last_write_more_than_one_day_ago(self):
         date_past = self.__get_current_date_moved_back_by_days_and_hours(1, 1)
         self.__set_value_in_template('last_write', date_past)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'NO IMPORTS', 'Red')
+
+    def test_last_write_more_than_one_day_ago_updated_threshold(self):
+        id_node = '2'
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(id_node)
+        date_past = self.__get_current_date_moved_back_by_days_and_hours(1, 1)
+        self.__set_value_in_template('last_write', date_past)
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
+        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
     def test_empty_last_write(self):
         self.__set_value_in_template('last_write', '-')

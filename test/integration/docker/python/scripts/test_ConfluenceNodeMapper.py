@@ -16,19 +16,27 @@ class TestConfluenceNodeMapper(unittest.TestCase):
 
     def test_get_node(self):
         node1 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('1')
-        self.assertEqual('[1] Clinic1', node1['COMMON'])
+        self.assertEqual('[1] Clinic1', node1['COMMON_NAME'])
         self.assertEqual(['label1', 'label2'], node1['JIRA_LABELS'])
         node10 = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('10')
-        self.assertEqual('[10] Clinic10', node10['COMMON'])
+        self.assertEqual('[10] Clinic10', node10['COMMON_NAME'])
         with self.assertRaises(KeyError):
             _ = node10['NONEXISTING']
+
+    def test_get_node_int_values(self):
+        hours1 = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('2', 'THRESHOLD_HOURS_FAILURE')
+        self.assertEqual(48, hours1)
+        self.assertEqual(int, type(hours1))
+        hours2 = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('3', 'THRESHOLD_HOURS_FAILURE')
+        self.assertEqual(12, hours2)
+        self.assertEqual(int, type(hours2))
 
     def test_get_nonexisting_node(self):
         node = self.__CONFLUENCE_NODE_MAPPER.get_node_from_mapping_dict('99')
         self.assertIsNone(node)
 
     def test_get_node_value(self):
-        value = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('3', 'COMMON')
+        value = self.__CONFLUENCE_NODE_MAPPER.get_node_value_from_mapping_dict('3', 'COMMON_NAME')
         self.assertEqual('[3] ÄÜÖ äüö', value)
 
     def test_get_nonexisting_node_value(self):

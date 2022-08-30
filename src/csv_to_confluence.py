@@ -209,6 +209,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         self._CSV_HANDLER = InfoCSVHandler()
         self.__ELEMENT_CREATOR = TemplatePageElementCreator()
         self.__TIMESTAMP_HANDLER = TimestampHandler()
+        self.__MAPPER = ConfluenceNodeMapper()
 
     def _add_content_to_template_soup(self):
         if self.__has_csv_a_gap_in_broker_connection():
@@ -250,13 +251,16 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
 
     def __is_template_soup_offline(self) -> bool:
         last_contact = self._PAGE_TEMPLATE.find(class_='last_contact').string
-        return self.__is_date_longer_ago_than_yesterday(last_contact)
+        return self.__is_date_longer_ago_than_set_hours(last_contact)
 
-    def __is_date_longer_ago_than_yesterday(self, date_input: str) -> bool:
+    def __is_date_longer_ago_than_set_hours(self, date_input: str) -> bool:
+        threshold_hours = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'THRESHOLD_HOURS_FAILURE')
+        if not threshold_hours or threshold_hours is None:
+            threshold_hours = 24
         date_input = self.__TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(date_input)
         date_now = self.__TIMESTAMP_HANDLER.get_current_date()
         delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_input, date_now)
-        if delta > 24:
+        if delta > threshold_hours:
             return True
         else:
             return False
@@ -280,7 +284,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         last_write = self._PAGE_TEMPLATE.find(class_='last_write').string
         if last_write == '-':
             return True
-        return self.__is_date_longer_ago_than_yesterday(last_write)
+        return self.__is_date_longer_ago_than_set_hours(last_write)
 
     def __is_template_soup_daily_error_rate_above_threshold(self, threshold: float) -> bool:
         error_rate = self._PAGE_TEMPLATE.find(class_='daily_error_rate').string
@@ -312,7 +316,7 @@ class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
         self.__add_monitoring_start_date()
 
     def __add_clinic_name(self):
-        name_clinic = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'LONG')
+        name_clinic = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'LONG_NAME')
         self._PAGE_TEMPLATE.find(class_='clinic_name').string.replace_with(name_clinic)
 
     def __add_monitoring_start_date(self):
@@ -602,7 +606,7 @@ class ConfluencePageHandler(ConfluenceHandler):
         self.__CONTACT_GRABBER = ConfluenceClinicContactGrabber()
 
     def upload_node_information_as_confluence_page(self, id_node: str):
-        common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON')
+        common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
         if not self._CONFLUENCE.does_page_exists(common_name):
             page = self.__LOADER.get_template_page()
             page = self.__CLINIC_INFO_WRITER.add_content_to_template_page(page, id_node)
@@ -640,7 +644,7 @@ class FileBackupManager(ConfluenceHandler):
     def __backup_files_with_line_ending(self, id_node: str, line_ending: str):
         dir_node = os.path.join(self.__DIR_ROOT, id_node)
         list_files = self.__get_all_files_in_directory_with_line_ending(dir_node, line_ending)
-        name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON')
+        name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
         for name_file in list_files:
             path_csv = os.path.join(dir_node, name_file)
             self._CONFLUENCE.upload_csv_as_attachement_to_page(name, path_csv)
@@ -678,7 +682,7 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         id_nodes = self._MAPPER.get_all_keys()
         tbody = self.__create_empty_summary_table()
         for id_node in id_nodes:
-            common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON')
+            common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
             if self._CONFLUENCE.does_page_exists(common_name):
                 page = self._CONFLUENCE.get_page_content(common_name)
                 row = self.__create_summary_table_row_from_confluence_page(common_name, page)
