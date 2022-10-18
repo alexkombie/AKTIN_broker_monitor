@@ -105,6 +105,9 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
 
 
 class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
+    """
+    Extracts correspondants for broker node from another confluence page.
+    """
     __CONFLUENCE_EMAIL_LIST: str = 'E-Mail-Verteiler'
 
     def __init__(self):
@@ -182,6 +185,9 @@ class TemplatePageEmergencyStatusChecker(metaclass=SingletonMeta):
 
 
 class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
+    """
+    Checks when the last email was sent to node correspondants (to avoid notification spamming)
+    """
     __ENCODING = 'utf-8'
     __DICT_TRACKING: dict = {}
 

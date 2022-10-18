@@ -36,6 +36,9 @@ from my_error_notifier import MyErrorNotifier
 
 
 class TemplatePageElementCreator(metaclass=SingletonMeta):
+    """
+    Creates commonly used html and confluence elements
+    """
     __PARSER: str = 'html.parser'
 
     def create_ac_parameter_element(self, name: str, content: str) -> Tag:
@@ -84,6 +87,9 @@ class TemplatePageLoader(ResourceLoader):
 
 
 class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
+    """
+    Used to write content from csv file to confluence page
+    """
     _CSV_HANDLER: CSVHandler
 
     def __init__(self):
@@ -200,8 +206,9 @@ class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
 
 class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     """
-    The TemplatePageStatusChecker should always be the last class in the processing pipeline of
-    an confluence page! The status is added as a custom confluence html element.
+    Checks import and connection status inside (template of) confluence page and sets
+    status as a custom html element.
+    Should always be the last class called in the processing pipeline!
     """
 
     def __init__(self):
@@ -303,6 +310,9 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
 
 
 class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
+    """
+    Sets (mostly) static information about the clinic on the inital creation of the confluence page
+    """
 
     def __init__(self):
         super().__init__()
@@ -343,6 +353,9 @@ class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
 
 
 class TemplatePageContentWriter(ABC, metaclass=SingletonABCMeta):
+    """
+    Used to write (non-csv) content to confluence page
+    """
 
     def __init__(self):
         self.__DIR_ROOT = os.environ['ROOT_DIR']
@@ -364,6 +377,8 @@ class TemplatePageContentWriter(ABC, metaclass=SingletonABCMeta):
 
 class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
     """
+    Writes information about node resources from text file to confluence page.
+
     Content of resource 'versions' is more static than the other resources. Therefore, each value is
     written into a predefined element. The other resources are just concatted.
     """
@@ -432,7 +447,8 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
 
 class TemplatePageJiraTableWriter(TemplatePageContentWriter):
     """
-    Table for JIRA Tickets is added as a custom confluence html element
+    Creates a jira query with values set in mapping json (see ConfluenceNodeMapper) for
+    single broker node. Table for jira tickets is added as a custom confluence html element
     """
 
     def __init__(self):
@@ -473,7 +489,8 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 
 class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
     """
-    Clinic correspondants are written as a table into the template
+    Searches another confluence page form correspondants of broker node id
+    Correspondants are written as a table into the template
     """
     __CONFLUENCE_EMAIL_LIST: str = 'E-Mail-Verteiler'
 
@@ -548,6 +565,10 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
 
 
 class TemplatePageMigrator:
+    """
+    Migrates static clinic information (see TemplatePageClinicInfoWriter) to new confluence
+    page template. Static clinic information is only initialized once on page creation!
+    """
 
     def __init__(self):
         self.__LOADER = TemplatePageLoader()
@@ -603,8 +624,8 @@ class ConfluenceHandler(ABC, metaclass=SingletonABCMeta):
 
 class ConfluencePageHandler(ConfluenceHandler):
     """
-    The name of a confluence page from a node is its common name (from
-    confluence node mapping json)
+    Creates new confluence page for single broker node. The name of a confluence
+    page is its common name (from confluence node mapping json)
     """
 
     def __init__(self):
@@ -643,7 +664,8 @@ class ConfluencePageHandler(ConfluenceHandler):
 
 class FileBackupManager(ConfluenceHandler):
     """
-    Identical named attachements are overwritten, when uploaded to Confluence.
+    Backups all files of corresponding broker node id on its confluence page.
+    Identical named attachements are overwritten when uploaded to confluence.
     """
 
     def __init__(self):
@@ -669,6 +691,10 @@ class FileBackupManager(ConfluenceHandler):
 
 
 class ConfluencePageHandlerManager(ConfluenceHandler):
+    """
+    Initializes and executes ConfluencePageHandlers for each broker node. Creates a parent page
+    with summarization of all connected nodes
+    """
 
     def __init__(self):
         super().__init__()

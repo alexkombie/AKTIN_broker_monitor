@@ -52,7 +52,8 @@ class SingletonMeta(type):
 
 class SingletonABCMeta(ABCMeta):
     """
-    Meta class to make abstract python classes a Singleton
+    Meta class to make abstract python classes a Singleton -> All implementing classes
+    are automatically Singletons
     """
     _instances = {}
 
@@ -63,6 +64,9 @@ class SingletonABCMeta(ABCMeta):
 
 
 class CSVHandler(ABC, metaclass=SingletonABCMeta):
+    """
+    Operations for reading a CSV file as a dataframe or writing a dataframe to CSV
+    """
     _CSV_CATEGORY: str
     __CSV_SEPARATOR: str = ';'
     __CSV_ENCODING: str = 'UTF-8'
@@ -97,6 +101,10 @@ class CSVHandler(ABC, metaclass=SingletonABCMeta):
 
 
 class InfoCSVHandler(CSVHandler):
+    """
+    Implementation for stats CSV. Writes CSV with import and connection information
+    of a single connected node
+    """
     _CSV_CATEGORY = 'stats'
 
     def get_csv_columns(self) -> list:
@@ -106,6 +114,10 @@ class InfoCSVHandler(CSVHandler):
 
 
 class ErrorCSVHandler(CSVHandler):
+    """
+    Implementation for error CSV. Writes CSV with import errors of a single connected
+    node
+    """
     _CSV_CATEGORY = 'errors'
 
     def get_csv_columns(self) -> list:
@@ -113,6 +125,9 @@ class ErrorCSVHandler(CSVHandler):
 
 
 class TimestampHandler(metaclass=SingletonMeta):
+    """
+    Handles everythin regarding dates and timestamps
+    """
 
     def __init__(self):
         self.__TIMEZONE = timezone('Europe/Berlin')
@@ -160,6 +175,10 @@ class TimestampHandler(metaclass=SingletonMeta):
 
 
 class BrokerNodeConnection(metaclass=SingletonMeta):
+    """
+    Uses REST endpoint of broker-server to get information about
+    connected nodes
+    """
 
     def __init__(self):
         self.__BROKER_URL = os.environ['BROKER_URL']
@@ -344,6 +363,9 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
 
 
 class ResourceLoader(ABC, metaclass=SingletonABCMeta):
+    """
+    For everything inside the /resources folder
+    """
 
     def __init__(self):
         self.__DIR_RESOURCES = os.environ['RESOURCES_DIR']
@@ -357,10 +379,13 @@ class ResourceLoader(ABC, metaclass=SingletonABCMeta):
 
 class ConfluenceConnection(metaclass=SingletonMeta):
     """
-    Confluence connection is created on initialization
+    Uses Atlassian Python API to execute CRUD operations on Confluence
     """
 
     def __init__(self):
+        """
+        Confluence connection is created on initialization
+        """
         confluence_url = os.environ['CONFLUENCE_URL']
         confluence_token = os.environ['CONFLUENCE_TOKEN']
         self.__SPACE = os.environ['CONFLUENCE_SPACE']
@@ -392,6 +417,10 @@ class ConfluenceConnection(metaclass=SingletonMeta):
 
 
 class ConfluenceNodeMapper(metaclass=SingletonMeta):
+    """
+    Maps id of broker node to json file with more confluence related information
+    like institution name, jira query labels and so on
+    """
 
     def __init__(self):
         self.__DICT_MAPPING = self.__load_json_file_as_dict(os.environ['CONFLUENCE_MAPPING_JSON'])
@@ -419,6 +448,9 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
 
 
 class MailServerConnection(metaclass=SingletonABCMeta):
+    """
+    Creates connection with extern mail server
+    """
     _CONNECTION: smtplib.SMTP_SSL = None
 
     def __init__(self):
@@ -451,6 +483,9 @@ class MailSender(MailServerConnection):
 
 
 class MyLogger(metaclass=SingletonMeta):
+    """
+    This class should be called by every other script on startup!
+    """
 
     @staticmethod
     def init_logger():
@@ -465,6 +500,12 @@ class MyLogger(metaclass=SingletonMeta):
 
 
 class PropertiesReader(metaclass=SingletonMeta):
+    """
+    This class should be called by every other script on startup!
+    Checks given settings file to include required keys and loads key-values as
+    environment variables after validation. The environment variables are assumed
+    by the classes of other scripts
+    """
     __SET_REQUIRED_KEYS = {'BROKER_URL',
                            'ADMIN_API_KEY',
                            'ROOT_DIR',

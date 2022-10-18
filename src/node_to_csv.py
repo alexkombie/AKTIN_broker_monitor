@@ -51,6 +51,9 @@ class BrokerNodeFetcher(ABC, metaclass=SingletonABCMeta):
 
 
 class NodeInfoFetcher(BrokerNodeFetcher):
+    """
+    Fetches import and connection information from broker node to csv file
+    """
 
     def __init__(self):
         super().__init__()
@@ -192,6 +195,9 @@ class NodeInfoFetcher(BrokerNodeFetcher):
 
 
 class NodeErrorFetcher(BrokerNodeFetcher):
+    """
+    Fetches import errors from broker node to csv file
+    """
 
     def __init__(self):
         super().__init__()
@@ -259,6 +265,9 @@ class NodeErrorFetcher(BrokerNodeFetcher):
 
 
 class NodeResourceFetcher(BrokerNodeFetcher):
+    """
+    Fetches broker node resources like installed versions or packages to a text file
+    """
 
     def fetch_broker_data_to_file(self, id_node: str):
         dir_working = self._init_working_directory_if_nonexisting(id_node)
