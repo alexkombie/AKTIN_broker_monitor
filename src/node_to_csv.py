@@ -321,7 +321,7 @@ class NodeResourceFetcher(BrokerNodeFetcher):
     def __clean_dictionary(dictionary: dict) -> dict:
         """
         Set dict values with None to be '-', as file.write() throws exception when a None occurs
-        Remove possible \n from values for better readability
+        Remove possible \n from values for better (human) readability
         """
         for key, value in dictionary.copy().items():
             if value is None:

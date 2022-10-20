@@ -126,7 +126,7 @@ class ErrorCSVHandler(CSVHandler):
 
 class TimestampHandler(metaclass=SingletonMeta):
     """
-    Handles everythin regarding dates and timestamps
+    Handles everything regarding dates and timestamps
     """
 
     def __init__(self):
@@ -418,7 +418,7 @@ class ConfluenceConnection(metaclass=SingletonMeta):
 
 class ConfluenceNodeMapper(metaclass=SingletonMeta):
     """
-    Maps id of broker node to json file with more confluence related information
+    Maps id of broker node to json file with information related to confluence page
     like institution name, jira query labels and so on
     """
 

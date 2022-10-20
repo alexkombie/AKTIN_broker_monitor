@@ -37,7 +37,8 @@ from my_error_notifier import MyErrorNotifier
 
 class TemplatePageElementCreator(metaclass=SingletonMeta):
     """
-    Creates commonly used html and confluence elements
+    Creates commonly used html and confluence elements. Is also used to convert string
+    template of confluence page to searchable html soup
     """
     __PARSER: str = 'html.parser'
 
@@ -118,7 +119,7 @@ class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
 
 class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
     """
-    Content of info csv is written into predefined elements of the template
+    Writes content of info csv (of a single node) into predefined elements of the template
     """
 
     def __init__(self):
@@ -157,7 +158,7 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
 
 class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
     """
-    Content of error csv is written as a html table into the template
+    CWrites content of error csv (of a single node) into predefined elements of the template
     """
     __NUM_ERRORS: int = 20
 
@@ -309,47 +310,24 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         return status
 
 
-class TemplatePageClinicInfoWriter(TemplatePageCSVContentWriter):
+class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
     """
-    Sets (mostly) static information about the clinic on the inital creation of the confluence page
+    Just adds monitoring start date for corresponding node to confluence page
     """
 
     def __init__(self):
         super().__init__()
         self._CSV_HANDLER = InfoCSVHandler()
-        self.__MAPPER = ConfluenceNodeMapper()
         self.__ELEMENT_CREATOR = TemplatePageElementCreator()
         self.__TIMESTAMP_HANDLER = TimestampHandler()
 
     def _add_content_to_template_soup(self):
-        self.__add_value_from_mapping_to_page_template('LONG_NAME', 'clinic_name')
-        self.__add_value_from_mapping_to_page_template('HOSPITAL_INFORMATION_SYSTEM', 'information_system')
-        self.__add_value_from_mapping_to_page_template('IMPORT_INTERFACE', 'interface_import')
-        self.__add_monitoring_start_date()
-        self.__add_clinic_ids('ROOT')
-        self.__add_clinic_ids('FORMAT')
-
-    def __add_value_from_mapping_to_page_template(self, key_mapping: str, key_page: str):
-        value = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, key_mapping)
-        if not value or value is None:
-            value = 'changeme'
-        self._PAGE_TEMPLATE.find(class_=key_page).string.replace_with(value)
-
-    def __add_monitoring_start_date(self):
         first_monitoring = self._DF['date'].iloc[0]
         start_monitoring = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string(first_monitoring)
         element_time = self.__ELEMENT_CREATOR.create_html_element('time', {'datetime': start_monitoring})
         td = self.__ELEMENT_CREATOR.create_html_element('td', {'class': 'online_since'})
         td.append(element_time)
         self._PAGE_TEMPLATE.find(class_='online_since').replace_with(td)
-
-    def __add_clinic_ids(self, type_ids: str):
-        dict_ids = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, type_ids)
-        for key in ['PATIENT', 'ENCOUNTER', 'BILLING']:
-            value = 'changeme'
-            if dict_ids is not None and key in dict_ids:
-                value = dict_ids[key]
-            self._PAGE_TEMPLATE.find(class_='_'.join([type_ids.lower(), key.lower()])).string.replace_with(value)
 
 
 class TemplatePageContentWriter(ABC, metaclass=SingletonABCMeta):
@@ -564,10 +542,43 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
         return td
 
 
+class TemplatePageClinicInfoWriter(TemplatePageContentWriter):
+    """
+    Writes (mostly) static information about the clinic to confluence page
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.__MAPPER = ConfluenceNodeMapper()
+        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+        self.__TIMESTAMP_HANDLER = TimestampHandler()
+
+    def _add_content_to_template_soup(self):
+        self.__add_value_from_mapping_to_page_template('LONG_NAME', 'clinic_name')
+        self.__add_value_from_mapping_to_page_template('HOSPITAL_INFORMATION_SYSTEM', 'information_system')
+        self.__add_value_from_mapping_to_page_template('IMPORT_INTERFACE', 'interface_import')
+        self.__add_clinic_ids('ROOT')
+        self.__add_clinic_ids('FORMAT')
+
+    def __add_value_from_mapping_to_page_template(self, key_mapping: str, key_page: str):
+        value = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, key_mapping)
+        if not value or value is None:
+            value = 'changeme'
+        self._PAGE_TEMPLATE.find(class_=key_page).string.replace_with(value)
+
+    def __add_clinic_ids(self, type_ids: str):
+        dict_ids = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, type_ids)
+        for key in ['PATIENT', 'ENCOUNTER', 'BILLING']:
+            value = 'changeme'
+            if dict_ids is not None and key in dict_ids:
+                value = dict_ids[key]
+            self._PAGE_TEMPLATE.find(class_='_'.join([type_ids.lower(), key.lower()])).string.replace_with(value)
+
+
 class TemplatePageMigrator:
     """
-    Migrates static clinic information (see TemplatePageClinicInfoWriter) to new confluence
-    page template. Static clinic information is only initialized once on page creation!
+    Migrates information which is only set once in confluence page (like monitoring start date)
+    to newer version of corresponding template
     """
 
     def __init__(self):
@@ -586,25 +597,8 @@ class TemplatePageMigrator:
         current_page_template = self.__LOADER.get_template_page()
         template_new = self.__ELEMENT_CREATOR.convert_element_to_soup(current_page_template)
         template_old = bs4.BeautifulSoup(page_template, 'html.parser')
-        template_new = self.__migrate_clinic_information_to_new_template(template_old, template_new)
-        template_new = self.__migrate_id_information_to_new_template(template_old, template_new)
+        template_new = self.__migrate_key_from_old_to_new_template('online_since', template_old, template_new)
         return str(template_new)
-
-    def __migrate_clinic_information_to_new_template(self, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
-        soup_new = self.__migrate_key_from_old_to_new_template('clinic_name', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('online_since', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('information_system', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('interface_import', soup_old, soup_new)
-        return soup_new
-
-    def __migrate_id_information_to_new_template(self, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
-        soup_new = self.__migrate_key_from_old_to_new_template('root_patient', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('format_patient', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('root_encounter', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('format_encounter', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('root_billing', soup_old, soup_new)
-        soup_new = self.__migrate_key_from_old_to_new_template('format_billing', soup_old, soup_new)
-        return soup_new
 
     @staticmethod
     def __migrate_key_from_old_to_new_template(key: str, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
@@ -632,6 +626,7 @@ class ConfluencePageHandler(ConfluenceHandler):
         super().__init__()
         self.__LOADER = TemplatePageLoader()
         self.__CLINIC_INFO_WRITER = TemplatePageClinicInfoWriter()
+        self.__START_DATE_WRITER = TemplatePageMonitoringStartDateWriter()
         self.__MIGRATOR = TemplatePageMigrator()
         self.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter()
         self.__CSV_ERROR_WRITER = TemplatePageCSVErrorWriter()
@@ -644,7 +639,7 @@ class ConfluencePageHandler(ConfluenceHandler):
         common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
         if not self._CONFLUENCE.does_page_exists(common_name):
             page = self.__LOADER.get_template_page()
-            page = self.__CLINIC_INFO_WRITER.add_content_to_template_page(page, id_node)
+            page = self.__START_DATE_WRITER.add_content_to_template_page(page, id_node)
             self._CONFLUENCE.create_confluence_page(common_name, self._CONFLUENCE_PARENT_PAGE, page)
         page = self._CONFLUENCE.get_page_content(common_name)
         if self.__MIGRATOR.is_template_page_outdated(page):
@@ -653,12 +648,13 @@ class ConfluencePageHandler(ConfluenceHandler):
         self._CONFLUENCE.update_confluence_page(common_name, page)
 
     def __write_content_to_page_template(self, template: str, id_node: str) -> str:
+        template = self.__CLINIC_INFO_WRITER.add_content_to_template_page(template, id_node)
+        template = self.__CONTACT_GRABBER.add_content_to_template_page(template, id_node)
         template = self.__CSV_INFO_WRITER.add_content_to_template_page(template, id_node)
         template = self.__CSV_ERROR_WRITER.add_content_to_template_page(template, id_node)
         template = self.__NODE_RESOURCE_WRITER.add_content_to_template_page(template, id_node)
         template = self.__JIRA_TABLE_WRITER.add_content_to_template_page(template, id_node)
         template = self.__PAGE_STATUS_CHECKER.add_content_to_template_page(template, id_node)
-        template = self.__CONTACT_GRABBER.add_content_to_template_page(template, id_node)
         return template
 
 
