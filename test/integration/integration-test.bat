@@ -30,6 +30,7 @@ docker exec python pytest test_TemplatePageCSVInfoWriter.py
 docker exec python pytest test_TemplatePageElementCreator.py
 docker exec python pytest test_TemplatePageJiraTableWriter.py
 docker exec python pytest test_TemplatePageMigrator.py
+docker exec python pytest test_TemplatePageMonitoringStartDateWriter.py
 docker exec python pytest test_TemplatePageNodeResourceWriter.py
 docker exec python pytest test_TemplatePageStatusChecker.py
 docker exec python pytest test_TimestampHandler.py
