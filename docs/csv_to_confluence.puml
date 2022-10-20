@@ -125,6 +125,11 @@ class TemplatePageStatusChecker {
 confluence page template
 }
 
+class TemplatePageMonitoringStartDateWriter {
+* sets monitoring start date in confluence
+page template on creation
+}
+
 class TemplatePageClinicInfoWriter {
 * adds static information about clinic to
 confluence page template on creation
@@ -147,8 +152,8 @@ class TemplatePageJiraTableWriter {
 
 class TemplatePageMigrator {
 * checks confluence page for current template version
-* migrates static information of confluence page to
-newer template
+* migrates information set on creation of confluence
+page to newer template
 }
 
 class ConfluenceClinicContactGrabber {
@@ -192,18 +197,22 @@ TemplatePageCSVErrorWriter -d--> TemplatePageElementCreator
 
 TemplatePageStatusChecker -d---|> TemplatePageCSVContentWriter
 TemplatePageStatusChecker -d--> TemplatePageElementCreator
-TemplatePageStatusChecker --> TimestampHandler
+TemplatePageStatusChecker ----> TimestampHandler
+TemplatePageStatusChecker -----> ConfluenceNodeMapper
 
-TemplatePageClinicInfoWriter -d---|> TemplatePageCSVContentWriter
+TemplatePageMonitoringStartDateWriter -d---|> TemplatePageCSVContentWriter
+TemplatePageMonitoringStartDateWriter -d--> TemplatePageElementCreator
+TemplatePageMonitoringStartDateWriter ----> TimestampHandler
+
+TemplatePageClinicInfoWriter -d---|> TemplatePageContentWriter
 TemplatePageClinicInfoWriter --> ConfluenceNodeMapper
 TemplatePageClinicInfoWriter -d--> TemplatePageElementCreator
-TemplatePageClinicInfoWriter --> TimestampHandler
 
 TemplatePageNodeResourceWriter -d---|> TemplatePageContentWriter
 
 TemplatePageJiraTableWriter -d---|> TemplatePageContentWriter
 TemplatePageJiraTableWriter --> ConfluenceNodeMapper
-TemplatePageJiraTableWriter --> TimestampHandler
+TemplatePageJiraTableWriter --> TemplatePageElementCreator
 
 TemplatePageMigrator ---> TemplatePageLoader
 TemplatePageMigrator -d--> TemplatePageElementCreator
@@ -218,6 +227,7 @@ ConfluenceHandler --> ConfluenceNodeMapper
 ConfluencePageHandler ---|> ConfluenceHandler
 ConfluencePageHandler ---> TemplatePageLoader
 ConfluencePageHandler ---> TemplatePageClinicInfoWriter
+ConfluencePageHandler ---> TemplatePageMonitoringStartDateWriter
 ConfluencePageHandler ---> TemplatePageMigrator
 ConfluencePageHandler ---> TemplatePageCSVInfoWriter
 ConfluencePageHandler ---> TemplatePageCSVErrorWriter

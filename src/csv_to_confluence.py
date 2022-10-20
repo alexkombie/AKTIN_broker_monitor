@@ -551,7 +551,6 @@ class TemplatePageClinicInfoWriter(TemplatePageContentWriter):
         super().__init__()
         self.__MAPPER = ConfluenceNodeMapper()
         self.__ELEMENT_CREATOR = TemplatePageElementCreator()
-        self.__TIMESTAMP_HANDLER = TimestampHandler()
 
     def _add_content_to_template_soup(self):
         self.__add_value_from_mapping_to_page_template('LONG_NAME', 'clinic_name')
