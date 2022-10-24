@@ -21,6 +21,10 @@ entity "JSON file with configuration" as settings {
 * E-Mail-Server URL
 * E-Mail-Server User
 * E-Mail-Server Password
+* Current version of DWH
+.deb package
+* Current version of i2b2
+.deb package
 }
 entity settings #aliceblue;line:blue;text:blue
 hide settings circle

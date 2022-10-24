@@ -516,7 +516,9 @@ class PropertiesReader(metaclass=SingletonMeta):
                            'CONFLUENCE_MAPPING_JSON',
                            'EMAIL_HOST',
                            'EMAIL_USER',
-                           'EMAIL_PASSWORD'
+                           'EMAIL_PASSWORD',
+                           'VERSION_DWH',
+                           'VERSION_I2B2'
                            }
 
     def load_properties_as_env_vars(self, path: str):

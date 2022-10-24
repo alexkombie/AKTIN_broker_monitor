@@ -9,5 +9,7 @@
     "CONFLUENCE_MAPPING_JSON": "/opt/mapping.json",
     "EMAIL_HOST": "CHANGEME",
     "EMAIL_USER": "CHANGEME",
-    "EMAIL_PASSWORD": "CHANGEME"
+    "EMAIL_PASSWORD": "CHANGEME",
+    "VERSION_DWH": "1.5.2",
+    "VERSION_I2B2": "1.7a21"
 }
