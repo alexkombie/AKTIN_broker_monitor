@@ -52,6 +52,9 @@ class MailTemplateHandler(ResourceLoader, ABC):
 
 
 class OfflineMailTemplateHandler(MailTemplateHandler):
+    """
+    Get mailing template for node status "offline" and fills it with content
+    """
     _FILENAME_TEMPLATE: str = 'template_mail_offline.html'
 
     def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
@@ -68,6 +71,9 @@ class OfflineMailTemplateHandler(MailTemplateHandler):
 
 
 class NoImportsMailTemplateHandler(MailTemplateHandler):
+    """
+    Get mailing template for node status "no imports" and fills it with content
+    """
     _FILENAME_TEMPLATE: str = 'template_mail_no_imports.html'
 
     def __init__(self, id_node: str):
@@ -102,6 +108,31 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
         name_csv = self.__HANDLER.generate_csv_name(self.__ID_NODE)
         path_csv = os.path.join(dir_working, name_csv)
         return path_csv
+
+
+class OutdatedVersionMailTemplateHandler(MailTemplateHandler):
+    """
+    Get mailing template for node status "outdated version" and fills it with content
+    """
+    _FILENAME_TEMPLATE: str = 'template_mail_outdated_version.html'
+
+    def __init__(self):
+        super().__init__()
+        self.__CURRENT_VERSION_DWH = os.environ['VERSION_DWH']
+        self.__CURRENT_VERSION_I2B2 = os.environ['VERSION_I2B2']
+
+    def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
+        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+        clinic_name = soup.find(class_='clinic_name').text
+        version_dwh = soup.find(class_='dwh-j2ee').text
+        content = self._get_resource_as_string(self._FILENAME_TEMPLATE, self._ENCODING)
+        content = content.replace('${clinic_name}', clinic_name)
+        content = content.replace('${version_dwh}', version_dwh)
+        content = content.replace('${current_version_dwh}', self.__CURRENT_VERSION_DWH)
+        content = content.replace('${current_version_i2b2}', self.__CURRENT_VERSION_I2B2)
+        mail = MIMEText(content, self._TEXT_SUBTYPE, self._ENCODING)
+        mail['Subject'] = "Automatische Information: AKTIN DWH Version veraltet"
+        return mail
 
 
 class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
