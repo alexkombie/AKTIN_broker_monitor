@@ -1,6 +1,6 @@
 import unittest
 
-from common import TimestampHandler
+from src.common import TimestampHandler
 
 
 class TestSingletonMeta(unittest.TestCase):

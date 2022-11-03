@@ -1,13 +1,17 @@
 import unittest
+from pathlib import Path
+import os
 
-from common import ConfluenceNodeMapper, PropertiesReader
+from src.common import ConfluenceNodeMapper, PropertiesReader
 
 
 class TestConfluenceNodeMapper(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
+        path_current = Path(os.getcwd())
+        path_settings = os.path.join(path_current.parent.absolute(), 'settings.json')
+        PropertiesReader().load_properties_as_env_vars(path_settings)
         cls.__CONFLUENCE_NODE_MAPPER = ConfluenceNodeMapper()
 
     def test_get_mapping_dict(self):

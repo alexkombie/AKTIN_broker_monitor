@@ -7,7 +7,7 @@ import bs4
 import pandas as pd
 from common import InfoCSVHandler, PropertiesReader
 from csv_to_confluence import TemplatePageLoader
-from email_service import NoImportsMailTemplateHandler, OfflineMailTemplateHandler
+from email_service import NoImportsMailTemplateHandler, OfflineMailTemplateHandler, OutdatedVersionMailTemplateHandler
 
 
 class TestMailTemplateHandler(unittest.TestCase):
@@ -22,6 +22,7 @@ class TestMailTemplateHandler(unittest.TestCase):
         cls.__CSV_HANDLER = InfoCSVHandler()
         cls.__OFFLINE_MAIL_TEMPLATE_HANDLER = OfflineMailTemplateHandler()
         cls.__NO_IMPORTS_MAIL_TEMPLATE_HANDLER = NoImportsMailTemplateHandler(cls.__DEFAULT_NODE_ID)
+        cls.__OUTDATED_VERSION_MAIL_TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler()
 
     def setUp(self):
         self.__TEMPLATE = TemplatePageLoader().get_template_page()
@@ -29,6 +30,7 @@ class TestMailTemplateHandler(unittest.TestCase):
         soup.find(class_='last_contact').string.replace_with('2022-01-01 12:00:45')
         soup.find(class_='last_write').string.replace_with('2025-11-11')
         soup.find(class_='clinic_name').string.replace_with('important clinic')
+        soup.find(class_='dwh-j2ee').string.replace_with('1.2.3')
         self.__TEMPLATE = str(soup)
 
     def tearDown(self):
@@ -47,6 +49,17 @@ class TestMailTemplateHandler(unittest.TestCase):
         self.assertEqual('Automatische Information: AKTIN DWH Keine Imports', mail['Subject'])
         self.assertTrue('<b>11.11.2025</b>' in mail.as_string())
         self.assertFalse('<b>${last_write}</b>' in mail.as_string())
+
+    def test_outdated_version_mail_template(self):
+        mail = self.__OUTDATED_VERSION_MAIL_TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(self.__TEMPLATE)
+        self.__check_common_config(mail)
+        self.assertEqual('Automatische Information: AKTIN DWH Version veraltet', mail['Subject'])
+        self.assertTrue('<b>1.2.3</b>' in mail.as_string())
+        self.assertFalse('<b>${version_dwh}</b>' in mail.as_string())
+        #self.assertTrue('<b>1.5.2</b>' in mail.as_string())
+        self.assertFalse('<b>${current_version_dwh}</b>' in mail.as_string())
+        self.assertTrue('<b>1.7a21</b>' in mail.as_string())
+        self.assertFalse('<b>${current_version_i2b2}</b>' in mail.as_string())
 
     def __check_common_config(self, mail: MIMEText):
         self.assertEqual(MIMEText, type(mail))

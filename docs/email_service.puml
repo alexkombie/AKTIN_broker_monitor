@@ -88,7 +88,7 @@ note top of PropertiesReader: Classes with bold names need items\nfrom JSON conf
 }
 
 MailServerConnection -d-> email
-MailSender -d-|> MailServerConnection
+MailSender --|> MailServerConnection
 
 ConfluenceConnection -d--> confluence
 ConfluenceNodeMapper -d--> mapping
@@ -114,14 +114,14 @@ class NoImportsMailTemplateHandler {
 template with information from given page template
 }
 
+class OutdatedVersionMailTemplateHandler {
+* loads mail template for status "outdated version" and fills
+template with information from given page template
+}
+
 class ConfluencePageRecipientsExtractor {
 * extracts contact information about clinic
 correspondants from confluence email page
-}
-
-class TemplatePageEmergencyStatusChecker {
-* checks status of confluence page template
-for status "offline" or "no imports"
 }
 
 class "**ConsecutiveSentEmailsCounter**" as ConsecutiveSentEmailsCounter {
@@ -133,32 +133,61 @@ class "**SentMailsLogger**" as SentMailsLogger {
 * keeps track of sent mails to nodes in a log file
 }
 
+abstract class NotificationHandler {
+* contains helper methods to check node for a specific
+state and notify its correspondants
+}
+
+class OfflineNotificationHandler {
+* checks node for the status "offline" and
+notifies its correspondants
+}
+
+class NoImportsNotificationHandler {
+* checks node for the status "no imports" and
+notifies its correspondants
+}
+
+class "**OutdatedVersionNotificationHandler**" as OutdatedVersionNotificationHandler {
+* checks node for the status "outdated version" and
+notifies its correspondants
+}
+
 class NodeEventNotifierManager {
-* checks status of confluence page and informs
-clinic correspondants in case of emergency
+* main class to check broker node status and
+notify its correspondants
+* gets all broker nodes and checks its states
 }
 }
-
-
 
 MailTemplateHandler ---|> ResourceLoader
 OfflineMailTemplateHandler --|> MailTemplateHandler
 NoImportsMailTemplateHandler --|> MailTemplateHandler
+OutdatedVersionMailTemplateHandler --|> MailTemplateHandler
 
 ConfluencePageRecipientsExtractor ---> ConfluenceConnection
 
 ConsecutiveSentEmailsCounter --> TimestampHandler
+ConsecutiveSentEmailsCounter --> ConfluenceNodeMapper
 
 SentMailsLogger --> TimestampHandler
 
-NodeEventNotifierManager --> MailSender
-NodeEventNotifierManager --> OfflineMailTemplateHandler
-NodeEventNotifierManager --> NoImportsMailTemplateHandler
-NodeEventNotifierManager --> ConfluencePageRecipientsExtractor
-NodeEventNotifierManager --> TemplatePageEmergencyStatusChecker
-NodeEventNotifierManager --> ConsecutiveSentEmailsCounter
-NodeEventNotifierManager --> ConfluenceConnection
-NodeEventNotifierManager --> ConfluenceNodeMapper
-NodeEventNotifierManager --> SentMailsLogger
+NotificationHandler --> ConfluencePageRecipientsExtractor
+NotificationHandler --> SentMailsLogger
+NotificationHandler --> ConsecutiveSentEmailsCounter
+NotificationHandler --> MailSender
+
+OfflineNotificationHandler --|> NotificationHandler
+OfflineNotificationHandler --> OfflineMailTemplateHandler
+
+NoImportsNotificationHandler --|> NotificationHandler
+NoImportsNotificationHandler --> NoImportsMailTemplateHandler
+
+OutdatedVersionNotificationHandler --|> NotificationHandler
+OutdatedVersionNotificationHandler --> OutdatedVersionMailTemplateHandler
+
+NodeEventNotifierManager --> OfflineNotificationHandler
+NodeEventNotifierManager --> NoImportsNotificationHandler
+NodeEventNotifierManager --> OutdatedVersionNotificationHandler
 
 @enduml
