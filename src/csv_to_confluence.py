@@ -26,6 +26,7 @@ import os
 import sys
 from abc import ABC, abstractmethod
 from itertools import islice, tee
+from packaging import version
 
 import bs4
 import pandas as pd
@@ -590,7 +591,7 @@ class TemplatePageMigrator:
         version_new = template_new.find(class_='version_template').string
         template_old = bs4.BeautifulSoup(page_template, 'html.parser')
         version_old = template_old.find(class_='version_template').string
-        return version_new != version_old
+        return version.parse(version_new) > version.parse(version_old)
 
     def migrate_page_template_to_newer_version(self, page_template: str) -> str:
         current_page_template = self.__LOADER.get_template_page()
