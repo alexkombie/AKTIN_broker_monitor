@@ -1,15 +1,15 @@
 import os
 import sys
 import time
+from pathlib import Path
 
-path_parent = os.path.dirname(os.getcwd())
-path_project = os.path.dirname(path_parent)
-path_src = os.path.join(path_project, 'src')
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
 sys.path.insert(0, path_src)
 
-import src.csv_to_confluence
+import csv_to_confluence
 
-path_test_settings = os.path.join(path_parent, 'local', 'settings.json')
+path_settings = os.path.join(this_path.parents[1], 'settings.json')
 start_time = time.time()
-src.csv_to_confluence.main(path_test_settings)
+csv_to_confluence.main(path_settings)
 print("--- %s seconds ---" % (time.time() - start_time))
