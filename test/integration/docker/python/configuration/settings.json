@@ -6,10 +6,10 @@
     "CONFLUENCE_URL": "",
     "CONFLUENCE_SPACE": "",
     "CONFLUENCE_TOKEN": "",
-    "CONFLUENCE_MAPPING_JSON": "/opt/mapping.json",
-    "EMAIL_HOST": "CHANGEME",
-    "EMAIL_USER": "CHANGEME",
-    "EMAIL_PASSWORD": "CHANGEME",
-    "VERSION_DWH": "1.5.2",
-    "VERSION_I2B2": "1.7a21"
+    "CONFLUENCE_MAPPING_JSON": "",
+    "EMAIL_HOST": "",
+    "EMAIL_USER": "",
+    "EMAIL_PASSWORD": "",
+    "VERSION_DWH": "",
+    "VERSION_I2B2": ""
 }

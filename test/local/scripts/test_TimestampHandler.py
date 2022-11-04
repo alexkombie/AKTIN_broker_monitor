@@ -1,6 +1,13 @@
+import os
+import sys
 import unittest
+from pathlib import Path
 
-from src.common import TimestampHandler
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
+sys.path.insert(0, path_src)
+
+from common import TimestampHandler
 
 
 class TestSingletonMeta(unittest.TestCase):
