@@ -1,5 +1,12 @@
 import os
+import sys
 import unittest
+from pathlib import Path
+from shutil import rmtree
+
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
+sys.path.insert(0, path_src)
 
 from common import PropertiesReader
 from email_service import SentMailsLogger
@@ -7,12 +14,18 @@ from email_service import SentMailsLogger
 
 class TestSentMailsLogger(unittest.TestCase):
     __DEFAULT_NODE_ID = '5'
+    __DIR_ROOT: str
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
+        path_settings = os.path.join(this_path.parents[1], 'settings.json')
+        PropertiesReader().load_properties_as_env_vars(path_settings)
         cls.__LOGGER = SentMailsLogger()
-        cls.__DEFAULT_FILEPATH = os.path.join(os.environ['ROOT_DIR'], cls.__DEFAULT_NODE_ID, '_'.join([cls.__DEFAULT_NODE_ID, 'sent_mails.log']))
+        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        cls.__DEFAULT_FILEPATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, '_'.join([cls.__DEFAULT_NODE_ID, 'sent_mails.log']))
+
+    def tearDown(self):
+        rmtree(self.__DIR_ROOT)
 
     def test_main(self):
         self.__check_file_initialization()
@@ -36,9 +49,9 @@ class TestSentMailsLogger(unittest.TestCase):
         self.assertEqual('Sent mail for status STATUS2 to node id 5', result[1])
 
     def __load_default_file(self) -> dict:
-        with open(self.__DEFAULT_FILEPATH, 'r', 'a') as file:
+        with open(self.__DEFAULT_FILEPATH, 'r', encoding='utf-8') as file:
             result = file.read().split('\n')[:-1]
-            result = [x.split(':')[1].lstrip() for x in result]
+            result = [x.split(' : ')[1].lstrip() for x in result]
             return result
 
 
