@@ -1,8 +1,15 @@
 import os
+import sys
 import unittest
+from pathlib import Path
 from shutil import rmtree
 
 import bs4
+
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
+sys.path.insert(0, path_src)
+
 from common import PropertiesReader
 from csv_to_confluence import TemplatePageLoader, TemplatePageNodeResourceWriter
 
@@ -14,7 +21,8 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
+        path_settings = os.path.join(this_path.parents[1], 'settings.json')
+        PropertiesReader().load_properties_as_env_vars(path_settings)
         cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
         cls.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter()
 
@@ -26,7 +34,7 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
             os.makedirs(dir_working)
 
     def tearDown(self):
-        [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
+        rmtree(self.__DIR_ROOT)
 
     def test_write_resources_into_template(self):
         self.__create_versions_resource_file()

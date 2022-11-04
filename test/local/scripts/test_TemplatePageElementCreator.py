@@ -1,6 +1,14 @@
+import os
+import sys
 import unittest
+from pathlib import Path
 
 import bs4
+
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
+sys.path.insert(0, path_src)
+
 from csv_to_confluence import TemplatePageElementCreator
 
 

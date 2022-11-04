@@ -1,9 +1,16 @@
 import os
+import sys
 import unittest
+from pathlib import Path
 from shutil import rmtree
 
 import bs4
 import pandas as pd
+
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
+sys.path.insert(0, path_src)
+
 from common import InfoCSVHandler, PropertiesReader
 from csv_to_confluence import TemplatePageLoader, TemplatePageMonitoringStartDateWriter
 
@@ -14,7 +21,8 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
+        path_settings = os.path.join(this_path.parents[1], 'settings.json')
+        PropertiesReader().load_properties_as_env_vars(path_settings)
         cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
         cls.__START_DATE_WRITER = TemplatePageMonitoringStartDateWriter()
         cls.__CSV_HANDLER = InfoCSVHandler()
@@ -24,7 +32,7 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         self.__TEMPLATE = loader.get_template_page()
 
     def tearDown(self):
-        [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
+        rmtree(self.__DIR_ROOT)
 
     def __init_working_dir_with_default_csv_for_node(self, id_node: str):
         name_csv = InfoCSVHandler().generate_csv_name(id_node)
@@ -72,3 +80,7 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         dir_working = os.path.join(self.__DIR_ROOT, id_node)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
+
+
+if __name__ == '__main__':
+    unittest.main()

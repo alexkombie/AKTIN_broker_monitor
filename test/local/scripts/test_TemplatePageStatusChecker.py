@@ -1,13 +1,20 @@
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta
+from pathlib import Path
 from shutil import rmtree
 
 import bs4
 import pandas as pd
+from pytz import timezone
+
+this_path = Path(os.path.realpath(__file__))
+path_src = os.path.join(this_path.parents[3], 'src')
+sys.path.insert(0, path_src)
+
 from common import InfoCSVHandler, PropertiesReader
 from csv_to_confluence import TemplatePageCSVInfoWriter, TemplatePageLoader, TemplatePageStatusChecker
-from pytz import timezone
 
 
 class TestTemplatePageStatusChecker(unittest.TestCase):
@@ -17,7 +24,8 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
+        path_settings = os.path.join(this_path.parents[1], 'settings.json')
+        PropertiesReader().load_properties_as_env_vars(path_settings)
         cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
         cls.__CHECKER = TemplatePageStatusChecker()
         cls.__CURRENT_YMD_HMS = datetime.now(timezone('Europe/Berlin')).strftime('%Y-%m-%d %H:%M:%S')
@@ -29,6 +37,9 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
     def setUp(self):
         self.__init_testing_template()
         self.__init_working_dir_with_empty_csv(self.__DEFAULT_NODE_ID)
+
+    def tearDown(self):
+        rmtree(self.__DIR_ROOT)
 
     def __init_testing_template(self):
         loader = TemplatePageLoader()
@@ -48,9 +59,6 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         name_csv = self.__CSV_HANDLER.generate_csv_name(id_node)
         path_csv = os.path.join(self.__DIR_ROOT, id_node, name_csv)
         self.__CSV_HANDLER.save_df_to_csv(df, path_csv)
-
-    def tearDown(self):
-        [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
 
     def test_default_values_for_online(self):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
