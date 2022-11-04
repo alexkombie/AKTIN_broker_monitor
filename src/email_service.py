@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 # Created on Tue Jul 26 12:00 2022
-# @version: 1.0
+# @version: 1.1
 
 #
 #      Copyright (c) 2022  Alexander Kombeiz
@@ -30,8 +30,9 @@ from email.mime.text import MIMEText
 import bs4
 import pandas as pd
 from dateutil import parser
+from packaging import version
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, ResourceLoader, SingletonMeta, TimestampHandler
+from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
 from my_error_notifier import MyErrorNotifier
 
 
@@ -137,7 +138,7 @@ class OutdatedVersionMailTemplateHandler(MailTemplateHandler):
 
 class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
     """
-    Extracts correspondants for broker node from another confluence page.
+    Extracts correspondants for broker node from another confluence page
     """
     __CONFLUENCE_EMAIL_LIST: str = 'E-Mail-Verteiler'
 
@@ -190,40 +191,16 @@ class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
         return df_recipients
 
 
-class TemplatePageEmergencyStatusChecker(metaclass=SingletonMeta):
-    __PARSER: str = 'html.parser'
-
-    def check_for_emergency_status(self, page_template: str) -> int:
-        if self.__has_page_status_offline(page_template):
-            return 1
-        elif self.__has_page_status_no_imports(page_template):
-            return 2
-        return 0
-
-    def __has_page_status_offline(self, page_template: str) -> bool:
-        return self.__has_page_status(page_template, 'OFFLINE')
-
-    def __has_page_status_no_imports(self, page_template: str) -> bool:
-        return self.__has_page_status(page_template, 'NO IMPORTS')
-
-    def __has_page_status(self, page_template: str, expected_status: str) -> bool:
-        soup = bs4.BeautifulSoup(page_template, self.__PARSER)
-        element_status = soup.find(class_='status')
-        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
-        if status.text == expected_status:
-            return True
-        return False
-
-
-class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
+class ConsecutiveSentEmailsCounter:
     """
     Checks when the last email was sent to node correspondants (to avoid notification spamming)
     """
     __ENCODING = 'utf-8'
     __DICT_TRACKING: dict = {}
 
-    def __init__(self):
-        self.__PATH_TRACKING_JSON = os.path.join(os.environ['ROOT_DIR'], 'tracking_sent_mails.json')
+    def __init__(self, filename: str):
+        filename = filename.replace(' ', '_')
+        self.__PATH_TRACKING_JSON = os.path.join(os.environ['ROOT_DIR'], "{}.json".format(filename))
         self.__TIMESTAMP_HANDLER = TimestampHandler()
         self.__MAPPER = ConfluenceNodeMapper()
         self.__init_tracking_json_if_not_exists()
@@ -241,9 +218,6 @@ class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
         with open(self.__PATH_TRACKING_JSON, 'w', encoding=self.__ENCODING) as outfile:
             json.dump(self.__DICT_TRACKING, outfile)
 
-    def does_entry_exist_for_node(self, id_node: str) -> bool:
-        return id_node in self.__DICT_TRACKING.keys()
-
     def create_or_update_node_entry(self, id_node: str):
         self.__DICT_TRACKING[id_node] = self.__TIMESTAMP_HANDLER.get_current_date()
         self.__save_tracking_json()
@@ -253,35 +227,34 @@ class ConsecutiveSentEmailsCounter(metaclass=SingletonMeta):
             del self.__DICT_TRACKING[id_node]
             self.__save_tracking_json()
 
-    def was_last_email_sent_less_than_set_week_ago(self, id_node: str) -> bool:
-        threshold_weeks = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'WEEKS_NOTIFICATION_INTERVAL')
-        if not threshold_weeks or threshold_weeks is None:
-            threshold_weeks = 1
-        last_sent = self.__DICT_TRACKING.get(id_node)
-        current_date = self.__TIMESTAMP_HANDLER.get_current_date()
-        delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(last_sent, current_date)
-        delta_in_weeks = delta / 168
-        return delta_in_weeks < threshold_weeks
+    def is_waiting_threshold_reached_for_node(self, id_node: str) -> bool:
+        if id_node in self.__DICT_TRACKING.keys():
+            threshold_weeks = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'WEEKS_NOTIFICATION_INTERVAL')
+            if not threshold_weeks or threshold_weeks is None:
+                threshold_weeks = 1
+            last_sent = self.__DICT_TRACKING.get(id_node)
+            current_date = self.__TIMESTAMP_HANDLER.get_current_date()
+            delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(last_sent, current_date)
+            delta_in_weeks = delta / 168
+            return delta_in_weeks > threshold_weeks
+        return True
 
 
 class SentMailsLogger(metaclass=SingletonMeta):
+    """
+    Logs all sent mail to corresponding nodes (for traceability)
+    """
 
     def __init__(self):
         self.__DIR_ROOT = os.environ['ROOT_DIR']
         self.__TIMESTAMP_HANDLER = TimestampHandler()
 
-    def log_sent_mail_for_node(self, id_node: str, status: int):
+    def log_sent_mail_for_node(self, id_node: str, status: str):
         dir_working = self.__init_working_directory_if_nonexisting(id_node)
         path_log = self.__generate_mails_log_path(id_node, dir_working)
-        if status == 1:
-            emergency = 'Offline'
-        elif status == 2:
-            emergency = 'No Imports'
-        else:
-            raise SystemExit('invalid emergency status')
         with open(path_log, 'a') as log:
             current = self.__TIMESTAMP_HANDLER.get_current_date()
-            log.write("{0} : Sent mail for status {1} to node id {2}\n".format(current, emergency, id_node))
+            log.write("{0} : Sent mail for status {1} to node id {2}\n".format(current, status, id_node))
 
     def __init_working_directory_if_nonexisting(self, name_folder: str) -> str:
         dir_working = os.path.join(self.__DIR_ROOT, name_folder)
@@ -295,39 +268,127 @@ class SentMailsLogger(metaclass=SingletonMeta):
         return os.path.join(dir_working, name_file)
 
 
+class NotificationHandler(metaclass=SingletonABCMeta):
+    _PARSER: str = 'html.parser'
+    _MY_STATUS: str
+    _TEMPLATE_HANDLER: MailTemplateHandler
+
+    def __init__(self):
+        self._CONFLUENCE_RECIPIENTS_EXTRACTOR = ConfluencePageRecipientsExtractor()
+        self.__SENT_MAILS_LOGGER = SentMailsLogger()
+        filename_tracking = '_'.join(['tracking', self._MY_STATUS.replace(' ', '_')])
+        self._SENT_MAILS_COUNTER = ConsecutiveSentEmailsCounter(filename_tracking)
+        self._MAIL_SENDER = MailSender()
+
+    @abstractmethod
+    def did_my_status_occur(self, page_template: str) -> bool:
+        pass
+
+    @abstractmethod
+    def sent_my_mail_to_node(self, id_node: str, page_template: str):
+        pass
+
+    def log_my_sent_mail_to_node(self, id_node: str):
+        self.__SENT_MAILS_LOGGER.log_sent_mail_for_node(id_node, self._MY_STATUS)
+
+    def clean_my_status_for_node(self, id_node: str):
+        self._SENT_MAILS_COUNTER.delete_entry_for_node_if_exists(id_node)
+
+    def create_or_update_my_status_for_node(self, id_node: str):
+        self._SENT_MAILS_COUNTER.create_or_update_node_entry(id_node)
+
+
+class OfflineNotificationHandler(NotificationHandler):
+    _MY_STATUS: str = 'OFFLINE'
+    _TEMPLATE_HANDLER = OfflineMailTemplateHandler
+
+    def __init__(self):
+        super().__init__()
+        self._TEMPLATE_HANDLER = OfflineMailTemplateHandler()
+
+    def did_my_status_occur(self, page_template: str) -> bool:
+        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+        element_status = soup.find(class_='status')
+        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
+        if status.text == self._MY_STATUS:
+            return True
+        return False
+
+    def sent_my_mail_to_node(self, id_node: str, page_template: str):
+        mail = self._TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(page_template)
+        recipients = self._CONFLUENCE_RECIPIENTS_EXTRACTOR.extract_all_recipients_for_node_id(id_node)
+        if recipients:
+            if self._SENT_MAILS_COUNTER.is_waiting_threshold_reached_for_node(id_node):
+                self._MAIL_SENDER.send_mail(recipients, mail)
+
+
+class NoImportsNotificationHandler(NotificationHandler):
+    _MY_STATUS: str = 'NO IMPORTS'
+    _TEMPLATE_HANDLER: NoImportsMailTemplateHandler
+
+    def did_my_status_occur(self, page_template: str) -> bool:
+        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+        element_status = soup.find(class_='status')
+        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
+        if status.text == self._MY_STATUS:
+            return True
+        return False
+
+    def sent_my_mail_to_node(self, id_node: str, page_template: str):
+        self._TEMPLATE_HANDLER = NoImportsMailTemplateHandler(id_node)
+        mail = self._TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(page_template)
+        recipients = self._CONFLUENCE_RECIPIENTS_EXTRACTOR.extract_all_recipients_for_node_id(id_node)
+        if recipients:
+            if self._SENT_MAILS_COUNTER.is_waiting_threshold_reached_for_node(id_node):
+                self._MAIL_SENDER.send_mail(recipients, mail)
+
+
+class OutdatedVersionNotificationHandler(NotificationHandler):
+    _MY_STATUS: str = 'DWH OUTDATED'
+    _TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler
+
+    def __init__(self):
+        super().__init__()
+        self._TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler()
+        self.__CURRENT_VERSION_DWH = os.environ['VERSION_DWH']
+
+    def did_my_status_occur(self, page_template: str) -> bool:
+        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+        version_dwh = soup.find(class_='dwh-j2ee').text
+        formatted_version = version_dwh.replace('dwh-j2ee-', '')
+        if formatted_version and formatted_version != '-':
+            return version.parse(self.__CURRENT_VERSION_DWH) > version.parse(formatted_version)
+        return False
+
+    def sent_my_mail_to_node(self, id_node: str, page_template: str):
+        mail = self._TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(page_template)
+        recipients = self._CONFLUENCE_RECIPIENTS_EXTRACTOR.extract_all_recipients_for_node_id(id_node)
+        if recipients:
+            if self._SENT_MAILS_COUNTER.is_waiting_threshold_reached_for_node(id_node):
+                self._MAIL_SENDER.send_mail(recipients, mail)
+
+
 class NodeEventNotifierManager:
 
     def __init__(self):
         self.__CONFLUENCE = ConfluenceConnection()
         self.__MAPPER = ConfluenceNodeMapper()
-        self.__LIST_NODE_IDS = self.__MAPPER.get_all_keys()
-        self.__PAGE_EMERGENCY_STATUS_CHECKER = TemplatePageEmergencyStatusChecker()
-        self.__SENT_MAILS_COUNTER = ConsecutiveSentEmailsCounter()
-        self.__SENT_MAILS_LOGGER = SentMailsLogger()
+        self.__OFFLINE_NOTIFIER = OfflineNotificationHandler()
+        self.__NO_IMPORTS_NOTIFER = NoImportsNotificationHandler()
+        self.__OUTDATED_VERSION_NOTIFIER = OutdatedVersionNotificationHandler()
 
     def notify_node_recipients_on_emergency_status(self):
-        for id_node in self.__LIST_NODE_IDS:
+        for id_node in self.__MAPPER.get_all_keys():
             name_page = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
             if self.__CONFLUENCE.does_page_exists(name_page):
                 page = self.__CONFLUENCE.get_page_content(name_page)
-                status = self.__PAGE_EMERGENCY_STATUS_CHECKER.check_for_emergency_status(page)
-                if status == 1:
-                    handler = OfflineMailTemplateHandler()
-                elif status == 2:
-                    handler = NoImportsMailTemplateHandler(id_node)
-                else:
-                    self.__SENT_MAILS_COUNTER.delete_entry_for_node_if_exists(id_node)
-                    continue
-                mail = handler.get_mail_template_filled_with_information_from_template_page(page)
-                recipients = ConfluencePageRecipientsExtractor().extract_all_recipients_for_node_id(id_node)
-                if not recipients:
-                    continue
-                if self.__SENT_MAILS_COUNTER.does_entry_exist_for_node(id_node):
-                    if self.__SENT_MAILS_COUNTER.was_last_email_sent_less_than_set_week_ago(id_node):
-                        continue
-                MailSender().send_mail(recipients, mail)
-                self.__SENT_MAILS_LOGGER.log_sent_mail_for_node(id_node, status)
-                self.__SENT_MAILS_COUNTER.create_or_update_node_entry(id_node)
+                for notifier in (self.__OFFLINE_NOTIFIER, self.__NO_IMPORTS_NOTIFER, self.__OUTDATED_VERSION_NOTIFIER):
+                    if notifier.did_my_status_occur(page):
+                        notifier.sent_my_mail_to_node(id_node, page)
+                        notifier.log_my_sent_mail_to_node(id_node)
+                        notifier.create_or_update_my_status_for_node(id_node)
+                    else:
+                        notifier.clean_my_status_for_node(id_node)
 
 
 def main(path_config: str):
