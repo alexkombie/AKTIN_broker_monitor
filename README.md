@@ -8,9 +8,9 @@ Simple scripts that monitor connected node activity of the [AKTIN Broker](https:
 
 ## Usage
 
-A JSON configuration file with the following key-value pairs is required to run the scripts (see also the example in the integration tests):
+A JSON configuration file with the following key-value pairs is required to run the scripts (see also the examples in `test\resources`):
 
-| Parameter               |  Description                                                                                                              | Example                  |
+| Parameter               | Description                                                                                                               | Example                  |
 |-------------------------|---------------------------------------------------------------------------------------------------------------------------|--------------------------|
 | BROKER_URL              | URL to your broker server                                                                                                 | http://localhost:8080    |
 | ADMIN_API_KEY           | API key of your broker server administrator                                                                               | xxxAdmin1234             |
@@ -23,14 +23,16 @@ A JSON configuration file with the following key-value pairs is required to run 
 | EMAIL_HOST              | URL to your mailing server                                                                                                | http://localhost:8888    |
 | EMAIL_USER              | Your user of your mailing server                                                                                          | myuser@myserver.net      |
 | EMAIL_PASSWORD          | The password to your mailing server user                                                                                  | Hc5sGhdr2577             |
+| VERSION_DWH             | The current package version of aktin-notaufnahme-dwh.deb                                                                  | 1.5.1rc1                 |
+| VERSION_I2B2            | The current package version of aktin-notaufnahme-i2b2.deb                                                                 | 1.5.3                    |
 
-The configuration file must be passed to the scripts as an input argument. The script `common.py` must be located in the same folder as the executed script:
+The configuration file must be passed to the scripts as an input argument. Additionally, the script `common.py` must be located in the same folder as the executed script:
 
 ```
 python3 node_to_csv.py {PATH_TO_SETTINGS_FILE}
 ```
 
-Additionally, the script `csv_to_confluence.py` needs a mapping table (`CONFLUENCE_MAPPING_JSON`) to map the ID of the broker nodes to static node-reladed information:
+The script `csv_to_confluence.py` needs a mapping table (parameter `CONFLUENCE_MAPPING_JSON` inside the settings file) to map the ID of the broker nodes to static node-reladed information. An exemplary entry inside the mapping looks like the following:
 
 ```
 "99": {
