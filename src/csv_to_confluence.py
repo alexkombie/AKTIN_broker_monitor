@@ -96,7 +96,7 @@ class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
     _CSV_HANDLER: CSVHandler
 
     def __init__(self):
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self._DIR_ROOT = os.environ['ROOT_DIR']
         self._ID_NODE = None
         self._PAGE_TEMPLATE = None
         self._DF = None
@@ -104,7 +104,7 @@ class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
     def add_content_to_template_page(self, page_template: str, id_node: str) -> str:
         self._ID_NODE = id_node
         self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
-        dir_working = os.path.join(self.__DIR_ROOT, id_node)
+        dir_working = os.path.join(self._DIR_ROOT, id_node)
         self._DF = self.__load_csv_as_df(id_node, dir_working)
         self._add_content_to_template_soup()
         return str(self._PAGE_TEMPLATE)
@@ -220,6 +220,22 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         self.__ELEMENT_CREATOR = TemplatePageElementCreator()
         self.__TIMESTAMP_HANDLER = TimestampHandler()
         self.__MAPPER = ConfluenceNodeMapper()
+        self.__append_last_year_rows_to_df_if_necessary()
+
+    def __append_last_year_rows_to_df_if_necessary(self):
+        """
+        If the csv has less than 3 rows, try to append the last 10 rows of last years csv
+        to this csv
+        """
+        if len(self._DF) < 3:
+            year_current = self.__TIMESTAMP_HANDLER.get_current_year()
+            year_last_year = str(int(year_current) - 1)
+            name_csv_last_year = self._CSV_HANDLER.generate_csv_name_with_custom_year(self._ID_NODE, year_last_year)
+            path_csv_last_year = os.path.join(self._DIR_ROOT, self._ID_NODE, name_csv_last_year)
+            if os.path.isfile(path_csv_last_year):
+                df_last_year = self._CSV_HANDLER.read_csv_as_df(path_csv_last_year)
+                df_last_year = df_last_year.iloc[-10:]
+                self._DF = pd.concat([df_last_year, self._DF], ignore_index=True)
 
     def _add_content_to_template_soup(self):
         if self.__has_csv_a_gap_in_broker_connection():
@@ -241,7 +257,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     def __has_csv_a_gap_in_broker_connection(self) -> bool:
         """
         Each day a row is appended to the csv file with the current import stats.
-        If the broker connection fails, no row is appended and a gap apperas, which can be detected.
+        If the broker connection fails, no row is appended and a gap appears, which can be detected.
         """
         series = self._DF['date']
         if series.empty:
@@ -259,6 +275,21 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
                     return True
         return False
 
+    def __is_template_soup_still_testing(self) -> bool:
+        """
+        Node is still testing if it does not have 3 consecutive days of imports
+        """
+        series = self._DF['daily_imported']
+        if len(series) < 3:
+            return False
+        series = series.str.replace('-', '0')
+        series = pd.to_numeric(series)
+        iterators = tee(series, 3)
+        for idx, it in enumerate(iterators):
+            next(islice(it, idx, idx), None)
+        slices_consecutive_imports = (iterslice for iterslice in zip(*iterators) if all(x > 0 for x in iterslice))
+        return not any(slices_consecutive_imports)
+
     def __is_template_soup_offline(self) -> bool:
         last_contact = self._PAGE_TEMPLATE.find(class_='last_contact').string
         return self.__is_date_longer_ago_than_set_hours(last_contact)
@@ -274,21 +305,6 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
             return True
         else:
             return False
-
-    def __is_template_soup_still_testing(self) -> bool:
-        """
-        Node is still testing if it does not have 3 consecutive days of imports
-        """
-        series = self._DF['daily_imported']
-        if len(series) < 3:
-            return False
-        series = series.str.replace('-', '0')
-        series = pd.to_numeric(series)
-        iterators = tee(series, 3)
-        for idx, it in enumerate(iterators):
-            next(islice(it, idx, idx), None)
-        slices_consecutive_imports = (iterslice for iterslice in zip(*iterators) if all(x > 0 for x in iterslice))
-        return not any(slices_consecutive_imports)
 
     def __is_template_soup_not_importing(self) -> bool:
         last_write = self._PAGE_TEMPLATE.find(class_='last_write').string
@@ -457,10 +473,12 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 
     def __generate_jira_table_with_query(self, query: str) -> Tag:
         param_server = self.__ELEMENT_CREATOR.create_ac_parameter_element('server', 'Jira IMI UK Aachen')
-        param_id_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element('columnIds',
-                                                                              'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
-        param_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element('columns',
-                                                                           'key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution')
+        param_id_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element(
+            'columnIds',
+            'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
+        param_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element(
+            'columns',
+            'key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution')
         param_max_issues = self.__ELEMENT_CREATOR.create_ac_parameter_element('maximumIssues', '25')
         param_query = self.__ELEMENT_CREATOR.create_ac_parameter_element('jqlQuery', query)
         frame = self.__ELEMENT_CREATOR.create_ac_macro_element('jira')
