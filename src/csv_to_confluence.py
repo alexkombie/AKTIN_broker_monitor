@@ -26,13 +26,14 @@ import os
 import sys
 from abc import ABC, abstractmethod
 from itertools import islice, tee
-from packaging import version
 
 import bs4
 import pandas as pd
 from bs4.element import Tag
+from packaging import version
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, CSVHandler, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
+from common import ConfluenceConnection, ConfluenceNodeMapper, CSVHandler, ErrorCSVHandler, InfoCSVHandler, MyLogger, \
+    PropertiesReader, ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
 from my_error_notifier import MyErrorNotifier
 
 
@@ -373,7 +374,8 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
         self._PAGE_TEMPLATE.find(class_='os').string.replace_with(self.__get_value_of_dict(versions, 'os'))
         self._PAGE_TEMPLATE.find(class_='kernel').string.replace_with(self.__get_value_of_dict(versions, 'kernel'))
         self._PAGE_TEMPLATE.find(class_='java').string.replace_with(self.__get_value_of_dict(versions, 'java'))
-        self._PAGE_TEMPLATE.find(class_='j2ee-impl').string.replace_with(self.__get_value_of_dict(versions, 'j2ee-impl'))
+        self._PAGE_TEMPLATE.find(class_='j2ee-impl').string.replace_with(
+            self.__get_value_of_dict(versions, 'j2ee-impl'))
         self._PAGE_TEMPLATE.find(class_='apache2').string.replace_with(self.__get_value_of_dict(versions, 'apache2'))
         self._PAGE_TEMPLATE.find(class_='postgres').string.replace_with(self.__get_value_of_dict(versions, 'postgres'))
         self._PAGE_TEMPLATE.find(class_='dwh-api').string.replace_with(self.__get_value_of_dict(versions, 'dwh-api'))
@@ -455,8 +457,10 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
 
     def __generate_jira_table_with_query(self, query: str) -> Tag:
         param_server = self.__ELEMENT_CREATOR.create_ac_parameter_element('server', 'Jira IMI UK Aachen')
-        param_id_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element('columnIds', 'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
-        param_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element('columns', 'key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution')
+        param_id_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element('columnIds',
+                                                                              'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
+        param_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element('columns',
+                                                                           'key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution')
         param_max_issues = self.__ELEMENT_CREATOR.create_ac_parameter_element('maximumIssues', '25')
         param_query = self.__ELEMENT_CREATOR.create_ac_parameter_element('jqlQuery', query)
         frame = self.__ELEMENT_CREATOR.create_ac_macro_element('jira')
@@ -601,7 +605,8 @@ class TemplatePageMigrator:
         return str(template_new)
 
     @staticmethod
-    def __migrate_key_from_old_to_new_template(key: str, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+    def __migrate_key_from_old_to_new_template(key: str, soup_old: bs4.BeautifulSoup,
+                                               soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
         value = soup_old.find(class_=key)
         soup_new.find(class_=key).replace_with(value)
         return soup_new
@@ -686,6 +691,62 @@ class FileBackupManager(ConfluenceHandler):
         return [name_file for name_file in os.listdir(directory) if name_file.endswith(line_ending)]
 
 
+class SummaryTableCreator:
+
+    def __init__(self):
+        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+
+    def create_summary_table_frame(self) -> bs4.BeautifulSoup:
+        colgroup = self.__ELEMENT_CREATOR.create_html_element('colgroup')
+        col = self.__ELEMENT_CREATOR.create_html_element('col')
+        colgroup.append(col)
+        table = self.__ELEMENT_CREATOR.create_html_element('table')
+        table.append(colgroup)
+        return table
+
+    def create_empty_summary_table(self) -> bs4.BeautifulSoup:
+        header = self.__create_summary_table_header()
+        table_summary = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class': 'table_summary_body'})
+        table_summary.append(header)
+        table_summary = self.__ELEMENT_CREATOR.convert_element_to_soup(table_summary)
+        return table_summary
+
+    def __create_summary_table_header(self) -> Tag:
+        node = self.__ELEMENT_CREATOR.create_table_header_element('Node')
+        status = self.__ELEMENT_CREATOR.create_table_header_element('Status')
+        interface = self.__ELEMENT_CREATOR.create_table_header_element('Interface')
+        last_check = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Check')
+        last_contact = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Kontakt')
+        last_start = self.__ELEMENT_CREATOR.create_table_header_element('Letzter DWH Start')
+        last_write = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Import')
+        last_reject = self.__ELEMENT_CREATOR.create_table_header_element('Letzte Ablehnung')
+        header = self.__ELEMENT_CREATOR.create_html_element('tr')
+        header.extend([node, status, last_check, last_contact, last_start, last_write, last_reject])
+        return header
+
+    def create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
+        template = self.__ELEMENT_CREATOR.convert_element_to_soup(page_confluence)
+        link_node = self.__ELEMENT_CREATOR.create_ac_link_element(name_common)
+        node = self.__ELEMENT_CREATOR.create_html_element('td', {'style': 'text-align: left;'})
+        node.append(link_node)
+        element_status = template.find(class_='status')
+        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0], centered=True)
+        interface = self.__create_table_data_from_page_template_key(template, 'interface_import')
+        last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
+        last_contact = self.__create_table_data_from_page_template_key(template, 'last_contact')
+        last_start = self.__create_table_data_from_page_template_key(template, 'last_start')
+        last_write = self.__create_table_data_from_page_template_key(template, 'last_write')
+        last_reject = self.__create_table_data_from_page_template_key(template, 'last_reject')
+        row = self.__ELEMENT_CREATOR.create_html_element('tr')
+        row.extend([node, status, interface, last_check, last_contact, last_start, last_write, last_reject])
+        return row
+
+    def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
+        value = template_page.find(class_=key).string
+        td = self.__ELEMENT_CREATOR.create_table_data_element(value, centered=True)
+        return td
+
+
 class ConfluencePageHandlerManager(ConfluenceHandler):
     """
     Initializes and executes ConfluencePageHandlers for each broker node. Creates a parent page
@@ -696,8 +757,8 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         super().__init__()
         self.__DIR_ROOT = os.environ['ROOT_DIR']
         self.__HANDLER = ConfluencePageHandler()
+        self.__SUMMARY = SummaryTableCreator()
         self.__BACKUP = FileBackupManager()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
         self.__init_parent_page()
 
     def __init_parent_page(self):
@@ -716,64 +777,16 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
     def upload_summary_for_confluence_pages(self):
         id_nodes = self._MAPPER.get_all_keys()
-        tbody = self.__create_empty_summary_table()
+        tbody = self.__SUMMARY.create_empty_summary_table()
         for id_node in id_nodes:
             common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
             if self._CONFLUENCE.does_page_exists(common_name):
                 page = self._CONFLUENCE.get_page_content(common_name)
-                row = self.__create_summary_table_row_from_confluence_page(common_name, page)
+                row = self.__SUMMARY.create_summary_table_row_from_confluence_page(common_name, page)
                 tbody.find('tbody').append(row)
-        table = self.__create_summary_table_frame()
+        table = self.__SUMMARY.create_summary_table_frame()
         table.append(tbody)
         self._CONFLUENCE.update_confluence_page(self._CONFLUENCE_PARENT_PAGE, str(table))
-
-    def __create_summary_table_frame(self) -> bs4.BeautifulSoup:
-        colgroup = self.__ELEMENT_CREATOR.create_html_element('colgroup')
-        col = self.__ELEMENT_CREATOR.create_html_element('col')
-        colgroup.append(col)
-        table = self.__ELEMENT_CREATOR.create_html_element('table')
-        table.append(colgroup)
-        return table
-
-    def __create_empty_summary_table(self) -> bs4.BeautifulSoup:
-        header = self.__create_summary_table_header()
-        table_summary = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class': 'table_summary_body'})
-        table_summary.append(header)
-        table_summary = self.__ELEMENT_CREATOR.convert_element_to_soup(table_summary)
-        return table_summary
-
-    def __create_summary_table_header(self) -> Tag:
-        node = self.__ELEMENT_CREATOR.create_table_header_element('Node')
-        status = self.__ELEMENT_CREATOR.create_table_header_element('Status')
-        last_check = self.__ELEMENT_CREATOR.create_table_header_element('last_check')
-        last_contact = self.__ELEMENT_CREATOR.create_table_header_element('last_contact')
-        last_start = self.__ELEMENT_CREATOR.create_table_header_element('last_start')
-        last_write = self.__ELEMENT_CREATOR.create_table_header_element('last_write')
-        last_reject = self.__ELEMENT_CREATOR.create_table_header_element('last_reject')
-        header = self.__ELEMENT_CREATOR.create_html_element('tr')
-        header.extend([node, status, last_check, last_contact, last_start, last_write, last_reject])
-        return header
-
-    def __create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
-        template = self.__ELEMENT_CREATOR.convert_element_to_soup(page_confluence)
-        link_node = self.__ELEMENT_CREATOR.create_ac_link_element(name_common)
-        node = self.__ELEMENT_CREATOR.create_html_element('td', {'style': 'text-align: left;'})
-        node.append(link_node)
-        element_status = template.find(class_='status')
-        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0], centered=True)
-        last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
-        last_contact = self.__create_table_data_from_page_template_key(template, 'last_contact')
-        last_start = self.__create_table_data_from_page_template_key(template, 'last_start')
-        last_write = self.__create_table_data_from_page_template_key(template, 'last_write')
-        last_reject = self.__create_table_data_from_page_template_key(template, 'last_reject')
-        row = self.__ELEMENT_CREATOR.create_html_element('tr')
-        row.extend([node, status, last_check, last_contact, last_start, last_write, last_reject])
-        return row
-
-    def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
-        value = template_page.find(class_=key).string
-        td = self.__ELEMENT_CREATOR.create_table_data_element(value, centered=True)
-        return td
 
 
 def main(path_config: str):
