@@ -220,14 +220,13 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         self.__ELEMENT_CREATOR = TemplatePageElementCreator()
         self.__TIMESTAMP_HANDLER = TimestampHandler()
         self.__MAPPER = ConfluenceNodeMapper()
-        self.__append_last_year_rows_to_df_if_necessary()
 
     def __append_last_year_rows_to_df_if_necessary(self):
         """
-        If the csv has less than 3 rows, try to append the last 10 rows of last years csv
+        If the csv has less than 4 rows, try to append the last 10 rows of last years csv
         to this csv
         """
-        if len(self._DF) < 3:
+        if len(self._DF) < 4:
             year_current = self.__TIMESTAMP_HANDLER.get_current_year()
             year_last_year = str(int(year_current) - 1)
             name_csv_last_year = self._CSV_HANDLER.generate_csv_name_with_custom_year(self._ID_NODE, year_last_year)
@@ -238,6 +237,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
                 self._DF = pd.concat([df_last_year, self._DF], ignore_index=True)
 
     def _add_content_to_template_soup(self):
+        self.__append_last_year_rows_to_df_if_necessary()
         if self.__has_csv_a_gap_in_broker_connection():
             status = self.__create_status_element('GAP IN MONITORING', 'Red')
         elif self.__is_template_soup_still_testing():
