@@ -32,10 +32,12 @@ import pandas as pd
 from dateutil import parser
 from packaging import version
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
+from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, \
+    ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
 from my_error_notifier import MyErrorNotifier
 
 
+# TODO: send mail on high error rate
 class MailTemplateHandler(ResourceLoader, ABC):
     _FILENAME_TEMPLATE: str = None
     _TEXT_SUBTYPE: str = 'html'
@@ -165,7 +167,8 @@ class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
         """
         list_contacts = []
         df_recipients = self.__get_recipients_df_for_node_id(id_node, 'Notaufnahme')
-        df_main_contact = df_recipients[(df_recipients['Hauptansprechpartner?'] != '') & (df_recipients['Abgemeldet von Monitor-Benachrichtigungen?'] == '')]
+        df_main_contact = df_recipients[(df_recipients['Hauptansprechpartner?'] != '') & (
+                    df_recipients['Abgemeldet von Monitor-Benachrichtigungen?'] == '')]
         series_contacts = df_main_contact['Kontakt']
         for contact in series_contacts:
             list_contacts.append(contact)
