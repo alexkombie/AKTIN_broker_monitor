@@ -739,7 +739,7 @@ class SummaryTableCreator:
         last_write = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Import')
         last_reject = self.__ELEMENT_CREATOR.create_table_header_element('Letzte Ablehnung')
         header = self.__ELEMENT_CREATOR.create_html_element('tr')
-        header.extend([node, status, last_check, last_contact, last_start, last_write, last_reject])
+        header.extend([node, status, interface, last_check, last_contact, last_start, last_write, last_reject])
         return header
 
     def create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
