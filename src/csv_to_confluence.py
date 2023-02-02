@@ -32,8 +32,8 @@ import pandas as pd
 from bs4.element import Tag
 from packaging import version
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, CSVHandler, ErrorCSVHandler, InfoCSVHandler, MyLogger, \
-    PropertiesReader, ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
+from common import CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, ResourceLoader, SingletonABCMeta, \
+    SingletonMeta, TimestampHandler
 from my_error_notifier import MyErrorNotifier
 
 
@@ -45,12 +45,12 @@ class TemplatePageElementCreator(metaclass=SingletonMeta):
     __PARSER: str = 'html.parser'
 
     def create_ac_parameter_element(self, name: str, content: str) -> Tag:
-        parameter = bs4.BeautifulSoup(features=self.__PARSER).new_tag('ac:parameter', attrs={'ac:name': name})
+        parameter = bs4.BeautifulSoup(features=self.__PARSER).new_tag('ac:parameter', attrs={'ac:name':name})
         parameter.append(content)
         return parameter
 
     def create_ac_macro_element(self, name: str) -> Tag:
-        attributes = {'ac:name': name, 'ac:schema-version': '1'}
+        attributes = {'ac:name':name, 'ac:schema-version':'1'}
         macro = bs4.BeautifulSoup(features=self.__PARSER).new_tag('ac:structured-macro', attrs=attributes)
         return macro
 
@@ -63,12 +63,12 @@ class TemplatePageElementCreator(metaclass=SingletonMeta):
         return link
 
     def create_table_header_element(self, name_header: str) -> Tag:
-        th = bs4.BeautifulSoup(features=self.__PARSER).new_tag('th', attrs={'style': 'text-align: center;'})
+        th = bs4.BeautifulSoup(features=self.__PARSER).new_tag('th', attrs={'style':'text-align: center;'})
         th.append(name_header)
         return th
 
     def create_table_data_element(self, content: str, centered=False) -> Tag:
-        attributes = {'style': 'text-align: center;'} if centered is True else {}
+        attributes = {'style':'text-align: center;'} if centered is True else {}
         td = bs4.BeautifulSoup(features=self.__PARSER).new_tag('td', attrs=attributes)
         td.append(content)
         return td
@@ -143,7 +143,9 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
 
     @staticmethod
     def __get_mean_of_series(series: pd.Series) -> str:
-        return str(series.astype(float).mean().round(2))
+        series = series.replace('-', '0.0')
+        mean = series.astype(float).mean()
+        return "{:.2f}".format(mean)
 
     def __add_weekly_imports_to_template_soup(self):
         last_week = self._DF.tail(7)
@@ -210,7 +212,7 @@ class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
 
     def __generate_empty_error_table(self) -> bs4.BeautifulSoup:
         header_error = self.__create_error_table_header()
-        table = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class': 'table_errors_body'})
+        table = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class':'table_errors_body'})
         table.append(header_error)
         table = self.__ELEMENT_CREATOR.convert_element_to_soup(table)
         return table
@@ -342,7 +344,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         param_color = self.__ELEMENT_CREATOR.create_ac_parameter_element('color', color)
         frame = self.__ELEMENT_CREATOR.create_ac_macro_element('status')
         frame.extend([param_title, param_color])
-        status = self.__ELEMENT_CREATOR.create_html_element('td', {'style': 'text-align:center;', 'class': 'status'})
+        status = self.__ELEMENT_CREATOR.create_html_element('td', {'style':'text-align:center;', 'class':'status'})
         status.append(frame)
         return status
 
@@ -361,8 +363,8 @@ class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
     def _add_content_to_template_soup(self):
         first_monitoring = self._DF['date'].iloc[0]
         start_monitoring = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string(first_monitoring)
-        element_time = self.__ELEMENT_CREATOR.create_html_element('time', {'datetime': start_monitoring})
-        td = self.__ELEMENT_CREATOR.create_html_element('td', {'class': 'online_since'})
+        element_time = self.__ELEMENT_CREATOR.create_html_element('time', {'datetime':start_monitoring})
+        td = self.__ELEMENT_CREATOR.create_html_element('td', {'class':'online_since'})
         td.append(element_time)
         self._PAGE_TEMPLATE.find(class_='online_since').replace_with(td)
 
@@ -502,7 +504,7 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
         param_query = self.__ELEMENT_CREATOR.create_ac_parameter_element('jqlQuery', query)
         frame = self.__ELEMENT_CREATOR.create_ac_macro_element('jira')
         frame.extend([param_server, param_id_columns, param_columns, param_max_issues, param_query])
-        jira = self.__ELEMENT_CREATOR.create_html_element('p', {'class': 'table_jira'})
+        jira = self.__ELEMENT_CREATOR.create_html_element('p', {'class':'table_jira'})
         jira.append(frame)
         return jira
 
@@ -561,7 +563,7 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
 
     def __generate_contact_row(self, name: str, email: str) -> Tag:
         td_name = self.__ELEMENT_CREATOR.create_table_data_element(name, centered=True)
-        link_mail = self.__ELEMENT_CREATOR.create_html_element('a', {'href': ':'.join(['mailto', email])})
+        link_mail = self.__ELEMENT_CREATOR.create_html_element('a', {'href':':'.join(['mailto', email])})
         link_mail.append(email)
         td_mail = self.__ELEMENT_CREATOR.create_table_data_element(link_mail)
         tr = self.__ELEMENT_CREATOR.create_html_element('tr')
@@ -577,9 +579,9 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
         else:
             raise SystemExit('invalid contact type')
         tbody = self.__ELEMENT_CREATOR.create_html_element('tbody')
-        table = self.__ELEMENT_CREATOR.create_html_element('table', {'class': 'wrapped'})
+        table = self.__ELEMENT_CREATOR.create_html_element('table', {'class':'wrapped'})
         table.append(tbody)
-        td = self.__ELEMENT_CREATOR.create_html_element('td', {'class': classname})
+        td = self.__ELEMENT_CREATOR.create_html_element('td', {'class':classname})
         td.append(table)
         return td
 
@@ -642,8 +644,7 @@ class TemplatePageMigrator:
         return str(template_new)
 
     @staticmethod
-    def __migrate_key_from_old_to_new_template(key: str, soup_old: bs4.BeautifulSoup,
-                                               soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+    def __migrate_key_from_old_to_new_template(key: str, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
         value = soup_old.find(class_=key)
         soup_new.find(class_=key).replace_with(value)
         return soup_new
@@ -743,7 +744,7 @@ class SummaryTableCreator:
 
     def create_empty_summary_table(self) -> bs4.BeautifulSoup:
         header = self.__create_summary_table_header()
-        table_summary = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class': 'table_summary_body'})
+        table_summary = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class':'table_summary_body'})
         table_summary.append(header)
         table_summary = self.__ELEMENT_CREATOR.convert_element_to_soup(table_summary)
         return table_summary
@@ -762,7 +763,7 @@ class SummaryTableCreator:
     def create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
         template = self.__ELEMENT_CREATOR.convert_element_to_soup(page_confluence)
         link_node = self.__ELEMENT_CREATOR.create_ac_link_element(name_common)
-        node = self.__ELEMENT_CREATOR.create_html_element('td', {'style': 'text-align: left;'})
+        node = self.__ELEMENT_CREATOR.create_html_element('td', {'style':'text-align: left;'})
         node.append(link_node)
         element_status = template.find(class_='status')
         interface = self.__create_table_data_from_page_template_key(template, 'interface_import')
