@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*
 # Created on Tue Feb 15 12:00 2022
-# @version: 1.1
+# @version: 1.2
 
 #
 #      Copyright (c) 2022  Alexander Kombeiz
@@ -159,7 +159,7 @@ class TimestampHandler(metaclass=SingletonMeta):
         d = parser.parse(date)
         return d.strftime('%Y-%m-%d %H:%M:%S')
 
-    def get_timedelta_in_absolute_hours(self, date1: str, date2: str) -> int:
+    def get_timedelta_in_absolute_hours(self, date1: str, date2: str) -> float:
         """
         Timezone information is ignored beacuse of possible inconsistencies
         of inputs (for example: date1 has timezone information, date2 has none)

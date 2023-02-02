@@ -25,17 +25,9 @@ docker exec python pytest test_NodeInfoFetcher.py
 docker exec python pytest test_NodeResourceFetcher.py
 
 LIST_CONTAINER=( broker-server python )
-echo -e "${YEL}Stop all container ${WHI}"
+echo -e "${YEL}Clean up containers ${WHI}"
 for container in ${LIST_CONTAINER[*]}; do
     docker stop $container
-done
-
-echo -e "${YEL}Remove all container ${WHI}"
-for container in ${LIST_CONTAINER[*]}; do
     docker rm $container
-done
-
-echo -e "${YEL}Remove all images ${WHI}"
-for container in ${LIST_CONTAINER[*]}; do
     docker image rm $container
 done
