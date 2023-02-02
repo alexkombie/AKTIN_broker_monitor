@@ -44,7 +44,7 @@ class TestTemplatePageMigrator(unittest.TestCase):
 
     def __set_template_version_to_outdated(self):
         html = bs4.BeautifulSoup(self.__TEMPLATE, 'html.parser')
-        html.find(class_='version_template').string.replace_with('Version 0.9')
+        html.find(class_='version_template').string.replace_with('0.9')
         self.__TEMPLATE = str(html)
 
     def __set_default_date_information(self):
