@@ -165,6 +165,11 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'HIGH ERROR RATE', 'Yellow')
 
+    def test_extreme_error_rate(self):
+        self.__set_value_in_template('daily_error_rate', '10.01')
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+        self.__check_title_and_color_of_status_element_on_page(page, 'EXTREME ERROR RATE', 'Red')
+
     def test_no_error_rate(self):
         self.__set_value_in_template('daily_error_rate', '-')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)

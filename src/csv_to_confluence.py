@@ -263,6 +263,8 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
             status = self.__create_status_element('OFFLINE', 'Red')
         elif self.__is_template_soup_not_importing():
             status = self.__create_status_element('NO IMPORTS', 'Red')
+        elif self.__is_template_soup_daily_error_rate_above_threshold(10.0):
+            status = self.__create_status_element('EXTREME ERROR RATE', 'Red')
         elif self.__is_template_soup_daily_error_rate_above_threshold(5.0):
             status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
         elif self.__is_template_soup_daily_error_rate_above_threshold(1.0):
