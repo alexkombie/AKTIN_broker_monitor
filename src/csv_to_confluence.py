@@ -750,15 +750,13 @@ class SummaryTableCreator:
 
     def __create_summary_table_header(self) -> Tag:
         node = self.__ELEMENT_CREATOR.create_table_header_element('Node')
-        status = self.__ELEMENT_CREATOR.create_table_header_element('Status')
         interface = self.__ELEMENT_CREATOR.create_table_header_element('Interface')
+        status = self.__ELEMENT_CREATOR.create_table_header_element('Status')
         last_check = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Check')
-        last_contact = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Kontakt')
-        last_start = self.__ELEMENT_CREATOR.create_table_header_element('Letzter DWH Start')
-        last_write = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Import')
-        last_reject = self.__ELEMENT_CREATOR.create_table_header_element('Letzte Ablehnung')
+        error_rate_today = self.__ELEMENT_CREATOR.create_table_header_element('Fehlerrate heute')
+        error_rate_last_week = self.__ELEMENT_CREATOR.create_table_header_element('Fehlerrate über 7 Tage')
         header = self.__ELEMENT_CREATOR.create_html_element('tr')
-        header.extend([node, status, interface, last_check, last_contact, last_start, last_write, last_reject])
+        header.extend([node, interface, status, last_check, error_rate_today, error_rate_last_week])
         return header
 
     def create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
@@ -767,15 +765,13 @@ class SummaryTableCreator:
         node = self.__ELEMENT_CREATOR.create_html_element('td', {'style': 'text-align: left;'})
         node.append(link_node)
         element_status = template.find(class_='status')
-        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0], centered=True)
         interface = self.__create_table_data_from_page_template_key(template, 'interface_import')
+        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0], centered=True)
         last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
-        last_contact = self.__create_table_data_from_page_template_key(template, 'last_contact')
-        last_start = self.__create_table_data_from_page_template_key(template, 'last_start')
-        last_write = self.__create_table_data_from_page_template_key(template, 'last_write')
-        last_reject = self.__create_table_data_from_page_template_key(template, 'last_reject')
+        error_rate_today = self.__create_table_data_from_page_template_key(template, 'daily_error_rate')
+        error_rate_last_week = self.__create_table_data_from_page_template_key(template, 'error_rate')
         row = self.__ELEMENT_CREATOR.create_html_element('tr')
-        row.extend([node, status, interface, last_check, last_contact, last_start, last_write, last_reject])
+        row.extend([node, interface, status, last_check, error_rate_today, error_rate_last_week])
         return row
 
     def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
