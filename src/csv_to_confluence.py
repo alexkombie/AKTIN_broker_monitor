@@ -130,7 +130,7 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
 
     def _add_content_to_template_soup(self):
         self.__add_dates_to_template_soup()
-        self.__add_total_imports_to_template_soup()
+        self.__add_weekly_imports_to_template_soup()
         self.__add_daily_imports_to_template_soup()
 
     def __add_dates_to_template_soup(self):
@@ -140,6 +140,23 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
         self._PAGE_TEMPLATE.find(class_='last_start').string.replace_with(dict_last_row.get('last_start'))
         self._PAGE_TEMPLATE.find(class_='last_write').string.replace_with(dict_last_row.get('last_write'))
         self._PAGE_TEMPLATE.find(class_='last_reject').string.replace_with(dict_last_row.get('last_reject'))
+
+    @staticmethod
+    def __get_mean_of_series(series: pd.Series) -> str:
+        return str(series.astype(float).mean().round(2))
+
+    def __add_weekly_imports_to_template_soup(self):
+        last_week = self._DF.tail(7)
+        imported = self.__get_mean_of_series(last_week['imported'])
+        updated = self.__get_mean_of_series(last_week['updated'])
+        invalid = self.__get_mean_of_series(last_week['invalid'])
+        failed = self.__get_mean_of_series(last_week['failed'])
+        error_rate = self.__get_mean_of_series(last_week['error_rate'])
+        self._PAGE_TEMPLATE.find(class_='imported').string.replace_with(imported)
+        self._PAGE_TEMPLATE.find(class_='updated').string.replace_with(updated)
+        self._PAGE_TEMPLATE.find(class_='invalid').string.replace_with(invalid)
+        self._PAGE_TEMPLATE.find(class_='failed').string.replace_with(failed)
+        self._PAGE_TEMPLATE.find(class_='error_rate').string.replace_with(error_rate)
 
     def __add_total_imports_to_template_soup(self):
         dict_last_row = self._DF.iloc[-1].to_dict()

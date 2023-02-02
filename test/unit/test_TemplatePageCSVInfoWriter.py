@@ -43,7 +43,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.__create_csv1()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-')
-        self.__check_template_page_total_imports(page, '0', '0', '0', '0', '0.0')
+        self.__check_template_page_weekly_imports(page, '0.0', '0.0', '0.0', '0.0', '0.0')
         self.__check_template_page_daily_imports(page, '-', '-', '-', '-', '-')
 
     def __create_csv1(self):
@@ -55,7 +55,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.__create_csv2()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00')
-        self.__check_template_page_total_imports(page, '2000', '2000', '2000', '2000', '50.0')
+        self.__check_template_page_weekly_imports(page, '1000.0', '1000.0', '1000.0', '1000.0', '25.0')
         self.__check_template_page_daily_imports(page, '1000', '1000', '1000', '1000', '50.0')
 
     def __create_csv2(self):
@@ -111,7 +111,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.assertEqual(last_write, page.find(class_='last_write').string)
         self.assertEqual(last_reject, page.find(class_='last_reject').string)
 
-    def __check_template_page_total_imports(self, page_template: str, imported: str, updated: str, invalid: str, failed: str, error_rate: str):
+    def __check_template_page_weekly_imports(self, page_template: str, imported: str, updated: str, invalid: str, failed: str, error_rate: str):
         page = bs4.BeautifulSoup(page_template, 'html.parser')
         self.assertEqual(imported, page.find(class_='imported').string)
         self.assertEqual(updated, page.find(class_='updated').string)
