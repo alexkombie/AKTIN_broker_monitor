@@ -15,7 +15,7 @@ from common import InfoCSVHandler, PropertiesReader
 from csv_to_confluence import TemplatePageLoader, TemplatePageMonitoringStartDateWriter
 
 
-class TestTemplatePageClinicInfoWriter(unittest.TestCase):
+class TestTemplatePageMonitoringStartDateWriter(unittest.TestCase):
     __DIR_ROOT: str = None
     __TEMPLATE: str = None
 
