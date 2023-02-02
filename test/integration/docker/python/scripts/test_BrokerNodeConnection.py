@@ -4,7 +4,7 @@ import lxml
 import requests
 from common import BrokerNodeConnection, PropertiesReader
 
-from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeError, BrokerNodeImports, BrokerNodeImportScripts, BrokerNodePython, BrokerNodeRscript, BrokerNodeVersions
+from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeError, BrokerNodeImportScripts, BrokerNodeImports, BrokerNodePython, BrokerNodeRscript, BrokerNodeVersions
 
 
 class TestBrokerNodeConnection(unittest.TestCase):
@@ -127,39 +127,39 @@ class TestBrokerNodeConnection(unittest.TestCase):
     @staticmethod
     def __create_default_broker_import_stats():
         return BrokerNodeImports(
-                '2020-01-01T00:00:00+01:00',
-                '2020-01-02T12:00:00+01:00',
-                '2020-01-02T12:00:00+01:00',
-                '400',
-                '300',
-                '200',
-                '100')
+            '2020-01-01T00:00:00+01:00',
+            '2020-01-02T12:00:00+01:00',
+            '2020-01-02T12:00:00+01:00',
+            '400',
+            '300',
+            '200',
+            '100')
 
     @staticmethod
     def __create_default_broker_import_stats_with_missing_dates():
         return BrokerNodeImports(
-                '2020-01-01T00:00:00+01:00',
-                '',
-                '',
-                '400',
-                '300',
-                '200',
-                '100')
+            '2020-01-01T00:00:00+01:00',
+            '',
+            '',
+            '400',
+            '300',
+            '200',
+            '100')
 
     @staticmethod
     def __create_default_broker_error():
         return BrokerNodeError(
-                '2020-01-01T00:00:00+01:00',
-                '5',
-                'TestError'
+            '2020-01-01T00:00:00+01:00',
+            '5',
+            'TestError'
         )
 
     @staticmethod
     def __create_default_broker_error_with_missing_repeats():
         return BrokerNodeError(
-                '2020-01-01T00:00:00+01:00',
-                '',
-                'TestError'
+            '2020-01-01T00:00:00+01:00',
+            '',
+            'TestError'
         )
 
     @staticmethod

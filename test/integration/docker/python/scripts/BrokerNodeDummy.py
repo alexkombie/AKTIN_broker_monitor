@@ -26,14 +26,14 @@ class BrokerNodeImports(Payload):
         last_write = "<last-write>" + self.__LAST_WRITE + "</last-write>" if self.__LAST_WRITE else ""
         last_reject = "<last-reject>" + self.__LAST_REJECT + "</last-reject>" if self.__LAST_REJECT else ""
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
-               "<start>" + self.__DWH_START + "</start>" + \
-               last_write + \
-               last_reject + \
-               "<imported>" + self.__IMPORTED + "</imported>" + \
-               "<updated>" + self.__UPDATED + "</updated>" + \
-               "<invalid>" + self.__INVALID + "</invalid>" + \
-               "<failed>" + self.__FAILED + "</failed>" + \
-               "<last-errors></last-errors></import-statistics>"
+            "<start>" + self.__DWH_START + "</start>" + \
+            last_write + \
+            last_reject + \
+            "<imported>" + self.__IMPORTED + "</imported>" + \
+            "<updated>" + self.__UPDATED + "</updated>" + \
+            "<invalid>" + self.__INVALID + "</invalid>" + \
+            "<failed>" + self.__FAILED + "</failed>" + \
+            "<last-errors></last-errors></import-statistics>"
 
 
 @dataclass()
@@ -45,12 +45,12 @@ class BrokerNodeError(Payload):
     def to_xml_string(self) -> str:
         if self.__REPEATS:
             return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
-                   "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\" repeats=\"" + self.__REPEATS + "\">" + self.__CONTENT + "</error></last-errors>" + \
-                   "</import-statistics>"
+                "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\" repeats=\"" + self.__REPEATS + "\">" + self.__CONTENT + "</error></last-errors>" + \
+                "</import-statistics>"
         else:
             return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><import-statistics>" + \
-                   "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\">" + self.__CONTENT + "</error></last-errors>" + \
-                   "</import-statistics>"
+                "<last-errors><error timestamp=\"" + self.__TIMESTAMP + "\">" + self.__CONTENT + "</error></last-errors>" + \
+                "</import-statistics>"
 
 
 @dataclass()
@@ -60,9 +60,9 @@ class BrokerNodeVersions(Payload):
 
     def to_xml_string(self) -> str:
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>versions</comment>" + \
-               "<entry key=\"java\">" + self.__JAVA + "</entry>" + \
-               "<entry key=\"os\">" + self.__OS + "</entry>" + \
-               "</properties>"
+            "<entry key=\"java\">" + self.__JAVA + "</entry>" + \
+            "<entry key=\"os\">" + self.__OS + "</entry>" + \
+            "</properties>"
 
 
 @dataclass()
@@ -74,11 +74,11 @@ class BrokerNodeVersions2(Payload):
 
     def to_xml_string(self) -> str:
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>versions</comment>" + \
-               "<entry key=\"java\">" + self.__JAVA + "</entry>" + \
-               "<entry key=\"os\">" + self.__OS + "</entry>" + \
-               "<entry key=\"apache2\">" + self.__APACHE2 + "</entry>" + \
-               "<entry key=\"postgres\">" + self.__POSTGRES + "</entry>" + \
-               "</properties>"
+            "<entry key=\"java\">" + self.__JAVA + "</entry>" + \
+            "<entry key=\"os\">" + self.__OS + "</entry>" + \
+            "<entry key=\"apache2\">" + self.__APACHE2 + "</entry>" + \
+            "<entry key=\"postgres\">" + self.__POSTGRES + "</entry>" + \
+            "</properties>"
 
 
 @dataclass()
@@ -89,10 +89,10 @@ class BrokerNodeRscript(Payload):
 
     def to_xml_string(self) -> str:
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>rscript</comment>" + \
-               "<entry key=\"r-base-core\">" + self.__CORE + "</entry>" + \
-               "<entry key=\"r-cran-tidyverse\">" + self.__TIDYVERSE + "</entry>" + \
-               "<entry key=\"r-cran-lattice\">" + self.__LATTICE + "</entry>" + \
-               "</properties>"
+            "<entry key=\"r-base-core\">" + self.__CORE + "</entry>" + \
+            "<entry key=\"r-cran-tidyverse\">" + self.__TIDYVERSE + "</entry>" + \
+            "<entry key=\"r-cran-lattice\">" + self.__LATTICE + "</entry>" + \
+            "</properties>"
 
 
 @dataclass()
@@ -103,10 +103,10 @@ class BrokerNodePython(Payload):
 
     def to_xml_string(self) -> str:
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>python</comment>" + \
-               "<entry key=\"python3\">" + self.__CORE + "</entry>" + \
-               "<entry key=\"python3-numpy\">" + self.__NUMPY + "</entry>" + \
-               "<entry key=\"python3-pandas\">" + self.__PANDAS + "</entry>" + \
-               "</properties>"
+            "<entry key=\"python3\">" + self.__CORE + "</entry>" + \
+            "<entry key=\"python3-numpy\">" + self.__NUMPY + "</entry>" + \
+            "<entry key=\"python3-pandas\">" + self.__PANDAS + "</entry>" + \
+            "</properties>"
 
 
 @dataclass()
@@ -115,8 +115,8 @@ class BrokerNodeImportScripts(Payload):
 
     def to_xml_string(self) -> str:
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE properties SYSTEM \"http://java.sun.com/dtd/properties.dtd\"><properties><comment>import-scripts</comment>" + \
-               "<entry key=\"p21\">" + self.__P21 + "</entry>" + \
-               "</properties>"
+            "<entry key=\"p21\">" + self.__P21 + "</entry>" + \
+            "</properties>"
 
 
 class BrokerNodeDummy:
@@ -125,7 +125,7 @@ class BrokerNodeDummy:
         self.__API_KEY = api_key
 
     def __create_basic_header(self) -> dict:
-        return {'Authorization': ' '.join(['Bearer', self.__API_KEY]), 'Connection': 'keep-alive', 'Content-Type': 'application/xml', 'Accept-Charset': 'UTF-8'}
+        return {'Authorization':' '.join(['Bearer', self.__API_KEY]), 'Connection':'keep-alive', 'Content-Type':'application/xml', 'Accept-Charset':'UTF-8'}
 
     @staticmethod
     def __append_to_broker_url(*items: str) -> str:
