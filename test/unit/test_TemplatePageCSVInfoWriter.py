@@ -43,7 +43,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.__create_csv1()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-')
-        self.__check_template_page_weekly_imports(page, '0.0', '0.0', '0.0', '0.0', '0.0')
+        self.__check_template_page_weekly_imports(page, '0.00', '0.00', '0.00', '0.00', '0.00')
         self.__check_template_page_daily_imports(page, '-', '-', '-', '-', '-')
 
     def __create_csv1(self):
@@ -55,7 +55,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
         self.__create_csv2()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00')
-        self.__check_template_page_weekly_imports(page, '1000.0', '1000.0', '1000.0', '1000.0', '25.0')
+        self.__check_template_page_weekly_imports(page, '500.00', '500.00', '500.00', '500.00', '25.00')
         self.__check_template_page_daily_imports(page, '1000', '1000', '1000', '1000', '50.0')
 
     def __create_csv2(self):

@@ -149,11 +149,11 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
 
     def __add_weekly_imports_to_template_soup(self):
         last_week = self._DF.tail(7)
-        imported = self.__get_mean_of_series(last_week['imported'])
-        updated = self.__get_mean_of_series(last_week['updated'])
-        invalid = self.__get_mean_of_series(last_week['invalid'])
-        failed = self.__get_mean_of_series(last_week['failed'])
-        error_rate = self.__get_mean_of_series(last_week['error_rate'])
+        imported = self.__get_mean_of_series(last_week['daily_imported'])
+        updated = self.__get_mean_of_series(last_week['daily_updated'])
+        invalid = self.__get_mean_of_series(last_week['daily_invalid'])
+        failed = self.__get_mean_of_series(last_week['daily_failed'])
+        error_rate = self.__get_mean_of_series(last_week['daily_error_rate'])
         self._PAGE_TEMPLATE.find(class_='imported').string.replace_with(imported)
         self._PAGE_TEMPLATE.find(class_='updated').string.replace_with(updated)
         self._PAGE_TEMPLATE.find(class_='invalid').string.replace_with(invalid)
