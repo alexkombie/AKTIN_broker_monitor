@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*
 # Created on Tue Mar 22 12:00 2022
-# @version: 1.2
+# @version: 1.3
 
 #
-#      Copyright (c) 2022  Alexander Kombeiz
+#      Copyright (c) 2022  AKTIN
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,6 @@ from packaging import version
 
 from common import CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
-from my_error_notifier import MyErrorNotifier
 
 
 class TemplatePageElementCreator(metaclass=SingletonMeta):
@@ -834,8 +833,6 @@ def main(path_config: str):
         manager.upload_summary_for_confluence_pages()
     except Exception as e:
         logging.exception(e)
-        notifier = MyErrorNotifier(os.path.basename(__file__))
-        notifier.notify_me(str(e))
     finally:
         logger.stop_logger()
 

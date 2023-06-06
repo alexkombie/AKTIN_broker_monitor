@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*
 # Created on Wed Jan 19 12:00 2022
-# @version: 1.2
+# @version: 1.3
 
 #
-#      Copyright (c) 2022  Alexander Kombeiz
+#      Copyright (c) 2022  AKTIN
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU Affero General Public License as
@@ -29,7 +29,6 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 from common import BrokerNodeConnection, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, SingletonABCMeta, TimestampHandler
-from my_error_notifier import MyErrorNotifier
 
 
 class BrokerNodeFetcher(ABC, metaclass=SingletonABCMeta):
@@ -145,11 +144,11 @@ class NodeInfoFetcher(BrokerNodeFetcher):
 
     @staticmethod
     def __generate_empty_daily_stats() -> dict:
-        return {'daily_imported':  '-',
-                'daily_updated':   '-',
-                'daily_invalid':   '-',
-                'daily_failed':    '-',
-                'daily_error_rate':'-'}
+        return {'daily_imported': '-',
+                'daily_updated': '-',
+                'daily_invalid': '-',
+                'daily_failed': '-',
+                'daily_error_rate': '-'}
 
     def __compute_daily_stats(self, stats_csv: pd.DataFrame, stats_node: BrokerNodeConnection.BrokerNodeStats) -> dict:
         daily_imported = int(stats_node.imported) - int(stats_csv.imported)
@@ -157,11 +156,11 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         daily_invalid = int(stats_node.invalid) - int(stats_csv.invalid)
         daily_failed = int(stats_node.failed) - int(stats_csv.failed)
         daily_error_rate = self.__compute_error_rate(daily_imported, daily_updated, daily_invalid, daily_failed)
-        return {'daily_imported':  daily_imported,
-                'daily_updated':   daily_updated,
-                'daily_invalid':   daily_invalid,
-                'daily_failed':    daily_failed,
-                'daily_error_rate':daily_error_rate}
+        return {'daily_imported': daily_imported,
+                'daily_updated': daily_updated,
+                'daily_invalid': daily_invalid,
+                'daily_failed': daily_failed,
+                'daily_error_rate': daily_error_rate}
 
     def __generate_row_stats(self, node_broker: BrokerNodeConnection.BrokerNode, node_stats: BrokerNodeConnection.BrokerNodeStats) -> dict:
         """
@@ -172,16 +171,16 @@ class NodeInfoFetcher(BrokerNodeFetcher):
         invalid = int(node_stats.invalid)
         failed = int(node_stats.failed)
         last_contact = self._TIMESTAMP_HANDLER.convert_utc_to_local_date_string(node_broker.last_contact)
-        return {'date':        self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(self._TIMESTAMP_HANDLER.get_current_date()),
-                'last_contact':self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(last_contact),
-                'last_start':  self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.dwh_start),
-                'last_write':  self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.last_write) if node_stats.last_write is not None else '-',
+        return {'date': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(self._TIMESTAMP_HANDLER.get_current_date()),
+                'last_contact': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(last_contact),
+                'last_start': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.dwh_start),
+                'last_write': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.last_write) if node_stats.last_write is not None else '-',
                 'last_reject': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(node_stats.last_reject) if node_stats.last_reject is not None else '-',
-                'imported':    imported,
-                'updated':     updated,
-                'invalid':     invalid,
-                'failed':      failed,
-                'error_rate':  self.__compute_error_rate(imported, updated, invalid, failed)}
+                'imported': imported,
+                'updated': updated,
+                'invalid': invalid,
+                'failed': failed,
+                'error_rate': self.__compute_error_rate(imported, updated, invalid, failed)}
 
     @staticmethod
     def __compute_error_rate(imported: int, updated: int, invalid: int, failed: int) -> str:
@@ -243,9 +242,9 @@ class NodeErrorFetcher(BrokerNodeFetcher):
         Var 'timestamp' is in local timezone.
         """
         new_row = {
-            'timestamp':self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(error.timestamp),
-            'repeats':  error.repeats if error.repeats is not None else '1',
-            'content':  error.content}
+            'timestamp': self._TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(error.timestamp),
+            'repeats': error.repeats if error.repeats is not None else '1',
+            'content': error.content}
         return pd.DataFrame(new_row, index=[0])
 
     @staticmethod
@@ -379,8 +378,6 @@ def main(path_config: str):
         manager.fetch_broker_node_information()
     except Exception as e:
         logging.exception(e)
-        notifier = MyErrorNotifier(os.path.basename(__file__))
-        notifier.notify_me(str(e))
     finally:
         logger.stop_logger()
 

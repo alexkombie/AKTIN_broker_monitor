@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*
 # Created on Tue Jul 26 12:00 2022
-# @version: 1.2
+# @version: 1.3
 
 #
-#      Copyright (c) 2022  Alexander Kombeiz
+#      Copyright (c) 2022  AKTIN
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,6 @@ from packaging import version
 
 from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, \
     ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
-from my_error_notifier import MyErrorNotifier
 
 
 # TODO: send mail on high error rate
@@ -404,8 +403,6 @@ def main(path_config: str):
         manager.notify_node_recipients_on_emergency_status()
     except Exception as e:
         logging.exception(e)
-        notifier = MyErrorNotifier(os.path.basename(__file__))
-        notifier.notify_me(str(e))
     finally:
         logger.stop_logger()
 
