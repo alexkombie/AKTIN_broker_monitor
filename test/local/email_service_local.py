@@ -9,7 +9,7 @@ sys.path.insert(0, path_src)
 
 import email_service
 
-path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
+path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
 start_time = time.time()
 email_service.main(path_settings)
 print("--- %s seconds ---" % (time.time() - start_time))

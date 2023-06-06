@@ -1,0 +1,22 @@
+[BROKER]
+URL = "CHANGEME"
+API_KEY = "CHANGEME"
+
+[DIR]
+WORKING = "/home/akomi/PycharmProjects/broker-monitor/test/resources"
+RESOURCES = "/home/akomi/PycharmProjects/broker-monitor/src/resources"
+
+[CONFLUENCE]
+URL = "CHANGEME"
+SPACE = "CHANGEME"
+TOKEN = "CHANGEME"
+MAPPING_JSON = "/home/akomi/PycharmProjects/broker-monitor/test/resources/mapping.json"
+
+[SMTP]
+SERVER = "CHANGEME"
+USERNAME = "CHANGEME"
+PASSWORD = "CHANGEME"
+
+[AKTIN]
+DWH_VERSION = "1.5.1rc1"
+I2B2_VERSION = "1.5.3"

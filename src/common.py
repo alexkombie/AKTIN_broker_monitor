@@ -36,6 +36,7 @@ from smtplib import SMTP_SSL as SMTP
 import lxml.etree as ET
 import pandas as pd
 import requests
+import toml
 from atlassian import Confluence
 from dateutil import parser
 from pytz import timezone
@@ -184,8 +185,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     """
 
     def __init__(self):
-        self.__BROKER_URL = os.environ['BROKER_URL']
-        self.__ADMIN_API_KEY = os.environ['ADMIN_API_KEY']
+        self.__BROKER_URL = os.getenv('BROKER.URL')
+        self.__ADMIN_API_KEY = os.getenv('BROKER.API_KEY')
         self.__check_broker_server_availability()
 
     def __check_broker_server_availability(self):
@@ -371,7 +372,7 @@ class ResourceLoader(ABC, metaclass=SingletonABCMeta):
     """
 
     def __init__(self):
-        self.__DIR_RESOURCES = os.environ['RESOURCES_DIR']
+        self.__DIR_RESOURCES = os.getenv('DIR.RESOURCES')
 
     def _get_resource_as_string(self, name_resource: str, encoding: str) -> str:
         path_resource = os.path.join(self.__DIR_RESOURCES, name_resource)
@@ -389,9 +390,9 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         """
         Confluence connection is created on initialization
         """
-        confluence_url = os.environ['CONFLUENCE_URL']
-        confluence_token = os.environ['CONFLUENCE_TOKEN']
-        self.__SPACE = os.environ['CONFLUENCE_SPACE']
+        confluence_url = os.getenv('CONFLUENCE.URL')
+        confluence_token = os.getenv('CONFLUENCE.TOKEN')
+        self.__SPACE = os.getenv('CONFLUENCE.SPACE')
         self.__CONFLUENCE = Confluence(url=confluence_url, token=confluence_token)
 
     def does_page_exists(self, name_page: str) -> bool:
@@ -426,7 +427,7 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
     """
 
     def __init__(self):
-        self.__DICT_MAPPING = self.__load_json_file_as_dict(os.environ['CONFLUENCE_MAPPING_JSON'])
+        self.__DICT_MAPPING = self.__load_json_file_as_dict(os.getenv('CONFLUENCE.MAPPING_JSON'))
 
     @staticmethod
     def __load_json_file_as_dict(path_file: str) -> dict:
@@ -457,9 +458,9 @@ class MailServerConnection(metaclass=SingletonABCMeta):
     _CONNECTION: smtplib.SMTP_SSL = None
 
     def __init__(self):
-        self._USER = os.environ['EMAIL_USER']
-        self.__HOST = os.environ['EMAIL_HOST']
-        self.__PASSWORD = os.environ['EMAIL_PASSWORD']
+        self._USER = os.getenv('SMTP.USER')
+        self.__HOST = os.getenv('SMTP.SERVER')
+        self.__PASSWORD = os.getenv('SMTP.PASSWORD')
 
     def _connect(self):
         self._CONNECTION = SMTP(self.__HOST)
@@ -502,43 +503,45 @@ class MyLogger(metaclass=SingletonMeta):
         logging.shutdown()
 
 
-class PropertiesReader(metaclass=SingletonMeta):
+class ConfigReader(metaclass=SingletonMeta):
     """
     This class should be called by every other script on startup!
-    Checks given settings file to include required keys and loads key-values as
+    Checks given config file to include required keys and loads key-values as
     environment variables after validation. The environment variables are assumed
     by the classes of other scripts
     """
-    __SET_REQUIRED_KEYS = {'BROKER_URL',
-                           'ADMIN_API_KEY',
-                           'ROOT_DIR',
-                           'RESOURCES_DIR',
-                           'CONFLUENCE_URL',
-                           'CONFLUENCE_SPACE',
-                           'CONFLUENCE_TOKEN',
-                           'CONFLUENCE_MAPPING_JSON',
-                           'EMAIL_HOST',
-                           'EMAIL_USER',
-                           'EMAIL_PASSWORD',
-                           'VERSION_DWH',
-                           'VERSION_I2B2'
-                           }
+    __required_keys = {'BROKER.URL', 'BROKER.API_KEY', 'DIR.WORKING', 'DIR.RESOURCES',
+                       'CONFLUENCE.URL', 'CONFLUENCE.SPACE', 'CONFLUENCE.TOKEN', 'CONFLUENCE.MAPPING_JSON',
+                       'SMTP.SERVER', 'SMTP.USERNAME', 'SMTP.PASSWORD',
+                       'AKTIN.DWH_VERSION', 'AKTIN.I2B2_VERSION'}
 
-    def load_properties_as_env_vars(self, path: str):
-        properties = self.__load_properties_file(path)
-        self.__validate_properties(properties)
-        for key in self.__SET_REQUIRED_KEYS:
-            os.environ[key] = properties.get(key)
+    def load_config_as_env_vars(self, path_toml: str):
+        properties = self.__load_config_file(path_toml)
+        flattened_props = self.__flatten_config(properties)
+        self.__validate_config(flattened_props)
+        for key in self.__required_keys:
+            os.environ[key] = flattened_props.get(key)
 
     @staticmethod
-    def __load_properties_file(path: str) -> dict:
-        if not os.path.isfile(path):
-            raise SystemExit('invalid config file path')
-        with open(path) as file_json:
-            return json.load(file_json)
+    def __load_config_file(path_toml: str) -> dict:
+        if not os.path.isfile(path_toml):
+            raise SystemExit('invalid TOML file path')
+        with open(path_toml, encoding='utf-8') as file:
+            print(file)
+            return toml.load(file)
 
-    def __validate_properties(self, properties: dict):
-        set_found_keys = set(properties.keys())
-        set_matched_keys = self.__SET_REQUIRED_KEYS.intersection(set_found_keys)
-        if set_matched_keys != self.__SET_REQUIRED_KEYS:
-            raise SystemExit('following keys are missing in config file: {0}'.format(self.__SET_REQUIRED_KEYS.difference(set_matched_keys)))
+    def __flatten_config(self, config: dict, parent_key='', sep='.'):
+        items = []
+        for key, val in config.items():
+            new_key = f'{parent_key}{sep}{key}' if parent_key else key
+            if isinstance(val, dict):
+                items.extend(self.__flatten_config(val, new_key, sep=sep).items())
+            else:
+                items.append((new_key, val))
+        return dict(items)
+
+    def __validate_config(self, config: dict):
+        loaded_keys = set(config.keys())
+        if not self.__required_keys.issubset(loaded_keys):
+            missing_keys = self.__required_keys - loaded_keys
+            raise SystemExit(f'following keys are missing in config file: {missing_keys}')

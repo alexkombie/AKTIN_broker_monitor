@@ -31,13 +31,13 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from common import BrokerNodeConnection, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, SingletonABCMeta, TimestampHandler
+from common import BrokerNodeConnection, ErrorCSVHandler, InfoCSVHandler, MyLogger, ConfigReader, SingletonABCMeta, TimestampHandler
 
 
 class BrokerNodeFetcher(ABC, metaclass=SingletonABCMeta):
 
     def __init__(self):
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__DIR_ROOT = os.getenv('DIR.WORKING')
         self._BROKER_NODE_CONNECTION = BrokerNodeConnection()
         self._TIMESTAMP_HANDLER = TimestampHandler()
 
@@ -371,12 +371,12 @@ class NodeFetcherManager:
             self.__RESOURCES_FETCHER.fetch_broker_data_to_file(id_node)
 
 
-def main(path_config: str):
+def main(path_toml: str):
     logger = MyLogger()
-    reader = PropertiesReader()
+    reader = ConfigReader()
     try:
         logger.init_logger()
-        reader.load_properties_as_env_vars(path_config)
+        reader.load_config_as_env_vars(path_toml)
         manager = NodeFetcherManager()
         manager.fetch_broker_node_information()
     except Exception as e:
@@ -386,8 +386,6 @@ def main(path_config: str):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        raise SystemExit('path to config file is missing')
-    if len(sys.argv) > 2:
-        raise SystemExit('invalid number of input arguments')
+    if len(sys.argv) < 2:
+        raise SystemExit('path to config TOML is missing!')
     main(sys.argv[1])

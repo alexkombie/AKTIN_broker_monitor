@@ -35,7 +35,7 @@ import pandas as pd
 from bs4.element import Tag
 from packaging import version
 
-from common import CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, MyLogger, PropertiesReader, ResourceLoader, SingletonABCMeta, \
+from common import CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, MyLogger, ConfigReader, ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
 
 
@@ -98,7 +98,7 @@ class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
     _CSV_HANDLER: CSVHandler
 
     def __init__(self):
-        self._DIR_ROOT = os.environ['ROOT_DIR']
+        self._DIR_ROOT = os.getenv('DIR.WORKING')
         self._ID_NODE = None
         self._PAGE_TEMPLATE = None
         self._DF = None
@@ -377,7 +377,7 @@ class TemplatePageContentWriter(ABC, metaclass=SingletonABCMeta):
     """
 
     def __init__(self):
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__DIR_ROOT = os.getenv('DIR.WORKING')
         self._ID_NODE = None
         self._DIR_WORKING = None
         self._PAGE_TEMPLATE = None
@@ -711,7 +711,7 @@ class FileBackupManager(ConfluenceHandler):
 
     def __init__(self):
         super().__init__()
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__DIR_ROOT = os.getenv('DIR.WORKING')
 
     def backup_files(self, id_node: str):
         self.__backup_files_with_line_ending(id_node, 'csv')
@@ -791,7 +791,7 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
     def __init__(self):
         super().__init__()
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__DIR_ROOT = os.getenv('DIR.WORKING')
         self.__HANDLER = ConfluencePageHandler()
         self.__SUMMARY = SummaryTableCreator()
         self.__BACKUP = FileBackupManager()
@@ -827,10 +827,10 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
 def main(path_config: str):
     logger = MyLogger()
-    reader = PropertiesReader()
+    reader = ConfigReader()
     try:
         logger.init_logger()
-        reader.load_properties_as_env_vars(path_config)
+        reader.load_config_as_env_vars(path_config)
         manager = ConfluencePageHandlerManager()
         manager.upload_node_information_as_confluence_pages()
         manager.upload_summary_for_confluence_pages()

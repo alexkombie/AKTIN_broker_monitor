@@ -35,7 +35,7 @@ import pandas as pd
 from dateutil import parser
 from packaging import version
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, PropertiesReader, \
+from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, ConfigReader, \
     ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
 
 
@@ -83,7 +83,7 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
 
     def __init__(self, id_node: str):
         super().__init__()
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__DIR_ROOT = os.getenv('DIR.WORKING')
         self.__ID_NODE = id_node
         self.__HANDLER = InfoCSVHandler()
 
@@ -123,8 +123,8 @@ class OutdatedVersionMailTemplateHandler(MailTemplateHandler):
 
     def __init__(self):
         super().__init__()
-        self.__CURRENT_VERSION_DWH = os.environ['VERSION_DWH']
-        self.__CURRENT_VERSION_I2B2 = os.environ['VERSION_I2B2']
+        self.__CURRENT_VERSION_DWH = os.getenv('AKTIN.DWH_VERSION')
+        self.__CURRENT_VERSION_I2B2 = os.getenv('AKTIN.I2B2_VERSION')
 
     def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
         soup = bs4.BeautifulSoup(page_template, self._PARSER)
@@ -205,7 +205,7 @@ class ConsecutiveSentEmailsCounter:
 
     def __init__(self, filename: str):
         filename = filename.replace(' ', '_')
-        self.__PATH_TRACKING_JSON = os.path.join(os.environ['ROOT_DIR'], "{}.json".format(filename))
+        self.__PATH_TRACKING_JSON = os.path.join(os.getenv('DIR.WORKING'), "{}.json".format(filename))
         self.__TIMESTAMP_HANDLER = TimestampHandler()
         self.__MAPPER = ConfluenceNodeMapper()
         self.__init_tracking_json_if_not_exists()
@@ -251,7 +251,7 @@ class SentMailsLogger(metaclass=SingletonMeta):
     """
 
     def __init__(self):
-        self.__DIR_ROOT = os.environ['ROOT_DIR']
+        self.__DIR_ROOT = os.getenv('DIR.WORKING')
         self.__TIMESTAMP_HANDLER = TimestampHandler()
 
     def log_sent_mail_for_node(self, id_node: str, status: str):
@@ -355,7 +355,7 @@ class OutdatedVersionNotificationHandler(NotificationHandler):
     def __init__(self):
         super().__init__()
         self._TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler()
-        self.__CURRENT_VERSION_DWH = os.environ['VERSION_DWH']
+        self.__CURRENT_VERSION_DWH = os.getenv('AKTIN.DWH_VERSION')
 
     def did_my_status_occur(self, page_template: str) -> bool:
         soup = bs4.BeautifulSoup(page_template, self._PARSER)
@@ -398,10 +398,10 @@ class NodeEventNotifierManager:
 
 def main(path_config: str):
     logger = MyLogger()
-    reader = PropertiesReader()
+    reader = ConfigReader()
     try:
         logger.init_logger()
-        reader.load_properties_as_env_vars(path_config)
+        reader.load_config_as_env_vars(path_config)
         manager = NodeEventNotifierManager()
         manager.notify_node_recipients_on_emergency_status()
     except Exception as e:

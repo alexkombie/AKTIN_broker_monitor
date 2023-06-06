@@ -1,0 +1,22 @@
+[BROKER]
+URL = "http://localhost:8080"
+API_KEY = "xxxAdmin1234"
+
+[DIR]
+WORKING = "/opt"
+RESOURCES = "/opt"
+
+[CONFLUENCE]
+URL = ""
+SPACE = ""
+TOKEN = ""
+MAPPING_JSON = ""
+
+[SMTP]
+SERVER = ""
+USERNAME = ""
+PASSWORD = ""
+
+[AKTIN]
+DWH_VERSION = ""
+I2B2_VERSION = ""
