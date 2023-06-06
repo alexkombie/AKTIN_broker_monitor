@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*
-# Created on Tue Feb 15 12:00 2022
-# @version: 1.2
+"""
+Created on 15.02.2022
+@AUTHOR=Alexander Kombeiz (akombeiz@ukaachen.de)
+@VERSION=1.3
+"""
 
 #
-#      Copyright (c) 2022  Alexander Kombeiz
+#      Copyright (c) 2022  AKTIN
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU Affero General Public License as
@@ -206,9 +209,9 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         url = self.__append_to_broker_url('broker', 'node', id_node)
         tree = self.__get_processed_response(url)
         node = self.BrokerNode(
-                id_node,
-                tree.find('clientDN').text,
-                tree.find('last-contact').text)
+            id_node,
+            tree.find('clientDN').text,
+            tree.find('last-contact').text)
         return node
 
     # TODO: How to set inner class as return type?
@@ -216,13 +219,13 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
         tree = self.__get_processed_response(url)
         stats = self.BrokerNodeStats(
-                tree.find('start').text,
-                tree.find('last-write').text if tree.find('last-write') is not None else None,
-                tree.find('last-reject').text if tree.find('last-reject') is not None else None,
-                tree.find('imported').text,
-                tree.find('updated').text,
-                tree.find('invalid').text,
-                tree.find('failed').text)
+            tree.find('start').text,
+            tree.find('last-write').text if tree.find('last-write') is not None else None,
+            tree.find('last-reject').text if tree.find('last-reject') is not None else None,
+            tree.find('imported').text,
+            tree.find('updated').text,
+            tree.find('invalid').text,
+            tree.find('failed').text)
         return stats
 
     def get_broker_node_errors(self, id_node: str) -> list:
@@ -231,9 +234,9 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         errors = []
         for elem in tree.find('last-errors').getchildren():
             error = self.BrokerNodeError(
-                    elem.get('repeats'),
-                    elem.get('timestamp'),
-                    elem.text)
+                elem.get('repeats'),
+                elem.get('timestamp'),
+                elem.text)
             errors.append(error)
         return errors
 

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*
-# Created on Tue Mar 22 12:00 2022
-# @version: 1.3
+"""
+Created on 22.03.2022
+@AUTHOR=Alexander Kombeiz (akombeiz@ukaachen.de)
+@VERSION=1.3
+"""
 
 #
 #      Copyright (c) 2022  AKTIN
