@@ -8,7 +8,7 @@ Simple scripts that monitor connected node activity of the [AKTIN Broker](https:
 
 ### Usage
 
-A JSON configuration file with the following key-value pairs is required to run the scripts (see also the examples in `test\resources`):
+A TOML configuration file with the following content is required to run the scripts (see also the example in `test\resources`):
 
 | Scope      | Key          | Description                                                                                                               | Example                  |
 |------------|--------------|---------------------------------------------------------------------------------------------------------------------------|--------------------------|
