@@ -1,4 +1,4 @@
-# broker-monitor ![Python 3.8.10](https://img.shields.io/badge/python-3.8.10-blue)
+# broker-monitor ![Python 3.10.6](https://img.shields.io/badge/python-3.10.6-blue)
 
 Simple scripts that monitor connected node activity of the [AKTIN Broker](https://github.com/aktin/broker). The whole process is divided into several scripts. All reusable components are stored in `common.py`:
 
