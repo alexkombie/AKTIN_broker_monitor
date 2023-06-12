@@ -90,21 +90,21 @@ class CSVHandler(DataWriter):
     def write_data_to_file(self, data: pd.DataFrame, filepath: str):
         data.to_csv(filepath, sep=self._separator, encoding=self._encoding, index=False)
 
-    def read_csv_as_df(self, path_csv: str) -> pd.DataFrame:
-        return pd.read_csv(path_csv, sep=self._separator, encoding=self._encoding, dtype=str)
+    def read_csv_as_df(self, csv_path: str) -> pd.DataFrame:
+        return pd.read_csv(csv_path, sep=self._separator, encoding=self._encoding, dtype=str)
 
-    def generate_node_csv_name(self, id_node: str, year: str = None) -> str:
+    def generate_node_csv_name(self, node_id: str, year: str = None) -> str:
         """
         Naming convention is <ID_NODE>_<CATEGORY>_<CURRENT YEAR>
         """
         if year is None:
             year = str(pd.Timestamp.now(tz=self._timezone).year)
-        name_csv = '_'.join([id_node, self._category, year])
-        return ''.join([name_csv, '.csv'])
+        csv_name = '_'.join([node_id, self._category, year])
+        return ''.join([csv_name, '.csv'])
 
-    def init_csv_file(self, filepath: str, name_csv: str = None) -> str:
-        if name_csv:
-            filepath = os.path.join(filepath, name_csv)
+    def init_csv_file(self, filepath: str, csv_name: str = None) -> str:
+        if csv_name:
+            filepath = os.path.join(filepath, csv_name)
         if not os.path.isfile(filepath):
             df = pd.DataFrame(columns=self.get_csv_columns())
             self.write_data_to_file(df, filepath)
@@ -144,6 +144,14 @@ class TextWriter(DataWriter):
     def write_data_to_file(self, data, filepath: str):
         with open(filepath, 'a', encoding=self._encoding) as file:
             file.write(data)
+
+    def save_dict_as_txt_file(self, dictionary: dict, filepath: str):
+        with open(filepath, 'w', encoding=self._encoding) as file:
+            file.write(json.dumps(dictionary))
+
+    def load_txt_file_as_dict(self, filepath: str) -> dict:
+        with open(filepath, 'r', encoding=self._encoding) as file:
+            return json.load(file)
 
 
 class TimestampHandler(metaclass=SingletonMeta):
@@ -219,16 +227,16 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         tree = self.__get_processed_response(url)
         return [node.find('id').text for node in tree.iterfind('node')]
 
-    def get_broker_node(self, id_node: str) -> 'BrokerNodeConnection.BrokerNode':
-        url = self.__append_to_broker_url('broker', 'node', id_node)
+    def get_broker_node(self, node_id: str) -> 'BrokerNodeConnection.BrokerNode':
+        url = self.__append_to_broker_url('broker', 'node', node_id)
         tree = self.__get_processed_response(url)
         return self.BrokerNode(
-            id_node,
+            node_id,
             tree.find('clientDN').text,
             tree.find('last-contact').text)
 
-    def get_broker_node_stats(self, id_node: str) -> 'BrokerNodeConnection.BrokerNodeStats':
-        url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
+    def get_broker_node_stats(self, node_id: str) -> 'BrokerNodeConnection.BrokerNodeStats':
+        url = self.__append_to_broker_url('broker', 'node', node_id, 'stats')
         tree = self.__get_processed_response(url)
         return self.BrokerNodeStats(
             tree.find('start').text,
@@ -239,8 +247,8 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             tree.find('invalid').text,
             tree.find('failed').text)
 
-    def get_broker_node_errors(self, id_node: str) -> list:
-        url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
+    def get_broker_node_errors(self, node_id: str) -> list:
+        url = self.__append_to_broker_url('broker', 'node', node_id, 'stats')
         tree = self.__get_processed_response(url)
         errors = []
         for elem in tree.find('last-errors').getchildren():
@@ -251,12 +259,12 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             errors.append(error)
         return errors
 
-    def get_broker_node_resource(self, id_node: str, resource: str) -> dict:
+    def get_broker_node_resource(self, node_id: str, resource: str) -> dict:
         """
         Possible resources are 'versions', 'rscript', 'python', 'import-scripts'.
         URL to mentioned resources can also be non-existing.
         """
-        url = self.__append_to_broker_url('broker', 'node', id_node, resource)
+        url = self.__append_to_broker_url('broker', 'node', node_id, resource)
         try:
             tree = self.__get_processed_response(url)
             resources = {elem.get('key'): elem.text for elem in tree.iterfind('entry')}
@@ -367,10 +375,10 @@ class ResourceLoader(ABC, metaclass=SingletonABCMeta):
     """
 
     def __init__(self):
-        self.__dir_resources = os.getenv('DIR.RESOURCES')
+        self.__resources_dir = os.getenv('DIR.RESOURCES')
 
-    def _get_resource_as_string(self, name_resource: str, encoding: str) -> str:
-        resource_path = os.path.join(self.__dir_resources, name_resource)
+    def _get_resource_as_string(self, resource_name: str, encoding: str) -> str:
+        resource_path = os.path.join(self.__resources_dir, resource_name)
         with open(resource_path, 'r', encoding=encoding) as file:
             content = file.read()
         return content
@@ -390,29 +398,29 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         self.__space = os.getenv('CONFLUENCE.SPACE')
         self.__confluence = Confluence(url=confluence_url, token=confluence_token)
 
-    def does_page_exists(self, name_page: str) -> bool:
-        return self.__confluence.page_exists(self.__space, name_page)
+    def does_page_exists(self, pagename: str) -> bool:
+        return self.__confluence.page_exists(self.__space, pagename)
 
-    def get_page_content(self, name_page: str) -> str:
-        page_id = self.__confluence.get_page_id(self.__space, name_page)
+    def get_page_content(self, pagename: str) -> str:
+        page_id = self.__confluence.get_page_id(self.__space, pagename)
         page = self.__confluence.get_page_by_id(page_id, expand='body.storage')
         content = page['body']['storage']['value']
         return content
 
-    def upload_csv_as_attachement_to_page(self, name_page: str, path_csv: str):
+    def upload_csv_as_attachement_to_page(self, pagename: str, csv_path: str):
         """
         Identical named files are automatically replaced on confluence
         """
-        page_id = self.__confluence.get_page_id(self.__space, name_page)
-        self.__confluence.attach_file(path_csv, content_type='text/csv', page_id=page_id)
+        page_id = self.__confluence.get_page_id(self.__space, pagename)
+        self.__confluence.attach_file(csv_path, content_type='text/csv', page_id=page_id)
 
-    def create_confluence_page(self, name_page: str, name_parent: str, content: str):
-        parent_id = self.__confluence.get_page_id(self.__space, name_parent)
-        self.__confluence.create_page(self.__space, name_page, content, parent_id=parent_id)
+    def create_confluence_page(self, pagename: str, parentname: str, content: str):
+        parent_id = self.__confluence.get_page_id(self.__space, parentname)
+        self.__confluence.create_page(self.__space, pagename, content, parent_id=parent_id)
 
-    def update_confluence_page(self, name_page: str, content: str):
-        page_id = self.__confluence.get_page_id(self.__space, name_page)
-        self.__confluence.update_page(page_id, name_page, content)
+    def update_confluence_page(self, pagename: str, content: str):
+        page_id = self.__confluence.get_page_id(self.__space, pagename)
+        self.__confluence.update_page(page_id, pagename, content)
 
 
 class ConfluenceNodeMapper(metaclass=SingletonMeta):
@@ -426,18 +434,18 @@ class ConfluenceNodeMapper(metaclass=SingletonMeta):
         self.__dict_mapping = self.__load_json_file_as_dict(path_mapping_json)
 
     @staticmethod
-    def __load_json_file_as_dict(path_file: str) -> dict:
-        with open(path_file, encoding='utf-8') as json_file:
+    def __load_json_file_as_dict(filepath: str) -> dict:
+        with open(filepath, encoding='utf-8') as json_file:
             return json.load(json_file)
 
     def get_all_keys(self) -> list:
         return list(self.__dict_mapping.keys())
 
-    def get_node_from_mapping_dict(self, node: str) -> dict:
-        return self.__dict_mapping.get(node)
+    def get_node_from_mapping_dict(self, node_id: str) -> dict:
+        return self.__dict_mapping.get(node_id)
 
-    def get_node_value_from_mapping_dict(self, node: str, key: str) -> str:
-        node_mapping = self.__dict_mapping.get(node)
+    def get_node_value_from_mapping_dict(self, node_id: str, key: str) -> str:
+        node_mapping = self.__dict_mapping.get(node_id)
         if node_mapping:
             return node_mapping.get(key)
         return None
@@ -479,11 +487,11 @@ class MailSender(MailServerConnection):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._close()
 
-    def send_mail(self, list_receiver: list, mail: MIMEText):
+    def send_mail(self, recipients: list, mail: MIMEText):
         with self:
             mail['From'] = self._user
-            list_receiver.extend(self.__static_recipients)
-            recipients = list(set(list_receiver))  # Remove duplicates
+            recipients.extend(self.__static_recipients)
+            recipients = list(set(recipients))  # Remove duplicates
             mail['To'] = ', '.join(recipients)
             self._connection.sendmail(self._user, recipients, mail.as_string())
 
@@ -514,18 +522,18 @@ class ConfigReader(metaclass=SingletonMeta):
         'AKTIN.I2B2_VERSION'
     }
 
-    def load_config_as_env_vars(self, path_toml: str):
-        properties = self.__load_config_file(path_toml)
+    def load_config_as_env_vars(self, path: str):
+        properties = self.__load_config_file(path)
         flattened_props = self.__flatten_config(properties)
         self.__validate_config(flattened_props)
         for key in self.__required_keys:
             os.environ[key] = flattened_props.get(key)
 
     @staticmethod
-    def __load_config_file(path_toml: str) -> dict:
-        if not os.path.isfile(path_toml):
+    def __load_config_file(path: str) -> dict:
+        if not os.path.isfile(path):
             raise SystemExit('invalid TOML file path')
-        with open(path_toml, encoding='utf-8') as file:
+        with open(path, encoding='utf-8') as file:
             return toml.load(file)
 
     @staticmethod
