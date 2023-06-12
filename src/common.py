@@ -26,15 +26,16 @@ Created on 15.02.2022
 import json
 import logging
 import os
-import smtplib
+import xml.etree.ElementTree as et
 from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from smtplib import SMTP_SSL as SMTP
+from typing import Callable
 
-import lxml.etree as ET
 import pandas as pd
+import pytz
 import requests
 import toml
 from atlassian import Confluence
@@ -67,37 +68,47 @@ class SingletonABCMeta(ABCMeta):
         return cls._instances[cls]
 
 
-class CSVHandler(ABC, metaclass=SingletonABCMeta):
+class DataWriter(ABC, metaclass=SingletonABCMeta):
+    """
+    Abstract class to store data in a local file
+    """
+    _encoding: str = 'utf-8'
+
+    @abstractmethod
+    def write_data_to_file(self, data, filepath: str):
+        pass
+
+
+class CSVHandler(DataWriter):
     """
     Operations for reading a CSV file as a dataframe or writing a dataframe to CSV
     """
-    _CSV_CATEGORY: str
-    __CSV_SEPARATOR: str = ';'
-    __CSV_ENCODING: str = 'UTF-8'
-    __TIMEZONE: str = 'Europe/Berlin'
+    _category: str
+    _separator: str = ';'
+    _timezone: str = 'Europe/Berlin'
 
-    def save_df_to_csv(self, df: pd.DataFrame, path_csv: str):
-        df.to_csv(path_csv, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, index=False)
+    def write_data_to_file(self, data: pd.DataFrame, filepath: str):
+        data.to_csv(filepath, sep=self._separator, encoding=self._encoding, index=False)
 
     def read_csv_as_df(self, path_csv: str) -> pd.DataFrame:
-        return pd.read_csv(path_csv, sep=self.__CSV_SEPARATOR, encoding=self.__CSV_ENCODING, dtype=str)
+        return pd.read_csv(path_csv, sep=self._separator, encoding=self._encoding, dtype=str)
 
-    def generate_csv_name(self, id_node: str) -> str:
-        current_year = str(pd.Timestamp.now().tz_localize(self.__TIMEZONE).year)
-        name_csv = '_'.join([id_node, self._CSV_CATEGORY, current_year])
+    def generate_node_csv_name(self, id_node: str, year: str = None) -> str:
+        """
+        Naming convention is <ID_NODE>_<CATEGORY>_<CURRENT YEAR>
+        """
+        if year is None:
+            year = str(pd.Timestamp.now(tz=self._timezone).year)
+        name_csv = '_'.join([id_node, self._category, year])
         return ''.join([name_csv, '.csv'])
 
-    def generate_csv_name_with_custom_year(self, id_node: str, year: str) -> str:
-        name_csv = '_'.join([id_node, self._CSV_CATEGORY, year])
-        return ''.join([name_csv, '.csv'])
-
-    def init_csv_file_if_not_exists(self, path_csv: str, name_csv: str = None) -> str:
+    def init_csv_file(self, filepath: str, name_csv: str = None) -> str:
         if name_csv:
-            path_csv = os.path.join(path_csv, name_csv)
-        if not os.path.isfile(path_csv):
+            filepath = os.path.join(filepath, name_csv)
+        if not os.path.isfile(filepath):
             df = pd.DataFrame(columns=self.get_csv_columns())
-            self.save_df_to_csv(df, path_csv)
-        return path_csv
+            self.write_data_to_file(df, filepath)
+        return filepath
 
     @abstractmethod
     def get_csv_columns(self) -> list:
@@ -109,7 +120,7 @@ class InfoCSVHandler(CSVHandler):
     Implementation for stats CSV. Writes CSV with import and connection information
     of a single connected node
     """
-    _CSV_CATEGORY = 'stats'
+    _category = 'stats'
 
     def get_csv_columns(self) -> list:
         return ['date', 'last_contact', 'last_start', 'last_write', 'last_reject',
@@ -122,30 +133,34 @@ class ErrorCSVHandler(CSVHandler):
     Implementation for error CSV. Writes CSV with import errors of a single connected
     node
     """
-    _CSV_CATEGORY = 'errors'
+    _category = 'errors'
 
     def get_csv_columns(self) -> list:
         return ['timestamp', 'repeats', 'content']
+
+
+class TextWriter(DataWriter):
+
+    def write_data_to_file(self, data, filepath: str):
+        with open(filepath, 'a', encoding=self._encoding) as file:
+            file.write(data)
 
 
 class TimestampHandler(metaclass=SingletonMeta):
     """
     Handles everything regarding dates and timestamps
     """
-
-    def __init__(self):
-        self.__TIMEZONE = timezone('Europe/Berlin')
+    __timezone = timezone('Europe/Berlin')
 
     def get_current_date(self) -> str:
-        return str(datetime.now(self.__TIMEZONE))
+        return str(datetime.now(self.__timezone))
 
     def get_yesterdays_date(self) -> str:
-        date = datetime.now(self.__TIMEZONE)
-        date = date - timedelta(days=1)
+        date = datetime.now(self.__timezone) - timedelta(days=1)
         return str(date)
 
     def get_current_year(self) -> str:
-        date = datetime.now(self.__TIMEZONE)
+        date = datetime.now(self.__timezone)
         return str(date.year)
 
     @staticmethod
@@ -154,72 +169,68 @@ class TimestampHandler(metaclass=SingletonMeta):
         return str(d.year)
 
     @staticmethod
-    def get_YMD_from_date_string(date: str) -> str:
+    def get_ymd_from_date_string(date: str) -> str:
         d = parser.parse(date)
         return d.strftime('%Y-%m-%d')
 
     @staticmethod
-    def get_YMD_HMS_from_date_string(date: str) -> str:
+    def get_ymd_hms_from_date_string(date: str) -> str:
         d = parser.parse(date)
         return d.strftime('%Y-%m-%d %H:%M:%S')
 
-    def get_timedelta_in_absolute_hours(self, date1: str, date2: str) -> float:
-        """
-        Timezone information is ignored beacuse of possible inconsistencies
-        of inputs (for example: date1 has timezone information, date2 has none)
-        """
-        d1 = parser.parse(self.get_YMD_HMS_from_date_string(date1))
-        d2 = parser.parse(self.get_YMD_HMS_from_date_string(date2))
+    @staticmethod
+    def get_timedelta_in_absolute_hours(date1: str, date2: str) -> float:
+        d1 = parser.parse(date1).astimezone(pytz.utc)
+        d2 = parser.parse(date2).astimezone(pytz.utc)
         delta = d2 - d1
         return abs(delta.total_seconds() // 3600)
 
     def convert_utc_to_local_date_string(self, date: str) -> str:
-        d = parser.parse(date).astimezone(self.__TIMEZONE)
+        d = parser.parse(date).astimezone(self.__timezone)
         return str(d)
 
 
+# TODO test bc no lxml!
 class BrokerNodeConnection(metaclass=SingletonMeta):
     """
     Uses REST endpoint of broker-server to get information about
     connected nodes
     """
+    __timeout = 10
 
     def __init__(self):
-        self.__BROKER_URL = os.getenv('BROKER.URL')
-        self.__ADMIN_API_KEY = os.getenv('BROKER.API_KEY')
+        self.__broker_url = os.getenv('BROKER.URL')
+        self.__admin_api_key = os.getenv('BROKER.API_KEY')
         self.__check_broker_server_availability()
 
     def __check_broker_server_availability(self):
         url = self.__append_to_broker_url('broker', 'status')
-        response = requests.head(url)
+        response = requests.head(url, timeout=self.__timeout)
         response.raise_for_status()
 
     def __append_to_broker_url(self, *items: str) -> str:
-        url = self.__BROKER_URL
+        url = self.__broker_url
         for item in items:
-            url = '{}/{}'.format(url, item)
+            url = f'{url}/{item}'
         return url
 
     def get_broker_nodes(self) -> list:
         url = self.__append_to_broker_url('broker', 'node')
         tree = self.__get_processed_response(url)
-        return [node.find('id').text for node in tree.getchildren()]
+        return [node.find('id').text for node in tree.iterfind('node')]
 
-    # TODO: How to set inner class as return type?
-    def get_broker_node(self, id_node: str):
+    def get_broker_node(self, id_node: str) -> 'BrokerNodeConnection.BrokerNode':
         url = self.__append_to_broker_url('broker', 'node', id_node)
         tree = self.__get_processed_response(url)
-        node = self.BrokerNode(
+        return self.BrokerNode(
             id_node,
             tree.find('clientDN').text,
             tree.find('last-contact').text)
-        return node
 
-    # TODO: How to set inner class as return type?
-    def get_broker_node_stats(self, id_node: str):
+    def get_broker_node_stats(self, id_node: str) -> 'BrokerNodeConnection.BrokerNodeStats':
         url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
         tree = self.__get_processed_response(url)
-        stats = self.BrokerNodeStats(
+        return self.BrokerNodeStats(
             tree.find('start').text,
             tree.find('last-write').text if tree.find('last-write') is not None else None,
             tree.find('last-reject').text if tree.find('last-reject') is not None else None,
@@ -227,7 +238,6 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
             tree.find('updated').text,
             tree.find('invalid').text,
             tree.find('failed').text)
-        return stats
 
     def get_broker_node_errors(self, id_node: str) -> list:
         url = self.__append_to_broker_url('broker', 'node', id_node, 'stats')
@@ -249,135 +259,120 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         url = self.__append_to_broker_url('broker', 'node', id_node, resource)
         try:
             tree = self.__get_processed_response(url)
+            resources = {elem.get('key'): elem.text for elem in tree.iterfind('entry')}
         except requests.exceptions.HTTPError:
-            return {}
-        resources = {}
-        for elem in tree.findall('entry'):
-            resources[elem.get('key')] = elem.text
+            resources = {}
         return resources
 
-    def __get_processed_response(self, url: str) -> ET.ElementTree:
+    def __get_processed_response(self, url: str) -> et.Element:
         """
-        Returns processed XML tree object without namespace from GET request
+        Returns XML tree object from GET request
         """
-        response = requests.get(url, headers=self.__create_basic_headers())
+        response = requests.get(url, headers=self.__create_basic_headers(), timeout=self.__timeout)
         response.raise_for_status()
-        tree = ET.fromstring(response.content)
-        return self.__remove_namespace_from_tree(tree)
+        tree = et.fromstring(response.content)
+        return tree
 
     def __create_basic_headers(self) -> dict:
         """
         HTTP header for requests to AKTIN Broker
         """
         headers = requests.utils.default_headers()
-        headers['Authorization'] = ' '.join(['Bearer', self.__ADMIN_API_KEY])
+        headers['Authorization'] = f'Bearer {self.__admin_api_key}'
         headers['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
         headers['Accept'] = 'application/xml'
         return headers
 
-    @staticmethod
-    def __remove_namespace_from_tree(tree: ET.ElementTree) -> ET.ElementTree:
-        """
-        To enable search/processing via xpath
-        """
-        for elem in tree.getiterator():
-            if not hasattr(elem.tag, 'find'):
-                continue
-            i = elem.tag.find('}')
-            if i >= 0:
-                elem.tag = elem.tag[i + 1:]
-        return tree
-
     @dataclass()
     class BrokerNode:
 
-        __ID: str
-        __DOMAIN_NAME: str
-        __LAST_CONTACT: str
+        __id: str
+        __domain_name: str
+        __last_contact: str
 
         @property
         def id(self) -> str:
-            return self.__ID
+            return self.__id
 
         @property
         def domain_name(self) -> str:
-            return self.__DOMAIN_NAME
+            return self.__domain_name
 
         @property
         def last_contact(self) -> str:
-            return self.__LAST_CONTACT
+            return self.__last_contact
 
     @dataclass()
     class BrokerNodeStats:
 
-        __LAST_START: str
-        __LAST_WRITE: str
-        __LAST_REJECT: str
-        __IMPORTED: str
-        __UPDATED: str
-        __INVALID: str
-        __FAILED: str
+        __last_start: str
+        __last_write: str
+        __last_reject: str
+        __imported: str
+        __updated: str
+        __invalid: str
+        __failed: str
 
         @property
         def dwh_start(self) -> str:
-            return self.__LAST_START
+            return self.__last_start
 
         @property
         def last_write(self) -> str:
-            return self.__LAST_WRITE
+            return self.__last_write
 
         @property
         def last_reject(self) -> str:
-            return self.__LAST_REJECT
+            return self.__last_reject
 
         @property
         def imported(self) -> str:
-            return self.__IMPORTED
+            return self.__imported
 
         @property
         def updated(self) -> str:
-            return self.__UPDATED
+            return self.__updated
 
         @property
         def invalid(self) -> str:
-            return self.__INVALID
+            return self.__invalid
 
         @property
         def failed(self) -> str:
-            return self.__FAILED
+            return self.__failed
 
     @dataclass()
     class BrokerNodeError:
 
-        __REPEATS: str
-        __TIMESTAMP: str
-        __CONTENT: str
+        __repeats: str
+        __timestamp: str
+        __content: str
 
         @property
         def repeats(self) -> str:
-            return self.__REPEATS
+            return self.__repeats
 
         @property
         def timestamp(self) -> str:
-            return self.__TIMESTAMP
+            return self.__timestamp
 
         @property
         def content(self) -> str:
-            return self.__CONTENT
+            return self.__content
 
 
 class ResourceLoader(ABC, metaclass=SingletonABCMeta):
     """
-    For everything inside the /resources folder
+    To load resources from the resources folder
     """
 
     def __init__(self):
-        self.__DIR_RESOURCES = os.getenv('DIR.RESOURCES')
+        self.__dir_resources = os.getenv('DIR.RESOURCES')
 
     def _get_resource_as_string(self, name_resource: str, encoding: str) -> str:
-        path_resource = os.path.join(self.__DIR_RESOURCES, name_resource)
-        with open(path_resource, 'r', encoding=encoding) as resource:
-            content = resource.read()
+        resource_path = os.path.join(self.__dir_resources, name_resource)
+        with open(resource_path, 'r', encoding=encoding) as file:
+            content = file.read()
         return content
 
 
@@ -392,15 +387,15 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         """
         confluence_url = os.getenv('CONFLUENCE.URL')
         confluence_token = os.getenv('CONFLUENCE.TOKEN')
-        self.__SPACE = os.getenv('CONFLUENCE.SPACE')
-        self.__CONFLUENCE = Confluence(url=confluence_url, token=confluence_token)
+        self.__space = os.getenv('CONFLUENCE.SPACE')
+        self.__confluence = Confluence(url=confluence_url, token=confluence_token)
 
     def does_page_exists(self, name_page: str) -> bool:
-        return self.__CONFLUENCE.page_exists(self.__SPACE, name_page)
+        return self.__confluence.page_exists(self.__space, name_page)
 
     def get_page_content(self, name_page: str) -> str:
-        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
-        page = self.__CONFLUENCE.get_page_by_id(id_page, expand='body.storage')
+        page_id = self.__confluence.get_page_id(self.__space, name_page)
+        page = self.__confluence.get_page_by_id(page_id, expand='body.storage')
         content = page['body']['storage']['value']
         return content
 
@@ -408,99 +403,92 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         """
         Identical named files are automatically replaced on confluence
         """
-        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
-        self.__CONFLUENCE.attach_file(path_csv, content_type='text/csv', page_id=id_page)
+        page_id = self.__confluence.get_page_id(self.__space, name_page)
+        self.__confluence.attach_file(path_csv, content_type='text/csv', page_id=page_id)
 
     def create_confluence_page(self, name_page: str, name_parent: str, content: str):
-        id_parent = self.__CONFLUENCE.get_page_id(self.__SPACE, name_parent)
-        self.__CONFLUENCE.create_page(self.__SPACE, name_page, content, parent_id=id_parent)
+        parent_id = self.__confluence.get_page_id(self.__space, name_parent)
+        self.__confluence.create_page(self.__space, name_page, content, parent_id=parent_id)
 
     def update_confluence_page(self, name_page: str, content: str):
-        id_page = self.__CONFLUENCE.get_page_id(self.__SPACE, name_page)
-        self.__CONFLUENCE.update_page(id_page, name_page, content)
+        page_id = self.__confluence.get_page_id(self.__space, name_page)
+        self.__confluence.update_page(page_id, name_page, content)
 
 
 class ConfluenceNodeMapper(metaclass=SingletonMeta):
     """
-    Maps id of broker node to json file with information related to confluence page
-    like institution name, jira query labels and so on
+    Maps the ID of a broker node to a JSON file with information related to a Confluence page,
+    such as institution name and Jira query labels.
     """
 
     def __init__(self):
-        self.__DICT_MAPPING = self.__load_json_file_as_dict(os.getenv('CONFLUENCE.MAPPING_JSON'))
+        path_mapping_json = os.getenv('CONFLUENCE.MAPPING_JSON')
+        self.__dict_mapping = self.__load_json_file_as_dict(path_mapping_json)
 
     @staticmethod
     def __load_json_file_as_dict(path_file: str) -> dict:
         with open(path_file, encoding='utf-8') as json_file:
-            dict_mapping = json.load(json_file)
-        return dict_mapping
+            return json.load(json_file)
 
     def get_all_keys(self) -> list:
-        return self.__DICT_MAPPING.keys()
+        return list(self.__dict_mapping.keys())
 
     def get_node_from_mapping_dict(self, node: str) -> dict:
-        if node in self.__DICT_MAPPING:
-            return self.__DICT_MAPPING[node]
-        else:
-            return None
+        return self.__dict_mapping.get(node)
 
     def get_node_value_from_mapping_dict(self, node: str, key: str) -> str:
-        if key in self.__DICT_MAPPING[node]:
-            return self.__DICT_MAPPING[node][key]
-        else:
-            return None
+        node_mapping = self.__dict_mapping.get(node)
+        if node_mapping:
+            return node_mapping.get(key)
+        return None
 
 
 class MailServerConnection(metaclass=SingletonABCMeta):
     """
-    Creates connection with extern mail server
+    Creates a connection with an external mail server.
     """
-    _CONNECTION: smtplib.SMTP_SSL = None
 
     def __init__(self):
-        self._USER = os.getenv('SMTP.USER')
-        self.__HOST = os.getenv('SMTP.SERVER')
-        self.__PASSWORD = os.getenv('SMTP.PASSWORD')
+        self._user = os.getenv('SMTP.USER')
+        self.__host = os.getenv('SMTP.SERVER')
+        self.__password = os.getenv('SMTP.PASSWORD')
+        self._connection = None
 
     def _connect(self):
-        self._CONNECTION = SMTP(self.__HOST)
-        self._CONNECTION.login(self._USER, self.__PASSWORD)
+        self._connection = SMTP(self.__host)
+        self._connection.login(self._user, self.__password)
 
     def _close(self):
-        if self._CONNECTION:
-            self._CONNECTION.close()
+        if self._connection:
+            self._connection.close()
 
 
 class MailSender(MailServerConnection):
+    """
+    Class responsible for sending emails using the mail server connection.
+    """
 
     def __init__(self):
         super().__init__()
-        self._connect()
+        self.__static_recipients = []
 
-    def __del__(self):
+    def __enter__(self):
+        self._connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self._close()
 
     def send_mail(self, list_receiver: list, mail: MIMEText):
-        mail['From'] = self._USER
-        mail['To'] = ', '.join(list_receiver)
-        self._CONNECTION.sendmail(self._USER, list_receiver, mail.as_string())
+        with self:
+            mail['From'] = self._user
+            list_receiver.extend(self.__static_recipients)
+            recipients = list(set(list_receiver))  # Remove duplicates
+            mail['To'] = ', '.join(recipients)
+            self._connection.sendmail(self._user, recipients, mail.as_string())
 
-
-class MyLogger(metaclass=SingletonMeta):
-    """
-    This class should be called by every other script on startup!
-    """
-
-    @staticmethod
-    def init_logger():
-        logging.basicConfig(level=logging.INFO,
-                            format='%(asctime)s %(levelname)s %(message)s',
-                            handlers=[logging.StreamHandler()])
-
-    @staticmethod
-    def stop_logger():
-        [logging.root.removeHandler(handler) for handler in logging.root.handlers[:]]
-        logging.shutdown()
+    def add_static_recipients(self, recipients: list):
+        self.__static_recipients = recipients
 
 
 class ConfigReader(metaclass=SingletonMeta):
@@ -510,10 +498,21 @@ class ConfigReader(metaclass=SingletonMeta):
     environment variables after validation. The environment variables are assumed
     by the classes of other scripts
     """
-    __required_keys = {'BROKER.URL', 'BROKER.API_KEY', 'DIR.WORKING', 'DIR.RESOURCES',
-                       'CONFLUENCE.URL', 'CONFLUENCE.SPACE', 'CONFLUENCE.TOKEN', 'CONFLUENCE.MAPPING_JSON',
-                       'SMTP.SERVER', 'SMTP.USERNAME', 'SMTP.PASSWORD',
-                       'AKTIN.DWH_VERSION', 'AKTIN.I2B2_VERSION'}
+    __required_keys = {
+        'BROKER.URL',
+        'BROKER.API_KEY',
+        'DIR.WORKING',
+        'DIR.RESOURCES',
+        'CONFLUENCE.URL',
+        'CONFLUENCE.SPACE',
+        'CONFLUENCE.TOKEN',
+        'CONFLUENCE.MAPPING_JSON',
+        'SMTP.SERVER',
+        'SMTP.USERNAME',
+        'SMTP.PASSWORD',
+        'AKTIN.DWH_VERSION',
+        'AKTIN.I2B2_VERSION'
+    }
 
     def load_config_as_env_vars(self, path_toml: str):
         properties = self.__load_config_file(path_toml)
@@ -527,15 +526,15 @@ class ConfigReader(metaclass=SingletonMeta):
         if not os.path.isfile(path_toml):
             raise SystemExit('invalid TOML file path')
         with open(path_toml, encoding='utf-8') as file:
-            print(file)
             return toml.load(file)
 
-    def __flatten_config(self, config: dict, parent_key='', sep='.'):
+    @staticmethod
+    def __flatten_config(config: dict, parent_key='', sep='.') -> dict:
         items = []
         for key, val in config.items():
             new_key = f'{parent_key}{sep}{key}' if parent_key else key
             if isinstance(val, dict):
-                items.extend(self.__flatten_config(val, new_key, sep=sep).items())
+                items.extend(ConfigReader.__flatten_config(val, new_key, sep=sep).items())
             else:
                 items.append((new_key, val))
         return dict(items)
@@ -545,3 +544,48 @@ class ConfigReader(metaclass=SingletonMeta):
         if not self.__required_keys.issubset(loaded_keys):
             missing_keys = self.__required_keys - loaded_keys
             raise SystemExit(f'following keys are missing in config file: {missing_keys}')
+
+
+class MyLogger(metaclass=SingletonMeta):
+    """
+    This class should be called by every other script on startup!
+    """
+
+    def __init__(self):
+        self.__logger = self.init_logger()
+
+    @staticmethod
+    def init_logger():
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+        return logger
+
+    def stop_logger(self):
+        handlers = self.__logger.handlers[:]
+        for handler in handlers:
+            handler.close()
+            self.__logger.removeHandler(handler)
+        logging.shutdown()
+
+
+class Main(metaclass=SingletonMeta):
+    """
+    Main class responsible for executing the main functionality of a script.
+    """
+
+    @staticmethod
+    def main(path_config: str, functionality: Callable[[], None]):
+        logger = MyLogger()
+        reader = ConfigReader()
+        try:
+            logger.init_logger()
+            reader.load_config_as_env_vars(path_config)
+            functionality()  # Call the provided function to execute the specific functionality
+        except Exception as e:
+            logging.exception(e)
+        finally:
+            logger.stop_logger()
