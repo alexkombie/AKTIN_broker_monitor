@@ -8,30 +8,13 @@ entity broker #aliceblue;line:blue;text:blue
 hide broker members
 hide broker circle
 
-entity "JSON file with configuration" as settings {
-* URL broker-server
-* API Key broker-server
-* Working directory of scripts
-* Path to resource directory
-* Confluence URL
-* Confluence Space
-* Confluence Token
-* Path to Confluence mapping file
-* Path to Email configuration file
-* E-Mail-Server URL
-* E-Mail-Server User
-* E-Mail-Server Password
-* Current version of DWH
-.deb package
-* Current version of i2b2
-.deb package
-}
-entity settings #aliceblue;line:blue;text:blue
-hide settings circle
-
 '###################################################################'
 
 package "common.py" as common <<Package>> {
+abstract class DataWriter {
+* interface to store data in local files
+}
+
 abstract class CSVHandler {
 * initializes csv file in a path
 * operations for reading a csv file as a dataframe
@@ -48,6 +31,10 @@ class ErrorCSVHandler {
 * knows columns of error csv
 }
 
+class TextWriter {
+* writes data to .txt files
+}
+
 class TimestampHandler {
 * gets current date information
 * extracts information from given dates
@@ -58,70 +45,58 @@ class "**BrokerNodeConnection**" as BrokerNodeConnection {
 * uses REST endpoint of broker-server to get
 information about connected broker nodes
 }
-
-class MyLogger {
-* starts/stops logging
 }
 
-class PropertiesReader {
-* validates and loads given settings file
-as python environment variables
-}
-hide PropertiesReader circle
-note top of PropertiesReader: Classes with bold names need items\nfrom JSON configuration file
-}
+CSVHandler -u-|> DataWriter
+InfoCSVHandler -u-|> CSVHandler
+ErrorCSVHandler -u-|> CSVHandler
+TextWriter -u-|> DataWriter
 
-InfoCSVHandler --|> CSVHandler
-ErrorCSVHandler --|> CSVHandler
-
-BrokerNodeConnection -d--> broker
-PropertiesReader --> settings
+BrokerNodeConnection -d----> broker
 
 '###################################################################'
 
 package "node_to_csv.py" as node_to_csv <<Package>> {
-abstract class "**BrokerNodeFetcher**" as BrokerNodeFetcher {
+abstract class "**BrokerNodeRetriever**" as BrokerNodeRetriever {
 * helper functions and variables to fetch broker node
 information and save them in a file
 * initializes directory for node to fetch information to
 }
 
-class NodeInfoFetcher {
-* fetches broker node last-contact, startup
+class NodeInfoRetriever {
+* writes broker node last-contact, startup
 and import stats into csv file
 * computes daily imports and error rate from
 differences to previous day
 }
 
-class NodeErrorFetcher {
-* fetches broker node errors into csv file
+class NodeErrorRetriever {
+* writes broker node errors into csv file
 }
 
-class NodeResourceFetcher {
-* fetches broker node resource information to text file
+class NodeResourceRetriever {
+* writes broker node resource information to text file
 * keeps track of changes to node resources in a log file
 }
 
-class NodeFetcherManager {
-* main class to run broker node fetching
-* initializes and executes fetcher
+class NodeRetrieverManager {
+* initializes and executes retriever
 }
 }
 
-BrokerNodeFetcher --> BrokerNodeConnection
-BrokerNodeFetcher --> TimestampHandler
+BrokerNodeRetriever --> BrokerNodeConnection
+BrokerNodeRetriever --> TimestampHandler
+BrokerNodeRetriever --> DataWriter
 
-NodeInfoFetcher --|> BrokerNodeFetcher
-NodeInfoFetcher ----> InfoCSVHandler
+NodeInfoRetriever --|> BrokerNodeRetriever
 
-NodeErrorFetcher --|> BrokerNodeFetcher
-NodeErrorFetcher ----> ErrorCSVHandler
+NodeErrorRetriever --|> BrokerNodeRetriever
 
-NodeResourceFetcher --|> BrokerNodeFetcher
+NodeResourceRetriever --|> BrokerNodeRetriever
 
-NodeFetcherManager --> BrokerNodeConnection
-NodeFetcherManager --> NodeInfoFetcher
-NodeFetcherManager --> NodeErrorFetcher
-NodeFetcherManager --> NodeResourceFetcher
+NodeRetrieverManager --> BrokerNodeConnection
+NodeRetrieverManager --> NodeInfoRetriever
+NodeRetrieverManager --> NodeErrorRetriever
+NodeRetrieverManager --> NodeResourceRetriever
 
 @enduml
