@@ -79,7 +79,7 @@ class DataWriter(ABC, metaclass=SingletonABCMeta):
         pass
 
 
-class CSVHandler(DataWriter):
+class CSVHandler(ABC, DataWriter):
     """
     Operations for reading a CSV file as a dataframe or writing a dataframe to CSV
     """
