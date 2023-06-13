@@ -29,13 +29,14 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from common import Main, BrokerNodeConnection, ErrorCSVHandler, InfoCSVHandler, SingletonABCMeta, TimestampHandler, TextWriter
+from common import Main, BrokerNodeConnection, ErrorCSVHandler, InfoCSVHandler, SingletonABCMeta, TimestampHandler, TextWriter, DataWriter
 
 
 class BrokerNodeRetriever(ABC, metaclass=SingletonABCMeta):
     """
     Abstract base class for retrieving broker node data and downloading it to a file.
     """
+    _handler: DataWriter
 
     def __init__(self):
         self._working_dir = os.getenv('DIR.WORKING')
@@ -57,10 +58,7 @@ class NodeInfoRetriever(BrokerNodeRetriever):
     """
     Fetches import and connection information from broker node to a CSV file.
     """
-
-    def __init__(self):
-        super().__init__()
-        self.__csv_handler = InfoCSVHandler()
+    _handler = InfoCSVHandler()
 
     # TODO TEST: On change of the year, two rows for New Years Eve are created?
     # csv old year : last row with check on 01-01 00:35
@@ -78,12 +76,12 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         - The CSV file is rotated each year to limit its file size.
         - If the CSV file is empty or newly created, the existence of the last year's CSV file is checked.
         """
-        csv_name = self.__csv_handler.generate_node_csv_name(node_id)
+        csv_name = self._handler.generate_node_csv_name(node_id)
         working_dir = self._init_node_directory_if_nonexisting(node_id)
-        csv_path = self.__csv_handler.init_csv_file(working_dir, csv_name)
+        csv_path = self._handler.init_csv_file(working_dir, csv_name)
         node = self._broker_node_connection.get_broker_node(node_id)
         stats = self._broker_node_connection.get_broker_node_stats(node_id)
-        df = self.__csv_handler.read_csv_as_df(csv_path)
+        df = self._handler.read_csv_as_df(csv_path)
         df = self.__delete_todays_row_if_exists(df)
         if df.empty:
             csv_row = self.__get_last_row_of_last_years_csv_if_exists(node_id, working_dir)
@@ -100,7 +98,7 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         stats_map.update(daily_map)
         stats_dict = pd.DataFrame(stats_map, index=[0])
         df = pd.concat([df, stats_dict])
-        self.__csv_handler.write_data_to_file(df, csv_path)
+        self._handler.write_data_to_file(df, csv_path)
 
     def __delete_todays_row_if_exists(self, csv: pd.DataFrame) -> pd.DataFrame:
         """
@@ -123,10 +121,10 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         """
         current_year = self._timestamp_handler.get_current_year()
         last_year = str(int(current_year) - 1)
-        last_year_csv_name = self.__csv_handler.generate_node_csv_name(node_id, last_year)
+        last_year_csv_name = self._handler.generate_node_csv_name(node_id, last_year)
         last_year_csv_path = os.path.join(working_dir, last_year_csv_name)
         if os.path.isfile(last_year_csv_path):
-            last_years_df = self.__csv_handler.read_csv_as_df(last_year_csv_path)
+            last_years_df = self._handler.read_csv_as_df(last_year_csv_path)
             return last_years_df.iloc[-1]
         return None
 
@@ -212,10 +210,7 @@ class NodeErrorRetriever(BrokerNodeRetriever):
     """
     Retrieves import errors from a broker node and saves them to a CSV file.
     """
-
-    def __init__(self):
-        super().__init__()
-        self.__csv_handler = ErrorCSVHandler()
+    _handler = ErrorCSVHandler()
 
     def download_broker_data_to_file(self, node_id: str):
         """
@@ -227,11 +222,11 @@ class NodeErrorRetriever(BrokerNodeRetriever):
         - Only errors of the current year are tracked in the CSV file to limit its size.
         - Similar to NodeInfoFetcher, the CSV file is rotated each year.
         """
-        csv_name = self.__csv_handler.generate_node_csv_name(node_id)
+        csv_name = self._handler.generate_node_csv_name(node_id)
         working_dir = self._init_node_directory_if_nonexisting(node_id)
-        csv_path = self.__csv_handler.init_csv_file(working_dir, csv_name)
+        csv_path = self._handler.init_csv_file(working_dir, csv_name)
         errors = self._broker_node_connection.get_broker_node_errors(node_id)
-        df = self.__csv_handler.read_csv_as_df(csv_path)
+        df = self._handler.read_csv_as_df(csv_path)
         for error in errors:
             if self.__did_error_appear_this_year(error):
                 error_row = self.__convert_error_to_row(error)
@@ -242,7 +237,7 @@ class NodeErrorRetriever(BrokerNodeRetriever):
                 else:
                     df = pd.concat([df, error_row])
         df = df.sort_values(by='timestamp', ascending=False)
-        self.__csv_handler.write_data_to_file(df, csv_path)
+        self._handler.write_data_to_file(df, csv_path)
 
     def __did_error_appear_this_year(self, error: BrokerNodeConnection.BrokerNodeError) -> bool:
         current_year = self._timestamp_handler.get_current_year()
@@ -283,10 +278,7 @@ class NodeResourceRetriever(BrokerNodeRetriever):
     """
     Fetches broker node resources such as installed versions or packages and saves them to a text file.
     """
-
-    def __init__(self):
-        super().__init__()
-        self.__text_handler = TextWriter()
+    _handler = TextWriter()
 
     def download_broker_data_to_file(self, node_id: str):
         dir_working = self._init_node_directory_if_nonexisting(node_id)
@@ -306,11 +298,11 @@ class NodeResourceRetriever(BrokerNodeRetriever):
         response = self.__clean_dictionary(response)
         resourcepath = self.__generate_resource_file_path(resource_type, node_id, working_dir)
         if os.path.exists(resourcepath):
-            resource = self.__text_handler.load_txt_file_as_dict(resourcepath)
+            resource = self._handler.load_txt_file_as_dict(resourcepath)
             logpath = self.__generate_resource_log_path(resource_type, node_id, working_dir)
             self.__log_new_and_updated_items(logpath, response, resource)
             self.__log_deleted_items(logpath, response, resource)
-        self.__text_handler.save_dict_as_txt_file(response, resourcepath)
+        self._handler.save_dict_as_txt_file(response, resourcepath)
 
     def __log_new_and_updated_items(self, logpath: str, broker: dict, resource: dict):
         """
@@ -324,7 +316,7 @@ class NodeResourceRetriever(BrokerNodeRetriever):
                 current = self._timestamp_handler.get_current_date()
                 old_version = 'NEW' if (old_version := resource_name.get(resource_name)) is None else old_version
                 data = f'{current} : [{resource_name}] {old_version} --> {new_version}\n'
-                self.__text_handler.write_data_to_file(data, logpath)
+                self._handler.write_data_to_file(data, logpath)
 
     def __log_deleted_items(self, logpath: str, broker: dict, resource: dict):
         """
@@ -338,7 +330,7 @@ class NodeResourceRetriever(BrokerNodeRetriever):
                 current = self._timestamp_handler.get_current_date()
                 old_version = resource.get(resource_name)
                 data = f'{current} : [{resource_name}] {old_version} --> DELETED\n'
-                self.__text_handler.write_data_to_file(data, logpath)
+                self._handler.write_data_to_file(data, logpath)
 
     @staticmethod
     def __clean_dictionary(dictionary: dict) -> dict:
@@ -369,7 +361,7 @@ class NodeResourceRetriever(BrokerNodeRetriever):
         return os.path.join(working_dir, name_file)
 
 
-class NodeFetcherManager:
+class NodeRetrieverManager:
     """
     Manages the fetching of broker node information.
     """
@@ -390,6 +382,6 @@ class NodeFetcherManager:
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    manager = NodeFetcherManager()
+    manager = NodeRetrieverManager()
     functionality = manager.fetch_broker_node_information
     Main.main(sys.argv[1], functionality)
