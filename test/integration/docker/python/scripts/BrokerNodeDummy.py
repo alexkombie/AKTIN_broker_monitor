@@ -125,11 +125,11 @@ class BrokerNodeDummy:
         self.__API_KEY = api_key
 
     def __create_basic_header(self) -> dict:
-        return {'Authorization':' '.join(['Bearer', self.__API_KEY]), 'Connection':'keep-alive', 'Content-Type':'application/xml', 'Accept-Charset':'UTF-8'}
+        return {'Authorization': ' '.join(['Bearer', self.__API_KEY]), 'Connection': 'keep-alive', 'Content-Type': 'application/xml', 'Accept-Charset': 'UTF-8'}
 
     @staticmethod
     def __append_to_broker_url(*items: str) -> str:
-        url = os.environ['BROKER_URL']
+        url = os.environ['BROKER.URL']
         for item in items:
             url = '{}/{}'.format(url, item)
         return url

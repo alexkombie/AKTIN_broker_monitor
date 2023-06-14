@@ -3,15 +3,15 @@ import unittest
 from datetime import datetime
 from shutil import rmtree
 
-from common import PropertiesReader
+from common import ConfigReader
 from dateutil import parser
-from node_to_csv import NodeResourceFetcher
+from node_to_csv import NodeResourceRetriever
 from pytz import timezone
 
 from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeImportScripts, BrokerNodePython, BrokerNodeRscript, BrokerNodeVersions, BrokerNodeVersions2
 
 
-class TestNodeResourceFetcher(unittest.TestCase):
+class TestNodeResourceRetriever(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
     __DEFAULT_API_KEY: str = 'xxxApiKey123'
     __DIR_ROOT: str = None
@@ -19,9 +19,9 @@ class TestNodeResourceFetcher(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        cls.__FETCHER = NodeResourceFetcher()
+        ConfigReader().load_config_as_env_vars('settings.toml')
+        cls.__DIR_ROOT = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
+        cls.__RETRIEVER = NodeResourceRetriever()
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
 
     def tearDown(self):
@@ -30,28 +30,28 @@ class TestNodeResourceFetcher(unittest.TestCase):
     def test_fetch_broker_node_versions(self):
         versions = BrokerNodeVersions('1', '2')
         self.__DUMMY.put_resource_on_broker(versions, 'versions')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         content = self.__get_content_of_file_in_working_dir('0_versions.txt')
         self.assertEqual('{"java": "1", "os": "2"}', content)
 
     def test_fetch_broker_node_empty_rscript(self):
         rscript = BrokerNodeRscript('', '', '')
         self.__DUMMY.put_resource_on_broker(rscript, 'rscript')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         content = self.__get_content_of_file_in_working_dir('0_rscript.txt')
         self.assertEqual('{"r-base-core": "-", "r-cran-tidyverse": "-", "r-cran-lattice": "-"}', content)
 
     def test_fetch_broker_node_python(self):
         python = BrokerNodePython('python1', 'python2', '')
         self.__DUMMY.put_resource_on_broker(python, 'python')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         content = self.__get_content_of_file_in_working_dir('0_python.txt')
         self.assertEqual('{"python3": "python1", "python3-numpy": "python2", "python3-pandas": "-"}', content)
 
     def test_fetch_broker_node_import_scripts(self):
         scripts = BrokerNodeImportScripts('1.5')
         self.__DUMMY.put_resource_on_broker(scripts, 'import-scripts')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         content = self.__get_content_of_file_in_working_dir('0_import-scripts.txt')
         self.assertEqual('{"p21": "1.5"}', content)
 
@@ -68,20 +68,20 @@ class TestNodeResourceFetcher(unittest.TestCase):
     def test_logging_broker_node_versions(self):
         self.__no_log_creation_on_no_changes()
         self.__DUMMY.put_resource_on_broker(BrokerNodeVersions('3\n', '4\n'), 'versions')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         self.__DUMMY.put_resource_on_broker(BrokerNodeVersions2('3', '4', '1', '2'), 'versions')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         self.__DUMMY.put_resource_on_broker(BrokerNodeVersions('3', '4'), 'versions')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         self.__check_versions_log()
 
     def __no_log_creation_on_no_changes(self):
         versions = BrokerNodeVersions('1', '2')
         self.__DUMMY.put_resource_on_broker(versions, 'versions')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         self.assertFalse(self.__check_file_existance_in_working_dir(self.__DEFAULT_LOG_FILENAME))
         self.__DUMMY.put_resource_on_broker(versions, 'versions')
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         self.assertFalse(self.__check_file_existance_in_working_dir(self.__DEFAULT_LOG_FILENAME))
 
     def __check_versions_log(self):

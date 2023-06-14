@@ -4,33 +4,33 @@ from datetime import datetime, timedelta
 from shutil import rmtree
 
 import pandas as pd
-from common import InfoCSVHandler, PropertiesReader
+from common import InfoCSVHandler, ConfigReader
 from dateutil import parser
-from node_to_csv import NodeInfoFetcher
+from node_to_csv import NodeInfoRetriever
 from pytz import timezone
 
 from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeImports
 
 
-class TestNodeInfoFetcher(unittest.TestCase):
+class TestNodeInfoRetriever(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
     __DEFAULT_API_KEY: str = 'xxxApiKey123'
     __DIR_ROOT: str = None
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        ConfigReader().load_config_as_env_vars('settings.toml')
+        cls.__DIR_ROOT = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__CSV_HANDLER = InfoCSVHandler()
-        name_csv = InfoCSVHandler().generate_csv_name(cls.__DEFAULT_NODE_ID)
+        name_csv = InfoCSVHandler().generate_node_csv_name(cls.__DEFAULT_NODE_ID)
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
-        cls.__FETCHER = NodeInfoFetcher()
+        cls.__RETRIEVER = NodeInfoRetriever()
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
 
     def setUp(self):
         stats = self.__create_stats1()
         self.__DUMMY.put_import_info_on_broker(stats)
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
 
     def tearDown(self):
         [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
@@ -48,7 +48,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         dummy.put_import_info_on_broker(stats)
 
     def __make_new_fetching_and_check_csv_count(self, id_node: str, count: int):
-        self.__FETCHER.fetch_broker_data_to_file(id_node)
+        self.__RETRIEVER.download_broker_data_to_file(id_node)
         list_csv = self.__list_csv_in_working_directory()
         self.assertEqual(count, len(list_csv))
 
@@ -81,7 +81,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
     def test_fetch_next_stats_in_csv(self):
@@ -90,8 +90,8 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
 
     def test_fetch_next_stats_in_csv_timegap(self):
         self.__change_date_of_current_csv_to_past_days(5)
@@ -99,7 +99,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
     def test_fetch_next_stats_in_csv_with_dwh_restart(self):
@@ -108,7 +108,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 13:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
     def test_fetch_new_stats_in_csv_after_year_change(self):
@@ -118,8 +118,8 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
-        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
+        self.__check_daily_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
 
     def test_fetch_new_stats_in_csv_after_year_change_timegap(self):
         self.__change_date_of_current_csv_to_past_days(5)
@@ -128,7 +128,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
         self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
-        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.0')
+        self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
     def __create_stats1(self):
@@ -184,7 +184,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
 
     def __put_import_stats_on_broker_and_get_fetched_csv_as_df(self, payload):
         self.__DUMMY.put_import_info_on_broker(payload)
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         return self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
 
     def __change_date_of_current_csv_to_past_days(self, days: int):
@@ -193,7 +193,7 @@ class TestNodeInfoFetcher(unittest.TestCase):
         ts_past = ts_current - timedelta(days=days)
         date_past = ts_past.strftime('%Y-%m-%d %H:%M:%S')
         df.iloc[0]['date'] = date_past
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     @staticmethod
     def __rename_csv_to_last_years_csv(path_csv: str):

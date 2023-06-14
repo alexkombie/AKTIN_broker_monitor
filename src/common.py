@@ -79,7 +79,7 @@ class DataWriter(ABC, metaclass=SingletonABCMeta):
         pass
 
 
-class CSVHandler(ABC, DataWriter):
+class CSVHandler(DataWriter, ABC):
     """
     Operations for reading a CSV file as a dataframe or writing a dataframe to CSV
     """
@@ -198,13 +198,13 @@ class TimestampHandler(metaclass=SingletonMeta):
         return str(d)
 
 
-# TODO test bc no lxml!
 class BrokerNodeConnection(metaclass=SingletonMeta):
     """
     Uses REST endpoint of broker-server to get information about
     connected nodes
     """
     __timeout = 10
+    __namespace = './/{http://aktin.org/ns/exchange}'
 
     def __init__(self):
         self.__broker_url = os.getenv('BROKER.URL')
@@ -225,15 +225,20 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
     def get_broker_nodes(self) -> list:
         url = self.__append_to_broker_url('broker', 'node')
         tree = self.__get_processed_response(url)
-        return [node.find('id').text for node in tree.iterfind('node')]
+        list_ids = []
+        for node in tree.findall(f'{self.__namespace}node'):
+            id_element = node.find(f'{self.__namespace}id')
+            if id_element is not None:
+                list_ids.append(id_element.text)
+        return list_ids
 
     def get_broker_node(self, node_id: str) -> 'BrokerNodeConnection.BrokerNode':
         url = self.__append_to_broker_url('broker', 'node', node_id)
         tree = self.__get_processed_response(url)
         return self.BrokerNode(
             node_id,
-            tree.find('clientDN').text,
-            tree.find('last-contact').text)
+            tree.find(f'{self.__namespace}clientDN').text,
+            tree.find(f'{self.__namespace}last-contact').text)
 
     def get_broker_node_stats(self, node_id: str) -> 'BrokerNodeConnection.BrokerNodeStats':
         url = self.__append_to_broker_url('broker', 'node', node_id, 'stats')
@@ -251,7 +256,7 @@ class BrokerNodeConnection(metaclass=SingletonMeta):
         url = self.__append_to_broker_url('broker', 'node', node_id, 'stats')
         tree = self.__get_processed_response(url)
         errors = []
-        for elem in tree.find('last-errors').getchildren():
+        for elem in tree.find('last-errors'):
             error = self.BrokerNodeError(
                 elem.get('repeats'),
                 elem.get('timestamp'),

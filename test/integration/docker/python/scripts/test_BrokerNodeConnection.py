@@ -1,8 +1,8 @@
 import unittest
+import xml.etree.ElementTree as et
 
-import lxml
 import requests
-from common import BrokerNodeConnection, PropertiesReader
+from common import BrokerNodeConnection, ConfigReader
 
 from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeError, BrokerNodeImportScripts, BrokerNodeImports, BrokerNodePython, BrokerNodeRscript, BrokerNodeVersions
 
@@ -13,7 +13,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
+        ConfigReader().load_config_as_env_vars('settings.toml')
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
         cls.__BROKER_NODE_CONNECTION = BrokerNodeConnection()
 
@@ -117,7 +117,7 @@ class TestBrokerNodeConnection(unittest.TestCase):
 
     def test_get_broker_node_empty_resource(self):
         self.__DUMMY.put_empty_resource_on_broker('empty')
-        with self.assertRaises(lxml.etree.XMLSyntaxError):
+        with self.assertRaises(et.ParseError):
             _ = self.__BROKER_NODE_CONNECTION.get_broker_node_resource(self.__DEFAULT_NODE_ID, 'empty')
 
     def test_get_broker_node_nonexisting_resource(self):

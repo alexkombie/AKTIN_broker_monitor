@@ -201,7 +201,7 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         elif sum_failure == 0 and sum_success == 0:
             error_rate = '-'
         else:
-            error_rate = sum_failure / (sum_success + sum_failure)
+            error_rate = sum_failure / (sum_success + sum_failure) * 100
             error_rate = f'{error_rate:.2f}'
         return error_rate
 
@@ -314,7 +314,7 @@ class NodeResourceRetriever(BrokerNodeRetriever):
         if difference:
             for resource_name, new_version in difference:
                 current = self._timestamp_handler.get_current_date()
-                old_version = 'NEW' if (old_version := resource_name.get(resource_name)) is None else old_version
+                old_version = resource.get(resource_name, 'NEW')
                 data = f'{current} : [{resource_name}] {old_version} --> {new_version}\n'
                 self._handler.write_data_to_file(data, logpath)
 

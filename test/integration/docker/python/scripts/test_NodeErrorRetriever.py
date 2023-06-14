@@ -4,31 +4,31 @@ from datetime import datetime
 from shutil import rmtree
 
 import pandas as pd
-from common import ErrorCSVHandler, PropertiesReader
-from node_to_csv import NodeErrorFetcher
+from common import ErrorCSVHandler, ConfigReader
+from node_to_csv import NodeErrorRetriever
 
 from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeError
 
 
-class TestNodeErrorFetcher(unittest.TestCase):
+class TestNodeErrorRetriever(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
     __DEFAULT_API_KEY: str = 'xxxApiKey123'
     __DIR_ROOT: str = None
 
     @classmethod
     def setUpClass(cls):
-        PropertiesReader().load_properties_as_env_vars('settings.json')
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        ConfigReader().load_config_as_env_vars('settings.toml')
+        cls.__DIR_ROOT = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__CSV_HANDLER = ErrorCSVHandler()
-        name_csv = ErrorCSVHandler().generate_csv_name(cls.__DEFAULT_NODE_ID)
+        name_csv = ErrorCSVHandler().generate_node_csv_name(cls.__DEFAULT_NODE_ID)
         cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
-        cls.__FETCHER = NodeErrorFetcher()
+        cls.__RETRIEVER = NodeErrorRetriever()
         cls.__DUMMY = BrokerNodeDummy(cls.__DEFAULT_API_KEY)
 
     def setUp(self):
         stats = self.__create_error1()
         self.__DUMMY.put_import_info_on_broker(stats)
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
 
     def tearDown(self):
         [rmtree(name) for name in os.listdir(self.__DIR_ROOT) if os.path.isdir(name) and len(name) <= 2]
@@ -46,7 +46,7 @@ class TestNodeErrorFetcher(unittest.TestCase):
         dummy.put_import_info_on_broker(stats)
 
     def __make_new_fetching_and_check_csv_count(self, id_node: str, count: int):
-        self.__FETCHER.fetch_broker_data_to_file(id_node)
+        self.__RETRIEVER.download_broker_data_to_file(id_node)
         list_csv = self.__list_csv_in_working_directory()
         self.assertEqual(count, len(list_csv))
 
@@ -142,7 +142,7 @@ class TestNodeErrorFetcher(unittest.TestCase):
 
     def __put_import_error_on_broker_and_get_fetched_csv_as_df(self, payload):
         self.__DUMMY.put_import_info_on_broker(payload)
-        self.__FETCHER.fetch_broker_data_to_file(self.__DEFAULT_NODE_ID)
+        self.__RETRIEVER.download_broker_data_to_file(self.__DEFAULT_NODE_ID)
         return self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
 
 
