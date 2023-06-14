@@ -106,8 +106,8 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         """
         if not csv.empty:
             current_date = self._timestamp_handler.get_current_date()
-            current_ymd = self._timestamp_handler.get_ymd_from_date_string(current_date)
-            last_ymd_of_csv = self._timestamp_handler.get_ymd_from_date_string(csv.iloc[-1].date)
+            current_ymd = self._timestamp_handler.get_local_ymd_from_date_string(current_date)
+            last_ymd_of_csv = self._timestamp_handler.get_local_ymd_from_date_string(csv.iloc[-1].date)
             if last_ymd_of_csv == current_ymd:
                 csv = csv.head(-1)
             if any(csv['date'] == current_ymd):
@@ -133,15 +133,15 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         This is a consistency check. Today's stats cannot be computed without yesterday's stats.
         """
         yesterdays_date = self._timestamp_handler.get_yesterdays_date()
-        yesterdays_ymd = self._timestamp_handler.get_ymd_from_date_string(yesterdays_date)
-        last_ymd_of_csv = self._timestamp_handler.get_ymd_from_date_string(csv_row.date)
+        yesterdays_ymd = self._timestamp_handler.get_local_ymd_from_date_string(yesterdays_date)
+        last_ymd_of_csv = self._timestamp_handler.get_local_ymd_from_date_string(csv_row.date)
         return last_ymd_of_csv == yesterdays_ymd
 
     def __are_dwh_start_date_equal(self, csv_row: pd.DataFrame, stats: BrokerNodeConnection.BrokerNodeStats) -> bool:
         """
         This is a consistency check. Import stats of AKTIN DWH are reset on each restart.
         """
-        dwh_start = self._timestamp_handler.get_ymd_hms_from_date_string(stats.dwh_start)
+        dwh_start = self._timestamp_handler.get_local_ymd_hms_from_date_string(stats.dwh_start)
         return csv_row.last_start == dwh_start
 
     @staticmethod
@@ -176,12 +176,11 @@ class NodeInfoRetriever(BrokerNodeRetriever):
         updated = int(node_stats.updated)
         invalid = int(node_stats.invalid)
         failed = int(node_stats.failed)
-        last_contact = self._timestamp_handler.convert_utc_to_local_date_string(node_broker.last_contact)
-        return {'date': self._timestamp_handler.get_ymd_hms_from_date_string(self._timestamp_handler.get_current_date()),
-                'last_contact': self._timestamp_handler.get_ymd_hms_from_date_string(last_contact),
-                'last_start': self._timestamp_handler.get_ymd_hms_from_date_string(node_stats.dwh_start),
-                'last_write': self._timestamp_handler.get_ymd_hms_from_date_string(node_stats.last_write) if node_stats.last_write is not None else '-',
-                'last_reject': self._timestamp_handler.get_ymd_hms_from_date_string(node_stats.last_reject) if node_stats.last_reject is not None else '-',
+        return {'date': self._timestamp_handler.get_local_ymd_hms_from_date_string(self._timestamp_handler.get_current_date()),
+                'last_contact': self._timestamp_handler.get_local_ymd_hms_from_date_string(node_broker.last_contact),
+                'last_start': self._timestamp_handler.get_local_ymd_hms_from_date_string(node_stats.dwh_start),
+                'last_write': self._timestamp_handler.get_local_ymd_hms_from_date_string(node_stats.last_write) if node_stats.last_write is not None else '-',
+                'last_reject': self._timestamp_handler.get_local_ymd_hms_from_date_string(node_stats.last_reject) if node_stats.last_reject is not None else '-',
                 'imported': imported,
                 'updated': updated,
                 'invalid': invalid,
@@ -241,7 +240,7 @@ class NodeErrorRetriever(BrokerNodeRetriever):
 
     def __did_error_appear_this_year(self, error: BrokerNodeConnection.BrokerNodeError) -> bool:
         current_year = self._timestamp_handler.get_current_year()
-        year_of_error = self._timestamp_handler.get_year_from_date_string(error.timestamp)
+        year_of_error = self._timestamp_handler.get_local_year_from_date_string(error.timestamp)
         return current_year == year_of_error
 
     def __convert_error_to_row(self, error: BrokerNodeConnection.BrokerNodeError) -> pd.DataFrame:
@@ -250,7 +249,7 @@ class NodeErrorRetriever(BrokerNodeRetriever):
         Var 'timestamp' is in local timezone.
         """
         new_row = {
-            'timestamp': self._timestamp_handler.get_ymd_hms_from_date_string(error.timestamp),
+            'timestamp': self._timestamp_handler.get_local_ymd_hms_from_date_string(error.timestamp),
             'repeats': error.repeats if error.repeats is not None else '1',
             'content': error.content}
         return pd.DataFrame(new_row, index=[0])

@@ -172,18 +172,16 @@ class TimestampHandler(metaclass=SingletonMeta):
         return str(date.year)
 
     @staticmethod
-    def get_year_from_date_string(date: str) -> str:
+    def get_local_year_from_date_string(date: str) -> str:
         d = parser.parse(date)
         return str(d.year)
 
-    @staticmethod
-    def get_ymd_from_date_string(date: str) -> str:
-        d = parser.parse(date)
+    def get_local_ymd_from_date_string(self, date: str) -> str:
+        d = parser.parse(date).astimezone(self.__timezone)
         return d.strftime('%Y-%m-%d')
 
-    @staticmethod
-    def get_ymd_hms_from_date_string(date: str) -> str:
-        d = parser.parse(date)
+    def get_local_ymd_hms_from_date_string(self, date: str) -> str:
+        d = parser.parse(date).astimezone(self.__timezone)
         return d.strftime('%Y-%m-%d %H:%M:%S')
 
     @staticmethod
@@ -192,10 +190,6 @@ class TimestampHandler(metaclass=SingletonMeta):
         d2 = parser.parse(date2).astimezone(pytz.utc)
         delta = d2 - d1
         return abs(delta.total_seconds() // 3600)
-
-    def convert_utc_to_local_date_string(self, date: str) -> str:
-        d = parser.parse(date).astimezone(self.__timezone)
-        return str(d)
 
 
 class BrokerNodeConnection(metaclass=SingletonMeta):
