@@ -35,371 +35,101 @@ import pandas as pd
 from bs4.element import Tag
 from packaging import version
 
-from common import CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, MyLogger, ConfigReader, ResourceLoader, SingletonABCMeta, \
+from common import Main, CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
+
+
+class TemplatePageLoader(ResourceLoader):
+    """
+    Retrieves the confluence template page content as a string
+    """
+    __filename: str = 'template_page.html'
+    __encoding: str = 'utf-8'
+
+    def get_template_page(self) -> str:
+        return self._get_resource_as_string(self.__filename, self.__encoding)
 
 
 class TemplatePageElementCreator(metaclass=SingletonMeta):
     """
     Creates commonly used html and confluence elements. Is also used to convert string
-    template of confluence page to searchable html soup
+    template of confluence page to a searchable html soup
     """
-    __PARSER: str = 'html.parser'
+    __parser: str = 'html.parser'
 
     def create_ac_parameter_element(self, name: str, content: str) -> Tag:
-        parameter = bs4.BeautifulSoup(features=self.__PARSER).new_tag('ac:parameter', attrs={'ac:name':name})
+        parameter = bs4.BeautifulSoup(features=self.__parser).new_tag('ac:parameter', attrs={'ac:name': name})
         parameter.append(content)
         return parameter
 
     def create_ac_macro_element(self, name: str) -> Tag:
-        attributes = {'ac:name':name, 'ac:schema-version':'1'}
-        macro = bs4.BeautifulSoup(features=self.__PARSER).new_tag('ac:structured-macro', attrs=attributes)
+        attributes = {'ac:name': name, 'ac:schema-version': '1'}
+        macro = bs4.BeautifulSoup(features=self.__parser).new_tag('ac:structured-macro', attrs=attributes)
         return macro
 
-    def create_ac_link_element(self, name_page: str) -> bs4.BeautifulSoup:
+    def create_ac_link_element(self, pagename: str) -> bs4.BeautifulSoup:
         """
         bs4 seems not to be supporting self-closing HTML-Tags
         """
-        link = '<ac:link><ri:page ri:content-title="{0}" /></ac:link>'.format(name_page)
+        link = f'<ac:link><ri:page ri:content-title="{pagename}" /></ac:link>'
         link = self.convert_element_to_soup(link)
         return link
 
-    def create_table_header_element(self, name_header: str) -> Tag:
-        th = bs4.BeautifulSoup(features=self.__PARSER).new_tag('th', attrs={'style':'text-align: center;'})
-        th.append(name_header)
-        return th
-
-    def create_table_data_element(self, content: str, centered=False) -> Tag:
-        attributes = {'style':'text-align: center;'} if centered is True else {}
-        td = bs4.BeautifulSoup(features=self.__PARSER).new_tag('td', attrs=attributes)
-        td.append(content)
-        return td
-
-    def create_html_element(self, type_element: str, attributes=None) -> Tag:
-        attributes = {} if attributes is None else attributes
-        return bs4.BeautifulSoup(features=self.__PARSER).new_tag(type_element, attrs=attributes)
-
-    def convert_element_to_soup(self, element) -> bs4.BeautifulSoup:
-        return bs4.BeautifulSoup(str(element), self.__PARSER)
-
-
-class TemplatePageLoader(ResourceLoader):
-    __FILENAME_TEMPLATE_PAGE: str = 'template_page.html'
-    __ENCODING: str = 'utf-8'
-
-    def get_template_page(self) -> str:
-        return self._get_resource_as_string(self.__FILENAME_TEMPLATE_PAGE, self.__ENCODING)
-
-
-class TemplatePageCSVContentWriter(ABC, metaclass=SingletonABCMeta):
-    """
-    Used to write content from csv file to confluence page
-    """
-    _CSV_HANDLER: CSVHandler
-
-    def __init__(self):
-        self._DIR_ROOT = os.getenv('DIR.WORKING')
-        self._ID_NODE = None
-        self._PAGE_TEMPLATE = None
-        self._DF = None
-
-    def add_content_to_template_page(self, page_template: str, id_node: str) -> str:
-        self._ID_NODE = id_node
-        self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
-        dir_working = os.path.join(self._DIR_ROOT, id_node)
-        self._DF = self.__load_csv_as_df(id_node, dir_working)
-        self._add_content_to_template_soup()
-        return str(self._PAGE_TEMPLATE)
-
-    def __load_csv_as_df(self, id_node: str, dir_working: str) -> pd.DataFrame:
-        name_csv = self._CSV_HANDLER.generate_csv_name(id_node)
-        path_csv = os.path.join(dir_working, name_csv)
-        return self._CSV_HANDLER.read_csv_as_df(path_csv)
-
-    @abstractmethod
-    def _add_content_to_template_soup(self):
-        pass
-
-
-class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
-    """
-    Writes content of info csv (of a single node) into predefined elements of the template
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._CSV_HANDLER = InfoCSVHandler()
-
-    def _add_content_to_template_soup(self):
-        self.__add_dates_to_template_soup()
-        self.__add_weekly_imports_to_template_soup()
-        self.__add_daily_imports_to_template_soup()
-
-    def __add_dates_to_template_soup(self):
-        dict_last_row = self._DF.iloc[-1].to_dict()
-        self._PAGE_TEMPLATE.find(class_='last_check').string.replace_with(dict_last_row.get('date'))
-        self._PAGE_TEMPLATE.find(class_='last_contact').string.replace_with(dict_last_row.get('last_contact'))
-        self._PAGE_TEMPLATE.find(class_='last_start').string.replace_with(dict_last_row.get('last_start'))
-        self._PAGE_TEMPLATE.find(class_='last_write').string.replace_with(dict_last_row.get('last_write'))
-        self._PAGE_TEMPLATE.find(class_='last_reject').string.replace_with(dict_last_row.get('last_reject'))
-
-    @staticmethod
-    def __get_mean_of_series(series: pd.Series) -> str:
-        series = series.replace('-', '0.0')
-        mean = series.astype(float).mean()
-        return "{:.2f}".format(mean)
-
-    def __add_weekly_imports_to_template_soup(self):
-        last_week = self._DF.tail(7)
-        imported = self.__get_mean_of_series(last_week['daily_imported'])
-        updated = self.__get_mean_of_series(last_week['daily_updated'])
-        invalid = self.__get_mean_of_series(last_week['daily_invalid'])
-        failed = self.__get_mean_of_series(last_week['daily_failed'])
-        error_rate = self.__get_mean_of_series(last_week['daily_error_rate'])
-        self._PAGE_TEMPLATE.find(class_='imported').string.replace_with(imported)
-        self._PAGE_TEMPLATE.find(class_='updated').string.replace_with(updated)
-        self._PAGE_TEMPLATE.find(class_='invalid').string.replace_with(invalid)
-        self._PAGE_TEMPLATE.find(class_='failed').string.replace_with(failed)
-        self._PAGE_TEMPLATE.find(class_='error_rate').string.replace_with(error_rate)
-
-    def __add_total_imports_to_template_soup(self):
-        dict_last_row = self._DF.iloc[-1].to_dict()
-        self._PAGE_TEMPLATE.find(class_='imported').string.replace_with(dict_last_row.get('imported'))
-        self._PAGE_TEMPLATE.find(class_='updated').string.replace_with(dict_last_row.get('updated'))
-        self._PAGE_TEMPLATE.find(class_='invalid').string.replace_with(dict_last_row.get('invalid'))
-        self._PAGE_TEMPLATE.find(class_='failed').string.replace_with(dict_last_row.get('failed'))
-        self._PAGE_TEMPLATE.find(class_='error_rate').string.replace_with(dict_last_row.get('error_rate'))
-
-    def __add_daily_imports_to_template_soup(self):
-        dict_last_row = self._DF.iloc[-1].to_dict()
-        self._PAGE_TEMPLATE.find(class_='daily_imported').string.replace_with(dict_last_row.get('daily_imported'))
-        self._PAGE_TEMPLATE.find(class_='daily_updated').string.replace_with(dict_last_row.get('daily_updated'))
-        self._PAGE_TEMPLATE.find(class_='daily_invalid').string.replace_with(dict_last_row.get('daily_invalid'))
-        self._PAGE_TEMPLATE.find(class_='daily_failed').string.replace_with(dict_last_row.get('daily_failed'))
-        self._PAGE_TEMPLATE.find(class_='daily_error_rate').string.replace_with(dict_last_row.get('daily_error_rate'))
-
-
-class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
-    """
-    CWrites content of error csv (of a single node) into predefined elements of the template
-    """
-    __NUM_ERRORS: int = 20
-
-    def __init__(self):
-        super().__init__()
-        self._CSV_HANDLER = ErrorCSVHandler()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
-
-    def _add_content_to_template_soup(self):
-        table_errors = self.__create_confluence_error_table()
-        self._PAGE_TEMPLATE.find(class_='table_errors_body').replace_with(table_errors)
-
-    def __create_confluence_error_table(self) -> Tag:
-        list_dicts_error = self._DF.head(self.__NUM_ERRORS).to_dict('records')
-        list_error_rows = []
-        for error in list_dicts_error:
-            row = self.__create_error_table_row(error['timestamp'], error['repeats'], error['content'])
-            list_error_rows.append(row)
-        table = self.__generate_empty_error_table()
-        table.find('tbody').extend(list_error_rows)
-        return table
-
-    def __create_error_table_row(self, timestamp: str, repeats: str, content: str) -> Tag:
-        column_timestamp = self.__ELEMENT_CREATOR.create_table_data_element(timestamp, centered=True)
-        column_repeats = self.__ELEMENT_CREATOR.create_table_data_element(repeats, centered=True)
-        column_content = self.__ELEMENT_CREATOR.create_table_data_element(content)
-        row = self.__ELEMENT_CREATOR.create_html_element('tr')
-        row.extend([column_timestamp, column_repeats, column_content])
-        return row
-
-    def __generate_empty_error_table(self) -> bs4.BeautifulSoup:
-        header_error = self.__create_error_table_header()
-        table = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class':'table_errors_body'})
-        table.append(header_error)
-        table = self.__ELEMENT_CREATOR.convert_element_to_soup(table)
-        return table
-
-    def __create_error_table_header(self) -> Tag:
-        header_timestamp = self.__ELEMENT_CREATOR.create_table_header_element('timestamp')
-        header_repeats = self.__ELEMENT_CREATOR.create_table_header_element('repeats')
-        header_content = self.__ELEMENT_CREATOR.create_table_header_element('content')
-        header = self.__ELEMENT_CREATOR.create_html_element('tr')
-        header.extend([header_timestamp, header_repeats, header_content])
+    def create_th_html_element(self, name: str) -> Tag:
+        header = bs4.BeautifulSoup(features=self.__parser).new_tag('th', attrs={'style': 'text-align: center;'})
+        header.append(name)
         return header
 
+    def create_td_html_element(self, content: str, centered=False) -> Tag:
+        attributes = {'style': 'text-align: center;'} if centered else {}
+        data = bs4.BeautifulSoup(features=self.__parser).new_tag('td', attrs=attributes)
+        data.append(content)
+        return data
 
-class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
-    """
-    Checks import and connection status inside (template of) confluence page and sets
-    status as a custom html element.
-    Should always be the last class called in the processing pipeline!
-    """
+    def create_html_element(self, elem_type: str, attributes=None) -> Tag:
+        attributes = attributes or {}
+        return bs4.BeautifulSoup(features=self.__parser).new_tag(elem_type, attrs=attributes)
 
-    def __init__(self):
-        super().__init__()
-        self._CSV_HANDLER = InfoCSVHandler()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
-        self.__TIMESTAMP_HANDLER = TimestampHandler()
-        self.__MAPPER = ConfluenceNodeMapper()
+    def convert_element_to_soup(self, elem) -> bs4.BeautifulSoup:
+        return bs4.BeautifulSoup(str(elem), self.__parser)
 
-    def __append_last_year_rows_to_df_if_necessary(self):
-        """
-        If the csv has less than 4 rows, try to append the last 10 rows of last years csv
-        to this csv
-        """
-        if len(self._DF) < 4:
-            year_current = self.__TIMESTAMP_HANDLER.get_current_year()
-            year_last_year = str(int(year_current) - 1)
-            name_csv_last_year = self._CSV_HANDLER.generate_csv_name_with_custom_year(self._ID_NODE, year_last_year)
-            path_csv_last_year = os.path.join(self._DIR_ROOT, self._ID_NODE, name_csv_last_year)
-            if os.path.isfile(path_csv_last_year):
-                df_last_year = self._CSV_HANDLER.read_csv_as_df(path_csv_last_year)
-                df_last_year = df_last_year.iloc[-10:]
-                self._DF = pd.concat([df_last_year, self._DF], ignore_index=True)
-
-    def _add_content_to_template_soup(self):
-        self.__append_last_year_rows_to_df_if_necessary()
-        if self.__has_csv_a_gap_in_broker_connection():
-            status = self.__create_status_element('GAP IN MONITORING', 'Red')
-        elif self.__is_template_soup_still_testing():
-            status = self.__create_status_element('TESTING', 'Blue')
-        elif self.__is_template_soup_offline():
-            status = self.__create_status_element('OFFLINE', 'Red')
-        elif self.__is_template_soup_not_importing():
-            status = self.__create_status_element('NO IMPORTS', 'Red')
-        elif self.__is_template_soup_daily_error_rate_above_threshold(10.0):
-            status = self.__create_status_element('EXTREME ERROR RATE', 'Red')
-        elif self.__is_template_soup_daily_error_rate_above_threshold(5.0):
-            status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
-        elif self.__is_template_soup_daily_error_rate_above_threshold(1.0):
-            status = self.__create_status_element('LOW ERROR RATE', 'Yellow')
-        else:
-            status = self.__create_status_element('ONLINE', 'Green')
-        self._PAGE_TEMPLATE.find(class_='status').replace_with(status)
-
-    def __has_csv_a_gap_in_broker_connection(self) -> bool:
-        """
-        Each day a row is appended to the csv file with the current import stats.
-        If the broker connection fails, no row is appended and a gap appears, which can be detected.
-        """
-        series = self._DF['date']
-        if series.empty:
-            return False
-        csv_today = series.iloc[-1]
-        date_current = self.__TIMESTAMP_HANDLER.get_current_date()
-        delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_current, csv_today)
-        if delta > 24:
-            return True
-        else:
-            if len(series) >= 2:
-                csv_yesterday = series.iloc[-2]
-                delta2 = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(csv_yesterday, csv_today)
-                if delta2 > 24:
-                    return True
-        return False
-
-    def __is_template_soup_still_testing(self) -> bool:
-        """
-        Node is still testing if it does not have 3 consecutive days of imports
-        """
-        series = self._DF['daily_imported']
-        if len(series) < 3:
-            return False
-        series = series.str.replace('-', '0')
-        series = pd.to_numeric(series)
-        iterators = tee(series, 3)
-        for idx, it in enumerate(iterators):
-            next(islice(it, idx, idx), None)
-        slices_consecutive_imports = (iterslice for iterslice in zip(*iterators) if all(x > 0 for x in iterslice))
-        return not any(slices_consecutive_imports)
-
-    def __is_template_soup_offline(self) -> bool:
-        last_contact = self._PAGE_TEMPLATE.find(class_='last_contact').string
-        return self.__is_date_longer_ago_than_set_hours(last_contact)
-
-    def __is_date_longer_ago_than_set_hours(self, date_input: str) -> bool:
-        threshold_hours = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'THRESHOLD_HOURS_FAILURE')
-        if not threshold_hours or threshold_hours is None:
-            threshold_hours = 24
-        date_input = self.__TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string(date_input)
-        date_now = self.__TIMESTAMP_HANDLER.get_current_date()
-        delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_input, date_now)
-        if delta > threshold_hours:
-            return True
-        else:
-            return False
-
-    def __is_template_soup_not_importing(self) -> bool:
-        last_write = self._PAGE_TEMPLATE.find(class_='last_write').string
-        if last_write == '-':
-            return True
-        return self.__is_date_longer_ago_than_set_hours(last_write)
-
-    def __is_template_soup_daily_error_rate_above_threshold(self, threshold: float) -> bool:
-        error_rate = self._PAGE_TEMPLATE.find(class_='daily_error_rate').string
-        if error_rate == '-':
-            return False
-        return float(error_rate) >= threshold
-
-    def __create_status_element(self, title: str, color: str) -> Tag:
-        param_title = self.__ELEMENT_CREATOR.create_ac_parameter_element('title', title)
-        param_color = self.__ELEMENT_CREATOR.create_ac_parameter_element('color', color)
-        frame = self.__ELEMENT_CREATOR.create_ac_macro_element('status')
-        frame.extend([param_title, param_color])
-        status = self.__ELEMENT_CREATOR.create_html_element('td', {'style':'text-align:center;', 'class':'status'})
-        status.append(frame)
-        return status
-
-
-class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
-    """
-    Just adds monitoring start date for corresponding node to confluence page
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._CSV_HANDLER = InfoCSVHandler()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
-        self.__TIMESTAMP_HANDLER = TimestampHandler()
-
-    def _add_content_to_template_soup(self):
-        first_monitoring = self._DF['date'].iloc[0]
-        start_monitoring = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string(first_monitoring)
-        element_time = self.__ELEMENT_CREATOR.create_html_element('time', {'datetime':start_monitoring})
-        td = self.__ELEMENT_CREATOR.create_html_element('td', {'class':'online_since'})
-        td.append(element_time)
-        self._PAGE_TEMPLATE.find(class_='online_since').replace_with(td)
+    def get_parser(self) -> str:
+        return self.__parser
 
 
 class TemplatePageContentWriter(ABC, metaclass=SingletonABCMeta):
     """
-    Used to write (non-csv) content to confluence page
+    Base class for writing content to a Confluence page.
     """
+    _encoding: str = 'utf-8'
 
     def __init__(self):
-        self.__DIR_ROOT = os.getenv('DIR.WORKING')
-        self._ID_NODE = None
-        self._DIR_WORKING = None
-        self._PAGE_TEMPLATE = None
+        self._creator = TemplatePageElementCreator()
+        self._working_dir = os.getenv('DIR.WORKING')
+        self._node_id = None
+        self._node_working_dir = None
+        self._page_template = None
 
-    def add_content_to_template_page(self, page_template: str, id_node: str) -> str:
-        self._ID_NODE = id_node
-        self._DIR_WORKING = os.path.join(self.__DIR_ROOT, id_node)
-        self._PAGE_TEMPLATE = bs4.BeautifulSoup(page_template, 'html.parser')
+    def add_content_to_template_page(self, template_page: str, node_id: str) -> str:
+        self._node_id = node_id
+        self._node_working_dir = os.path.join(self._working_dir, node_id)
+        self._page_template = bs4.BeautifulSoup(template_page, self._creator.get_parser())
         self._add_content_to_template_soup()
-        return str(self._PAGE_TEMPLATE)
+        return str(self._page_template)
 
     @abstractmethod
     def _add_content_to_template_soup(self):
-        pass
+        """
+        Abstract method to add content to the template page's BeautifulSoup object.
+        """
 
 
 class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
     """
-    Writes information about node resources from text file to confluence page.
+    Writes information about node resources from a text file to a Confluence page.
 
-    Content of resource 'versions' is more static than the other resources. Therefore, each value is
-    written into a predefined element. The other resources are just concatted.
+    The content of the 'versions' resource is more static compared to other resources. Each value is written into a
+    predefined element. The other resources are concatenated and added to the page.
     """
 
     def _add_content_to_template_soup(self):
@@ -410,37 +140,37 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
 
     def __add_versions_to_template_soup(self):
         versions = self.__load_node_resource_as_dict('versions')
-        self._PAGE_TEMPLATE.find(class_='os').string.replace_with(self.__get_value_of_dict(versions, 'os'))
-        self._PAGE_TEMPLATE.find(class_='kernel').string.replace_with(self.__get_value_of_dict(versions, 'kernel'))
-        self._PAGE_TEMPLATE.find(class_='java').string.replace_with(self.__get_value_of_dict(versions, 'java'))
-        self._PAGE_TEMPLATE.find(class_='j2ee-impl').string.replace_with(
+        self._page_template.find(class_='os').string.replace_with(self.__get_value_of_dict(versions, 'os'))
+        self._page_template.find(class_='kernel').string.replace_with(self.__get_value_of_dict(versions, 'kernel'))
+        self._page_template.find(class_='java').string.replace_with(self.__get_value_of_dict(versions, 'java'))
+        self._page_template.find(class_='j2ee-impl').string.replace_with(
             self.__get_value_of_dict(versions, 'j2ee-impl'))
-        self._PAGE_TEMPLATE.find(class_='apache2').string.replace_with(self.__get_value_of_dict(versions, 'apache2'))
-        self._PAGE_TEMPLATE.find(class_='postgres').string.replace_with(self.__get_value_of_dict(versions, 'postgres'))
-        self._PAGE_TEMPLATE.find(class_='dwh-api').string.replace_with(self.__get_value_of_dict(versions, 'dwh-api'))
-        self._PAGE_TEMPLATE.find(class_='dwh-j2ee').string.replace_with(self.__get_value_of_dict(versions, 'dwh-j2ee'))
+        self._page_template.find(class_='apache2').string.replace_with(self.__get_value_of_dict(versions, 'apache2'))
+        self._page_template.find(class_='postgres').string.replace_with(self.__get_value_of_dict(versions, 'postgres'))
+        self._page_template.find(class_='dwh-api').string.replace_with(self.__get_value_of_dict(versions, 'dwh-api'))
+        self._page_template.find(class_='dwh-j2ee').string.replace_with(self.__get_value_of_dict(versions, 'dwh-j2ee'))
 
     def __add_rscript_to_template_soup(self):
-        dict_rscript = self.__load_node_resource_as_dict('rscript')
-        rscript = self.__concat_dict_items_as_string(dict_rscript)
-        self._PAGE_TEMPLATE.find(class_='rscript').string.replace_with(rscript)
+        rscript_resource = self.__load_node_resource_as_dict('rscript')
+        rscript = self.__concat_dict_items_as_string(rscript_resource)
+        self._page_template.find(class_='rscript').string.replace_with(rscript)
 
     def __add_python_to_template_soup(self):
-        dict_python = self.__load_node_resource_as_dict('python')
-        python = self.__concat_dict_items_as_string(dict_python)
-        self._PAGE_TEMPLATE.find(class_='python').string.replace_with(python)
+        python_resource = self.__load_node_resource_as_dict('python')
+        python = self.__concat_dict_items_as_string(python_resource)
+        self._page_template.find(class_='python').string.replace_with(python)
 
     def __add_import_scripts_to_template_soup(self):
-        dict_import_scripts = self.__load_node_resource_as_dict('import-scripts')
-        import_scripts = self.__concat_dict_items_as_string(dict_import_scripts)
-        self._PAGE_TEMPLATE.find(class_='import-scripts').string.replace_with(import_scripts)
+        import_scripts_resource = self.__load_node_resource_as_dict('import-scripts')
+        import_scripts = self.__concat_dict_items_as_string(import_scripts_resource)
+        self._page_template.find(class_='import-scripts').string.replace_with(import_scripts)
 
-    def __load_node_resource_as_dict(self, name_resource: str) -> dict:
-        name_file = ''.join([self._ID_NODE, '_', name_resource, '.txt'])
-        path_file = os.path.join(self._DIR_WORKING, name_file)
-        if not os.path.exists(path_file):
+    def __load_node_resource_as_dict(self, resource_name: str) -> dict:
+        filename = ''.join([self._node_id, '_', resource_name, '.txt'])
+        filepath = os.path.join(self._node_working_dir, filename)
+        if not os.path.exists(filepath):
             return {}
-        with open(path_file) as file:
+        with open(filepath, encoding=self._encoding) as file:
             resource = json.load(file)
         return resource
 
@@ -467,93 +197,100 @@ class TemplatePageNodeResourceWriter(TemplatePageContentWriter):
 
 class TemplatePageJiraTableWriter(TemplatePageContentWriter):
     """
-    Creates a jira query with values set in mapping json (see ConfluenceNodeMapper) for
-    single broker node. Table for jira tickets is added as a custom confluence html element
+    Creates a Jira query with values set in the mapping JSON (see ConfluenceNodeMapper) for a single broker node.
+    Adds a table for Jira tickets as a custom Confluence HTML element.
     """
 
     def __init__(self):
         super().__init__()
-        self.__MAPPER = ConfluenceNodeMapper()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+        self.__mapper = ConfluenceNodeMapper()
 
     def _add_content_to_template_soup(self):
-        labels_jira = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, 'JIRA_LABELS')
-        if labels_jira is not None and labels_jira:
-            query = self.__generate_jira_query_from_labels(labels_jira)
+        """
+        This method generates a Jira query based on the JIRA_LABELS value from the mapping JSON for the node.
+        If the JIRA_LABELS value is not present or empty, a default query is used.
+        The Jira table with the query is then added to the page.
+        """
+        jira_labels = self.__mapper.get_node_value_from_mapping_dict(self._node_id, 'JIRA_LABELS')
+        if jira_labels is not None and jira_labels:
+            query = self.__generate_jira_query_from_labels(jira_labels)
         else:
-            query = 'project=AKTIN AND Labels=\"empty\"'
+            query = 'project=AKTIN AND Labels="empty"'
         table = self.__generate_jira_table_with_query(query)
-        self._PAGE_TEMPLATE.find(class_='table_jira').replace_with(table)
+        self._page_template.find(class_='table_jira').replace_with(table)
 
     @staticmethod
     def __generate_jira_query_from_labels(labels_jira: str) -> str:
         tmp_labels = []
         for label in labels_jira:
-            tmp_labels.append(''.join(['Labels=\"', label, '\"']))
+            tmp_labels.append(''.join(['Labels="', label, '"']))
         query = ' OR '.join(tmp_labels)
         query = ' '.join(['project=AKTIN', 'AND', '(', query, ')'])
         return query
 
     def __generate_jira_table_with_query(self, query: str) -> Tag:
-        param_server = self.__ELEMENT_CREATOR.create_ac_parameter_element('server', 'Jira IMI UK Aachen')
-        param_id_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element(
+        server_param = self._creator.create_ac_parameter_element('server', 'Jira IMI UK Aachen')
+        column_ids = self._creator.create_ac_parameter_element(
             'columnIds',
             'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
-        param_columns = self.__ELEMENT_CREATOR.create_ac_parameter_element(
+        column_param = self._creator.create_ac_parameter_element(
             'columns',
             'key,summary,type,created,updated,due,assignee,reporter,priority,status,resolution')
-        param_max_issues = self.__ELEMENT_CREATOR.create_ac_parameter_element('maximumIssues', '25')
-        param_query = self.__ELEMENT_CREATOR.create_ac_parameter_element('jqlQuery', query)
-        frame = self.__ELEMENT_CREATOR.create_ac_macro_element('jira')
-        frame.extend([param_server, param_id_columns, param_columns, param_max_issues, param_query])
-        jira = self.__ELEMENT_CREATOR.create_html_element('p', {'class':'table_jira'})
+        max_issues_param = self._creator.create_ac_parameter_element('maximumIssues', '25')
+        query_param = self._creator.create_ac_parameter_element('jqlQuery', query)
+        frame = self._creator.create_ac_macro_element('jira')
+        frame.extend([server_param, column_ids, column_param, max_issues_param, query_param])
+        jira = self._creator.create_html_element('p', {'class': 'table_jira'})
         jira.append(frame)
         return jira
 
 
 class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
     """
-    Searches another confluence page form correspondants of broker node id
-    Correspondants are written as a table into the template
+    Searches another Confluence page for correspondents of a broker node ID.
+    Correspondents are written as a table into the template.
     """
-    __CONFLUENCE_EMAIL_LIST: str = 'E-Mail-Verteiler'
+    __confluence_email_list: str = 'E-Mail-Verteiler'
 
     def __init__(self):
         super().__init__()
-        self.__DF_EMAIL = self.__grab_email_contacts_dataframe()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+        self.__email_df = self.__grab_email_contacts_dataframe()
 
     def __grab_email_contacts_dataframe(self) -> pd.DataFrame:
         confluence = ConfluenceConnection()
-        page_confluence_email = confluence.get_page_content(self.__CONFLUENCE_EMAIL_LIST)
-        tables_email = pd.read_html(page_confluence_email)
-        df = tables_email[0]
+        confluence_email_page = confluence.get_page_content(self.__confluence_email_list)
+        email_table = pd.read_html(confluence_email_page)
+        df = email_table[0]
         df['Node ID'] = pd.to_numeric(df['Node ID'])
         df = df.fillna('')
         return df
 
     def _add_content_to_template_soup(self):
-        table_it = self.__generate_contact_table_for_contact_type('IT')
-        self._PAGE_TEMPLATE.find(class_='contact_it').replace_with(table_it)
-        table_ed = self.__generate_contact_table_for_contact_type('Notaufnahme')
-        self._PAGE_TEMPLATE.find(class_='contact_ed').replace_with(table_ed)
+        """
+        This method generates tables for the 'IT' and 'Notaufnahme' contact types and replaces
+        the corresponding placeholders in the template with these tables.
+        """
+        it_table = self.__generate_contact_table_for_contact_type('IT')
+        self._page_template.find(class_='contact_it').replace_with(it_table)
+        ed_table = self.__generate_contact_table_for_contact_type('Notaufnahme')
+        self._page_template.find(class_='contact_ed').replace_with(ed_table)
 
     def __generate_contact_table_for_contact_type(self, contact_type: str) -> Tag:
         contacts = self.__get_contacts_for_contact_type(contact_type)
-        rows_contact = []
+        contact_rows = []
         for name, email in contacts.items():
-            row_contact = self.__generate_contact_row(name, email)
-            rows_contact.append(row_contact)
+            contact_row = self.__generate_contact_row(name, email)
+            contact_rows.append(contact_row)
         table = self.__generate_contact_table_frame(contact_type)
-        table.find('tbody').extend(rows_contact)
+        table.find('tbody').extend(contact_rows)
         return table
 
     def __get_contacts_for_contact_type(self, contact_type: str) -> dict:
         """
         contact_type must be either 'IT' or 'Notaufnahme'
         """
-        list_idx = self.__DF_EMAIL.index[self.__DF_EMAIL['Node ID'] == int(self._ID_NODE)].tolist()
-        df_node = self.__DF_EMAIL.iloc[list_idx]
+        list_idx = self.__email_df.index[self.__email_df['Node ID'] == int(self._node_id)].tolist()
+        df_node = self.__email_df.iloc[list_idx]
         df_contacts = df_node[df_node['Ansprechpartner für'] == contact_type]
         contacts = {}
         for row in df_contacts.iterrows():
@@ -564,11 +301,11 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
         return contacts
 
     def __generate_contact_row(self, name: str, email: str) -> Tag:
-        td_name = self.__ELEMENT_CREATOR.create_table_data_element(name, centered=True)
-        link_mail = self.__ELEMENT_CREATOR.create_html_element('a', {'href':':'.join(['mailto', email])})
-        link_mail.append(email)
-        td_mail = self.__ELEMENT_CREATOR.create_table_data_element(link_mail)
-        tr = self.__ELEMENT_CREATOR.create_html_element('tr')
+        td_name = self._creator.create_td_html_element(name, centered=True)
+        mail_link = self._creator.create_html_element('a', {'href': ':'.join(['mailto', email])})
+        mail_link.append(email)
+        td_mail = self._creator.create_td_html_element(mail_link)
+        tr = self._creator.create_html_element('tr')
         tr.append(td_name)
         tr.append(td_mail)
         return tr
@@ -580,151 +317,424 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
             classname = 'contact_ed'
         else:
             raise SystemExit('invalid contact type')
-        tbody = self.__ELEMENT_CREATOR.create_html_element('tbody')
-        table = self.__ELEMENT_CREATOR.create_html_element('table', {'class':'wrapped'})
+        tbody = self._creator.create_html_element('tbody')
+        table = self._creator.create_html_element('table', {'class': 'wrapped'})
         table.append(tbody)
-        td = self.__ELEMENT_CREATOR.create_html_element('td', {'class':classname})
+        td = self._creator.create_html_element('td', {'class': classname})
         td.append(table)
         return td
 
 
 class TemplatePageClinicInfoWriter(TemplatePageContentWriter):
     """
-    Writes (mostly) static information about the clinic to confluence page
+    Writes (mostly) static information about the clinic to a Confluence page.
     """
 
     def __init__(self):
         super().__init__()
-        self.__MAPPER = ConfluenceNodeMapper()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+        self.__mapper = ConfluenceNodeMapper()
 
     def _add_content_to_template_soup(self):
+        """
+        This method retrieves information from the mapping dictionary using specific keys and
+        replaces corresponding placeholders in the template with the retrieved values.
+        """
         self.__add_value_from_mapping_to_page_template('LONG_NAME', 'clinic_name')
         self.__add_value_from_mapping_to_page_template('HOSPITAL_INFORMATION_SYSTEM', 'information_system')
         self.__add_value_from_mapping_to_page_template('IMPORT_INTERFACE', 'interface_import')
         self.__add_clinic_ids('ROOT')
         self.__add_clinic_ids('FORMAT')
 
-    def __add_value_from_mapping_to_page_template(self, key_mapping: str, key_page: str):
-        value = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, key_mapping)
+    def __add_value_from_mapping_to_page_template(self, mapping_key: str, page_key: str):
+        value = self.__mapper.get_node_value_from_mapping_dict(self._node_id, mapping_key)
         if not value or value is None:
             value = 'changeme'
-        self._PAGE_TEMPLATE.find(class_=key_page).string.replace_with(value)
+        self._page_template.find(class_=page_key).string.replace_with(value)
 
     def __add_clinic_ids(self, type_ids: str):
-        dict_ids = self.__MAPPER.get_node_value_from_mapping_dict(self._ID_NODE, type_ids)
+        ids_dict = self.__mapper.get_node_value_from_mapping_dict(self._node_id, type_ids)
         for key in ['PATIENT', 'ENCOUNTER', 'BILLING']:
             value = 'changeme'
-            if dict_ids is not None and key in dict_ids:
-                value = dict_ids[key]
-            self._PAGE_TEMPLATE.find(class_='_'.join([type_ids.lower(), key.lower()])).string.replace_with(value)
+            if ids_dict is not None and key in ids_dict:
+                value = ids_dict[key]
+            self._page_template.find(class_='_'.join([type_ids.lower(), key.lower()])).string.replace_with(value)
 
 
-class TemplatePageMigrator:
+class TemplatePageCSVContentWriter(TemplatePageContentWriter, ABC):
     """
-    Migrates information which is only set once in confluence page (like monitoring start date)
-    to newer version of corresponding template
+    Used to write content from csv file to confluence page
     """
+    _handler: CSVHandler
 
     def __init__(self):
-        self.__LOADER = TemplatePageLoader()
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+        super().__init__()
+        self._df = None
 
-    def is_template_page_outdated(self, page_template: str) -> bool:
-        current_page_template = self.__LOADER.get_template_page()
-        template_new = self.__ELEMENT_CREATOR.convert_element_to_soup(current_page_template)
-        version_new = template_new.find(class_='version_template').string
-        template_old = bs4.BeautifulSoup(page_template, 'html.parser')
-        version_old = template_old.find(class_='version_template').string
-        return version.parse(version_new) > version.parse(version_old)
+    def add_content_to_template_page(self, page_template: str, id_node: str) -> str:
+        self._node_id = id_node
+        self._page_template = bs4.BeautifulSoup(page_template, self._creator.get_parser())
+        dir_working = os.path.join(self._working_dir, id_node)
+        self._df = self.__load_csv_as_df(id_node, dir_working)
+        self._add_content_to_template_soup()
+        return str(self._page_template)
 
-    def migrate_page_template_to_newer_version(self, page_template: str) -> str:
-        current_page_template = self.__LOADER.get_template_page()
-        template_new = self.__ELEMENT_CREATOR.convert_element_to_soup(current_page_template)
-        template_old = bs4.BeautifulSoup(page_template, 'html.parser')
-        template_new = self.__migrate_key_from_old_to_new_template('online_since', template_old, template_new)
-        return str(template_new)
-
-    @staticmethod
-    def __migrate_key_from_old_to_new_template(key: str, soup_old: bs4.BeautifulSoup, soup_new: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
-        value = soup_old.find(class_=key)
-        soup_new.find(class_=key).replace_with(value)
-        return soup_new
+    def __load_csv_as_df(self, id_node: str, dir_working: str) -> pd.DataFrame:
+        name_csv = self._handler.generate_node_csv_name(id_node)
+        path_csv = os.path.join(dir_working, name_csv)
+        return self._handler.read_csv_as_df(path_csv)
 
 
-class ConfluenceHandler(ABC, metaclass=SingletonABCMeta):
-    _CONFLUENCE_ROOT_PAGE: str = 'Support'
-    _CONFLUENCE_PARENT_PAGE: str = 'Support Log Broker-Monitor'
-
-    def __init__(self):
-        self._CONFLUENCE = ConfluenceConnection()
-        self._MAPPER = ConfluenceNodeMapper()
-
-
-class ConfluencePageHandler(ConfluenceHandler):
+class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
     """
-    Creates new confluence page for single broker node. The name of a confluence
-    page is its common name (from confluence node mapping json)
+    Writes the content of an info CSV (of a single node) into predefined elements of the template.
     """
 
     def __init__(self):
         super().__init__()
-        self.__LOADER = TemplatePageLoader()
-        self.__CLINIC_INFO_WRITER = TemplatePageClinicInfoWriter()
-        self.__START_DATE_WRITER = TemplatePageMonitoringStartDateWriter()
-        self.__MIGRATOR = TemplatePageMigrator()
-        self.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter()
-        self.__CSV_ERROR_WRITER = TemplatePageCSVErrorWriter()
-        self.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter()
-        self.__JIRA_TABLE_WRITER = TemplatePageJiraTableWriter()
-        self.__PAGE_STATUS_CHECKER = TemplatePageStatusChecker()
-        self.__CONTACT_GRABBER = ConfluenceClinicContactGrabber()
+        self._handler = InfoCSVHandler()
 
-    def upload_node_information_as_confluence_page(self, id_node: str):
-        common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
-        if not self._CONFLUENCE.does_page_exists(common_name):
-            page = self.__LOADER.get_template_page()
-            page = self.__START_DATE_WRITER.add_content_to_template_page(page, id_node)
-            self._CONFLUENCE.create_confluence_page(common_name, self._CONFLUENCE_PARENT_PAGE, page)
-        page = self._CONFLUENCE.get_page_content(common_name)
-        if self.__MIGRATOR.is_template_page_outdated(page):
-            page = self.__MIGRATOR.migrate_page_template_to_newer_version(page)
-        page = self.__write_content_to_page_template(page, id_node)
-        self._CONFLUENCE.update_confluence_page(common_name, page)
+    def _add_content_to_template_soup(self):
+        self.__add_dates_to_template_soup()
+        self.__add_weekly_imports_to_template_soup()
+        self.__add_daily_imports_to_template_soup()
 
-    def __write_content_to_page_template(self, template: str, id_node: str) -> str:
-        template = self.__CLINIC_INFO_WRITER.add_content_to_template_page(template, id_node)
-        template = self.__CONTACT_GRABBER.add_content_to_template_page(template, id_node)
-        template = self.__CSV_INFO_WRITER.add_content_to_template_page(template, id_node)
-        template = self.__CSV_ERROR_WRITER.add_content_to_template_page(template, id_node)
-        template = self.__NODE_RESOURCE_WRITER.add_content_to_template_page(template, id_node)
-        template = self.__JIRA_TABLE_WRITER.add_content_to_template_page(template, id_node)
-        template = self.__PAGE_STATUS_CHECKER.add_content_to_template_page(template, id_node)
+    def __add_dates_to_template_soup(self):
+        last_row = self._df.iloc[-1].to_dict()
+        self._page_template.find(class_='last_check').string.replace_with(last_row.get('date'))
+        self._page_template.find(class_='last_contact').string.replace_with(last_row.get('last_contact'))
+        self._page_template.find(class_='last_start').string.replace_with(last_row.get('last_start'))
+        self._page_template.find(class_='last_write').string.replace_with(last_row.get('last_write'))
+        self._page_template.find(class_='last_reject').string.replace_with(last_row.get('last_reject'))
+
+    def __add_weekly_imports_to_template_soup(self):
+        last_week = self._df.tail(7)
+        imported = self.__get_mean_of_series(last_week['daily_imported'])
+        updated = self.__get_mean_of_series(last_week['daily_updated'])
+        invalid = self.__get_mean_of_series(last_week['daily_invalid'])
+        failed = self.__get_mean_of_series(last_week['daily_failed'])
+        error_rate = self.__get_mean_of_series(last_week['daily_error_rate'])
+        self._page_template.find(class_='imported').string.replace_with(imported)
+        self._page_template.find(class_='updated').string.replace_with(updated)
+        self._page_template.find(class_='invalid').string.replace_with(invalid)
+        self._page_template.find(class_='failed').string.replace_with(failed)
+        self._page_template.find(class_='error_rate').string.replace_with(error_rate)
+
+    @staticmethod
+    def __get_mean_of_series(series: pd.Series) -> str:
+        series = series[series != '-']  # drop the rows
+        if series.empty:
+            return '-'
+        mean = series.astype(float).mean()
+        return f'{mean:.2f}'
+
+    def __add_daily_imports_to_template_soup(self):
+        last_row = self._df.iloc[-1].to_dict()
+        self._page_template.find(class_='daily_imported').string.replace_with(last_row.get('daily_imported'))
+        self._page_template.find(class_='daily_updated').string.replace_with(last_row.get('daily_updated'))
+        self._page_template.find(class_='daily_invalid').string.replace_with(last_row.get('daily_invalid'))
+        self._page_template.find(class_='daily_failed').string.replace_with(last_row.get('daily_failed'))
+        self._page_template.find(class_='daily_error_rate').string.replace_with(last_row.get('daily_error_rate'))
+
+
+class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
+    """
+    Writes content of error CSV (of a single node) into predefined elements of the template.
+    """
+    __num_errors: int = 20
+
+    def __init__(self):
+        super().__init__()
+        self._handler = ErrorCSVHandler()
+
+    def _add_content_to_template_soup(self):
+        """
+        Adds error content to the template soup by creating a confluence error table.
+        """
+        error_table = self.__create_confluence_error_table()
+        self._page_template.find(class_='table_errors_body').replace_with(error_table)
+
+    def __create_confluence_error_table(self) -> Tag:
+        errors_list = self._df.head(self.__num_errors).to_dict('records')
+        errors_rows = []
+        for error in errors_list:
+            row = self.__create_error_table_row(error['timestamp'], error['repeats'], error['content'])
+            errors_rows.append(row)
+        table = self.__generate_empty_error_table()
+        table.find('tbody').extend(errors_rows)
+        return table
+
+    def __create_error_table_row(self, timestamp: str, repeats: str, content: str) -> Tag:
+        timestamp_column = self._creator.create_td_html_element(timestamp, centered=True)
+        repeats_column = self._creator.create_td_html_element(repeats, centered=True)
+        content_column = self._creator.create_td_html_element(content)
+        row = self._creator.create_html_element('tr')
+        row.extend([timestamp_column, repeats_column, content_column])
+        return row
+
+    def __generate_empty_error_table(self) -> bs4.BeautifulSoup:
+        header = self.__create_error_table_header()
+        table = self._creator.create_html_element('tbody', {'class': 'table_errors_body'})
+        table.append(header)
+        table = self._creator.convert_element_to_soup(table)
+        return table
+
+    def __create_error_table_header(self) -> Tag:
+        timestamp_header = self._creator.create_th_html_element('timestamp')
+        repeats_header = self._creator.create_th_html_element('repeats')
+        content_header = self._creator.create_th_html_element('content')
+        header = self._creator.create_html_element('tr')
+        header.extend([timestamp_header, repeats_header, content_header])
+        return header
+
+
+class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
+    """
+    Checks import and connection status inside (template of) confluence page and sets
+    status as a custom HTML element.
+    Should always be the last class called in the processing pipeline!
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._handler = InfoCSVHandler()
+        self._timestamp_handler = TimestampHandler()
+        self._mapper = ConfluenceNodeMapper()
+
+    def __append_last_year_rows_to_df_if_necessary(self):
+        """
+        If the CSV has less than 4 rows, try to append the last 10 rows of the previous year's CSV
+        to this CSV.
+        """
+        if len(self._df) < 4:
+            current_year = self._timestamp_handler.get_current_year()
+            last_year = str(int(current_year) - 1)
+            last_years_csv_name = self._handler.generate_node_csv_name(self._node_id, last_year)
+            last_years_csv_path = os.path.join(self._working_dir, self._node_id, last_years_csv_name)
+            if os.path.isfile(last_years_csv_path):
+                last_years_df = self._handler.read_csv_as_df(last_years_csv_path)
+                last_years_df = last_years_df.iloc[-10:]
+                self._df = pd.concat([last_years_df, self._df], ignore_index=True)
+
+    def _add_content_to_template_soup(self):
+        self.__append_last_year_rows_to_df_if_necessary()
+        if self.__has_csv_a_gap_in_broker_connection():
+            status = self.__create_status_element('GAP IN MONITORING', 'Red')
+        elif self.__is_template_soup_still_testing():
+            status = self.__create_status_element('TESTING', 'Blue')
+        elif self.__is_template_soup_offline():
+            status = self.__create_status_element('OFFLINE', 'Red')
+        elif self.__is_template_soup_not_importing():
+            status = self.__create_status_element('NO IMPORTS', 'Red')
+        elif self.__is_template_soup_daily_error_rate_above_threshold(10.0):
+            status = self.__create_status_element('EXTREME ERROR RATE', 'Red')
+        elif self.__is_template_soup_daily_error_rate_above_threshold(5.0):
+            status = self.__create_status_element('HIGH ERROR RATE', 'Yellow')
+        elif self.__is_template_soup_daily_error_rate_above_threshold(1.0):
+            status = self.__create_status_element('LOW ERROR RATE', 'Yellow')
+        else:
+            status = self.__create_status_element('ONLINE', 'Green')
+        self._page_template.find(class_='status').replace_with(status)
+
+    def __has_csv_a_gap_in_broker_connection(self) -> bool:
+        """
+        Checks if the CSV has a gap in the broker connection by comparing the timestamps.
+        """
+        series = self._df['date']
+        if series.empty:
+            return False
+        todays_csv = series.iloc[-1]
+        current_date = self._timestamp_handler.get_current_date()
+        delta = self._timestamp_handler.get_timedelta_in_absolute_hours(current_date, todays_csv)
+        if delta > 24:
+            return True
+        else:
+            if len(series) >= 2:
+                yesterdays_csv = series.iloc[-2]
+                delta2 = self._timestamp_handler.get_timedelta_in_absolute_hours(yesterdays_csv, todays_csv)
+                if delta2 > 24:
+                    return True
+        return False
+
+    def __is_template_soup_still_testing(self) -> bool:
+        """
+        Checks if the node is still testing by verifying the consecutive days of imports.
+        """
+        series = self._df['daily_imported']
+        if len(series) < 3:
+            return False
+        series = series.str.replace('-', '0')
+        series = pd.to_numeric(series)
+        iterators = tee(series, 3)
+        for idx, it in enumerate(iterators):
+            next(islice(it, idx, idx), None)
+        consecutive_imports_slices = (iterslice for iterslice in zip(*iterators) if all(x > 0 for x in iterslice))
+        return not any(consecutive_imports_slices)
+
+    def __is_template_soup_offline(self) -> bool:
+        last_contact = self._page_template.find(class_='last_contact').string
+        return self.__is_date_longer_ago_than_set_hours(last_contact)
+
+    def __is_date_longer_ago_than_set_hours(self, input_date: str) -> bool:
+        """
+        Checks if the date is longer ago than the set threshold hours.
+        """
+        threshold_hours = self._mapper.get_node_value_from_mapping_dict(self._node_id, 'THRESHOLD_HOURS_FAILURE')
+        if not threshold_hours or threshold_hours is None:
+            threshold_hours = 24
+        input_date = self._timestamp_handler.get_local_ymd_hms_from_date_string(input_date)
+        current_date = self._timestamp_handler.get_current_date()
+        delta = self._timestamp_handler.get_timedelta_in_absolute_hours(input_date, current_date)
+        return delta > threshold_hours
+
+    def __is_template_soup_not_importing(self) -> bool:
+        last_write = self._page_template.find(class_='last_write').string
+        if last_write == '-':
+            return True
+        return self.__is_date_longer_ago_than_set_hours(last_write)
+
+    def __is_template_soup_daily_error_rate_above_threshold(self, threshold: float) -> bool:
+        error_rate = self._page_template.find(class_='daily_error_rate').string
+        if error_rate == '-':
+            return False
+        return float(error_rate) >= threshold
+
+    def __create_status_element(self, title: str, color: str) -> Tag:
+        title_param = self._creator.create_ac_parameter_element('title', title)
+        color_param = self._creator.create_ac_parameter_element('color', color)
+        frame = self._creator.create_ac_macro_element('status')
+        frame.extend([title_param, color_param])
+        status = self._creator.create_html_element('td', {'style': 'text-align:center;', 'class': 'status'})
+        status.append(frame)
+        return status
+
+
+class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
+    """
+    Just adds monitoring start date for corresponding node to the Confluence page.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._handler = InfoCSVHandler()
+        self._timestamp_handler = TimestampHandler()
+
+    def _add_content_to_template_soup(self):
+        first_monitoring = self._df['date'].iloc[0]
+        start_monitoring = self._timestamp_handler.get_local_ymd_from_date_string(first_monitoring)
+        time_element = self._creator.create_html_element('time', {'datetime': start_monitoring})
+        td = self._creator.create_html_element('td', {'class': 'online_since'})
+        td.append(time_element)
+        self._page_template.find(class_='online_since').replace_with(td)
+
+
+class TemplatePageMigrator:
+    """
+    Migrates information that is only set once in the Confluence page (like monitoring start date)
+    to a newer version of the corresponding template.
+    """
+
+    def __init__(self):
+        self.__loader = TemplatePageLoader()
+        self.__creator = TemplatePageElementCreator()
+
+    def is_template_page_outdated(self, template_page: str) -> bool:
+        """
+        Checks if the provided page_template is outdated compared to the current template.
+        """
+        current_template = self.__loader.get_template_page()
+        new_template = self.__creator.convert_element_to_soup(current_template)
+        new_version = new_template.find(class_='version_template').string
+        old_template = bs4.BeautifulSoup(template_page, 'html.parser')
+        old_version = old_template.find(class_='version_template').string
+        return version.parse(new_version) > version.parse(old_version)
+
+    def migrate_page_template_to_newer_version(self, template_page: str) -> str:
+        current_template = self.__loader.get_template_page()
+        new_template = self.__creator.convert_element_to_soup(current_template)
+        old_template = bs4.BeautifulSoup(template_page, 'html.parser')
+        new_template = self.__migrate_key_from_old_to_new_template('online_since', old_template, new_template)
+        return str(new_template)
+
+    @staticmethod
+    def __migrate_key_from_old_to_new_template(key: str, old_soup: bs4.BeautifulSoup, new_soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+        value = old_soup.find(class_=key)
+        new_soup.find(class_=key).replace_with(value)
+        return new_soup
+
+
+class ConfluenceHandler(ABC, metaclass=SingletonABCMeta):
+    _confluence_root_page: str = 'Support'
+    _confluence_parent_page: str = 'Support Log Broker-Monitor'
+
+    def __init__(self):
+        self._mapper = ConfluenceNodeMapper()
+        self._confluence = ConfluenceConnection()
+
+
+class ConfluencePageHandler(ConfluenceHandler):
+    """
+    Creates a new Confluence page for a single broker node. The name of a Confluence
+    page is its common name (from Confluence node mapping JSON).
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.__loader = TemplatePageLoader()
+        self.__start_date_writer = TemplatePageMonitoringStartDateWriter()
+        self.__migrator = TemplatePageMigrator()
+        self.__content_writers = [
+            TemplatePageClinicInfoWriter(),
+            ConfluenceClinicContactGrabber(),
+            TemplatePageCSVInfoWriter(),
+            TemplatePageCSVErrorWriter(),
+            TemplatePageNodeResourceWriter(),
+            TemplatePageJiraTableWriter(),
+            TemplatePageStatusChecker()
+        ]
+
+    def upload_node_information_as_confluence_page(self, node_id: str):
+        common_name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
+        if not self._confluence.does_page_exists(common_name):
+            page = self.__loader.get_template_page()
+            page = self.__start_date_writer.add_content_to_template_page(page, node_id)
+            self._confluence.create_confluence_page(common_name, self._confluence_parent_page, page)
+        page = self._confluence.get_page_content(common_name)
+        if self.__migrator.is_template_page_outdated(page):
+            page = self.__migrator.migrate_page_template_to_newer_version(page)
+        page = self.__write_content_to_page_template(page, node_id)
+        self._confluence.update_confluence_page(common_name, page)
+
+    def __write_content_to_page_template(self, template: str, node_id: str) -> str:
+        for content_writer in self.__content_writers:
+            template = content_writer.add_content_to_template_page(template, node_id)
         return template
 
 
 class FileBackupManager(ConfluenceHandler):
     """
-    Backups all files of corresponding broker node id on its confluence page.
-    Identical named attachements are overwritten when uploaded to confluence.
+    Backs up all files of the corresponding broker node ID on its confluence page.
+    Identically named attachments are overwritten when uploaded to Confluence.
     """
 
     def __init__(self):
         super().__init__()
-        self.__DIR_ROOT = os.getenv('DIR.WORKING')
+        self.__working_dir = os.getenv('DIR.WORKING')
 
-    def backup_files(self, id_node: str):
-        self.__backup_files_with_line_ending(id_node, 'csv')
-        self.__backup_files_with_line_ending(id_node, 'txt')
-        self.__backup_files_with_line_ending(id_node, 'log')
+    def backup_files(self, node_id: str):
+        """
+        Backs up files of the specified broker node ID by uploading them as attachments to the Confluence page.
+        """
+        self.__backup_files_with_line_ending(node_id, 'csv')
+        self.__backup_files_with_line_ending(node_id, 'txt')
+        self.__backup_files_with_line_ending(node_id, 'log')
 
-    def __backup_files_with_line_ending(self, id_node: str, line_ending: str):
-        dir_node = os.path.join(self.__DIR_ROOT, id_node)
-        list_files = self.__get_all_files_in_directory_with_line_ending(dir_node, line_ending)
-        name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
-        for name_file in list_files:
-            path_csv = os.path.join(dir_node, name_file)
-            self._CONFLUENCE.upload_csv_as_attachement_to_page(name, path_csv)
+    def __backup_files_with_line_ending(self, node_id: str, line_ending: str):
+        node_dir = os.path.join(self.__working_dir, node_id)
+        files_list = self.__get_all_files_in_directory_with_line_ending(node_dir, line_ending)
+        name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
+        for filename in files_list:
+            filepath = os.path.join(node_dir, filename)
+            self._confluence.upload_file_as_attachement_to_page(name, filepath)
 
     @staticmethod
     def __get_all_files_in_directory_with_line_ending(directory: str, line_ending: str) -> list:
@@ -732,117 +742,105 @@ class FileBackupManager(ConfluenceHandler):
 
 
 class SummaryTableCreator:
+    """
+    Creates summary tables for displaying information in HTML format.
+    """
 
     def __init__(self):
-        self.__ELEMENT_CREATOR = TemplatePageElementCreator()
+        self.__creator = TemplatePageElementCreator()
 
     def create_summary_table_frame(self) -> bs4.BeautifulSoup:
-        colgroup = self.__ELEMENT_CREATOR.create_html_element('colgroup')
-        col = self.__ELEMENT_CREATOR.create_html_element('col')
+        colgroup = self.__creator.create_html_element('colgroup')
+        col = self.__creator.create_html_element('col')
         colgroup.append(col)
-        table = self.__ELEMENT_CREATOR.create_html_element('table')
+        table = self.__creator.create_html_element('table')
         table.append(colgroup)
         return table
 
     def create_empty_summary_table(self) -> bs4.BeautifulSoup:
         header = self.__create_summary_table_header()
-        table_summary = self.__ELEMENT_CREATOR.create_html_element('tbody', {'class':'table_summary_body'})
-        table_summary.append(header)
-        table_summary = self.__ELEMENT_CREATOR.convert_element_to_soup(table_summary)
-        return table_summary
+        summary_table = self.__creator.create_html_element('tbody', {'class': 'table_summary_body'})
+        summary_table.append(header)
+        summary_table = self.__creator.convert_element_to_soup(summary_table)
+        return summary_table
 
     def __create_summary_table_header(self) -> Tag:
-        node = self.__ELEMENT_CREATOR.create_table_header_element('Node')
-        interface = self.__ELEMENT_CREATOR.create_table_header_element('Interface')
-        status = self.__ELEMENT_CREATOR.create_table_header_element('Status')
-        last_check = self.__ELEMENT_CREATOR.create_table_header_element('Letzter Check')
-        error_rate_today = self.__ELEMENT_CREATOR.create_table_header_element('Fehlerrate heute')
-        error_rate_last_week = self.__ELEMENT_CREATOR.create_table_header_element('Fehlerrate über 7 Tage')
-        header = self.__ELEMENT_CREATOR.create_html_element('tr')
-        header.extend([node, interface, status, last_check, error_rate_today, error_rate_last_week])
+        node = self.__creator.create_th_html_element('Node')
+        interface = self.__creator.create_th_html_element('Interface')
+        status = self.__creator.create_th_html_element('Status')
+        last_check = self.__creator.create_th_html_element('Letzter Check')
+        todays_error_rate = self.__creator.create_th_html_element('Fehlerrate heute')
+        last_weeks_error_rate = self.__creator.create_th_html_element('Fehlerrate über 7 Tage')
+        header = self.__creator.create_html_element('tr')
+        header.extend([node, interface, status, last_check, todays_error_rate, last_weeks_error_rate])
         return header
 
-    def create_summary_table_row_from_confluence_page(self, name_common: str, page_confluence: str) -> Tag:
-        template = self.__ELEMENT_CREATOR.convert_element_to_soup(page_confluence)
-        link_node = self.__ELEMENT_CREATOR.create_ac_link_element(name_common)
-        node = self.__ELEMENT_CREATOR.create_html_element('td', {'style':'text-align: left;'})
-        node.append(link_node)
-        element_status = template.find(class_='status')
+    def create_summary_table_row_from_confluence_page(self, commonname: str, confluence_page: str) -> Tag:
+        template = self.__creator.convert_element_to_soup(confluence_page)
+        node_link = self.__creator.create_ac_link_element(commonname)
+        node = self.__creator.create_html_element('td', {'style': 'text-align: left;'})
+        node.append(node_link)
+        status_element = template.find(class_='status')
         interface = self.__create_table_data_from_page_template_key(template, 'interface_import')
-        status = self.__ELEMENT_CREATOR.create_table_data_element(element_status.contents[0], centered=True)
+        status = self.__creator.create_td_html_element(status_element.contents[0], centered=True)
         last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
-        error_rate_today = self.__create_table_data_from_page_template_key(template, 'daily_error_rate')
-        error_rate_last_week = self.__create_table_data_from_page_template_key(template, 'error_rate')
-        row = self.__ELEMENT_CREATOR.create_html_element('tr')
-        row.extend([node, interface, status, last_check, error_rate_today, error_rate_last_week])
+        todays_error_rate = self.__create_table_data_from_page_template_key(template, 'daily_error_rate')
+        last_weeks_error_rate = self.__create_table_data_from_page_template_key(template, 'error_rate')
+        row = self.__creator.create_html_element('tr')
+        row.extend([node, interface, status, last_check, todays_error_rate, last_weeks_error_rate])
         return row
 
     def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
         value = template_page.find(class_=key).string
-        td = self.__ELEMENT_CREATOR.create_table_data_element(value, centered=True)
+        td = self.__creator.create_td_html_element(value, centered=True)
         return td
 
 
 class ConfluencePageHandlerManager(ConfluenceHandler):
     """
-    Initializes and executes ConfluencePageHandlers for each broker node. Creates a parent page
-    with summarization of all connected nodes
+    Manages ConfluencePageHandlers for each broker node and performs various operations.
     """
 
     def __init__(self):
         super().__init__()
-        self.__DIR_ROOT = os.getenv('DIR.WORKING')
-        self.__HANDLER = ConfluencePageHandler()
-        self.__SUMMARY = SummaryTableCreator()
-        self.__BACKUP = FileBackupManager()
+        self.__working_dir = os.getenv('DIR.WORKING')
+        self.__handler = ConfluencePageHandler()
+        self.__summary = SummaryTableCreator()
+        self.__backup = FileBackupManager()
         self.__init_parent_page()
 
     def __init_parent_page(self):
-        if not self._CONFLUENCE.does_page_exists(self._CONFLUENCE_PARENT_PAGE):
-            self._CONFLUENCE.create_confluence_page(self._CONFLUENCE_PARENT_PAGE, self._CONFLUENCE_ROOT_PAGE, "")
+        if not self._confluence.does_page_exists(self._confluence_parent_page):
+            self._confluence.create_confluence_page(self._confluence_parent_page, self._confluence_root_page, "")
 
     def upload_node_information_as_confluence_pages(self):
-        id_nodes = self._MAPPER.get_all_keys()
-        for id_node in id_nodes:
-            dir_working = os.path.join(self.__DIR_ROOT, id_node)
-            if os.path.isdir(dir_working):
-                self.__HANDLER.upload_node_information_as_confluence_page(id_node)
-                self.__BACKUP.backup_files(id_node)
+        node_ids = self._mapper.get_all_keys()
+        for node_id in node_ids:
+            node_dir = os.path.join(self.__working_dir, node_id)
+            if os.path.isdir(node_dir):
+                self.__handler.upload_node_information_as_confluence_page(node_id)
+                self.__backup.backup_files(node_id)
             else:
-                logging.info('Directory for id %s not found. Skipping...' % id_node)
+                logging.info(f'Directory for id {node_id} not found. Skipping...')
 
     def upload_summary_for_confluence_pages(self):
-        id_nodes = self._MAPPER.get_all_keys()
-        tbody = self.__SUMMARY.create_empty_summary_table()
-        for id_node in id_nodes:
-            common_name = self._MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
-            if self._CONFLUENCE.does_page_exists(common_name):
-                page = self._CONFLUENCE.get_page_content(common_name)
-                row = self.__SUMMARY.create_summary_table_row_from_confluence_page(common_name, page)
+        node_ids = self._mapper.get_all_keys()
+        tbody = self.__summary.create_empty_summary_table()
+        for node_id in node_ids:
+            commonname = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
+            if self._confluence.does_page_exists(commonname):
+                page = self._confluence.get_page_content(commonname)
+                row = self.__summary.create_summary_table_row_from_confluence_page(commonname, page)
                 tbody.find('tbody').append(row)
-        table = self.__SUMMARY.create_summary_table_frame()
+        table = self.__summary.create_summary_table_frame()
         table.append(tbody)
-        self._CONFLUENCE.update_confluence_page(self._CONFLUENCE_PARENT_PAGE, str(table))
-
-
-def main(path_config: str):
-    logger = MyLogger()
-    reader = ConfigReader()
-    try:
-        logger.init_logger()
-        reader.load_config_as_env_vars(path_config)
-        manager = ConfluencePageHandlerManager()
-        manager.upload_node_information_as_confluence_pages()
-        manager.upload_summary_for_confluence_pages()
-    except Exception as e:
-        logging.exception(e)
-    finally:
-        logger.stop_logger()
+        self._confluence.update_confluence_page(self._confluence_parent_page, str(table))
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        raise SystemExit('path to config file is missing')
-    if len(sys.argv) > 2:
-        raise SystemExit('invalid number of input arguments')
-    main(sys.argv[1])
+        raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
+    manager = ConfluencePageHandlerManager()
+    functionality = [manager.upload_node_information_as_confluence_pages,
+                     manager.upload_summary_for_confluence_pages]
+    Main.main(sys.argv[1], functionality)
