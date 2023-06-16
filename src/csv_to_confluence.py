@@ -771,8 +771,10 @@ class SummaryTableCreator:
         last_check = self.__creator.create_th_html_element('Letzter Check')
         todays_error_rate = self.__creator.create_th_html_element('Fehlerrate heute')
         last_weeks_error_rate = self.__creator.create_th_html_element('Fehlerrate über 7 Tage')
+        todays_imports = self.__creator.create_th_html_element('Imports heute')
+        todays_errors = self.__creator.create_th_html_element('Fehler heute')
         header = self.__creator.create_html_element('tr')
-        header.extend([node, interface, status, last_check, todays_error_rate, last_weeks_error_rate])
+        header.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate, last_weeks_error_rate])
         return header
 
     def create_summary_table_row_from_confluence_page(self, commonname: str, confluence_page: str) -> Tag:
@@ -786,13 +788,22 @@ class SummaryTableCreator:
         last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
         todays_error_rate = self.__create_table_data_from_page_template_key(template, 'daily_error_rate')
         last_weeks_error_rate = self.__create_table_data_from_page_template_key(template, 'error_rate')
+        todays_imports = self.__get_sum_of_two_table_data_elements(template, 'imported', 'updated')
+        todays_errors = self.__get_sum_of_two_table_data_elements(template, 'invalid', 'failed')
         row = self.__creator.create_html_element('tr')
-        row.extend([node, interface, status, last_check, todays_error_rate, last_weeks_error_rate])
+        row.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate, last_weeks_error_rate])
         return row
 
     def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
         value = template_page.find(class_=key).string
         td = self.__creator.create_td_html_element(value, centered=True)
+        return td
+
+    def __get_sum_of_two_table_data_elements(self, template_page: bs4.BeautifulSoup, key1: str, key2: str) -> Tag:
+        value1 = template_page.find(class_=key1).string
+        value2 = template_page.find(class_=key2).string
+        sum_values = float(value1) + float(value2)
+        td = self.__creator.create_td_html_element(str(sum_values), centered=True)
         return td
 
 
