@@ -153,6 +153,10 @@ class TextWriter(DataWriter):
         with open(filepath, 'r', encoding=self._encoding) as file:
             return json.load(file)
 
+    def init_new_file_if_nonexisting(self, filepath: str):
+        if not os.path.isfile(filepath):
+            self.save_dict_as_txt_file({}, filepath)
+
 
 class TimestampHandler(metaclass=SingletonMeta):
     """

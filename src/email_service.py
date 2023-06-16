@@ -23,8 +23,6 @@ Created on 26.06.2022
 #
 #
 
-import json
-import logging
 import os
 import sys
 from abc import ABC, abstractmethod
@@ -35,19 +33,23 @@ import pandas as pd
 from dateutil import parser
 from packaging import version
 
-from common import ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, MailSender, MyLogger, ConfigReader, \
-    ResourceLoader, SingletonABCMeta, SingletonMeta, TimestampHandler
+from common import MailSender, TextWriter
+from common import Main, ConfluenceConnection, ConfluenceNodeMapper, InfoCSVHandler, ResourceLoader, SingletonABCMeta, \
+    SingletonMeta, TimestampHandler
 
 
 # TODO: send mail on high error rate
 class MailTemplateHandler(ResourceLoader, ABC):
-    _FILENAME_TEMPLATE: str = None
-    _TEXT_SUBTYPE: str = 'html'
-    _PARSER: str = 'html.parser'
-    _ENCODING: str = 'iso-8859-1'
+    """
+    Base class for handling mail templates.
+    """
+    _template_name: str = None
+    _text_subtype: str = 'html'
+    _parser: str = 'html.parser'
+    _encoding: str = 'iso-8859-1'
 
     @abstractmethod
-    def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
+    def get_mail_template_filled_with_information_from_template_page(self, template_page: str) -> MIMEText:
         pass
 
     @staticmethod
@@ -60,17 +62,17 @@ class OfflineMailTemplateHandler(MailTemplateHandler):
     """
     Get mailing template for node status "offline" and fills it with content
     """
-    _FILENAME_TEMPLATE: str = 'template_mail_offline.html'
+    _template_name: str = 'template_mail_offline.html'
 
-    def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
-        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+    def get_mail_template_filled_with_information_from_template_page(self, template_page: str) -> MIMEText:
+        soup = bs4.BeautifulSoup(template_page, self._parser)
         clinic_name = soup.find(class_='clinic_name').text
         last_contact = soup.find(class_='last_contact').text
         formatted_last_contact = self._format_date_string_to_german_format(last_contact)
-        content = self._get_resource_as_string(self._FILENAME_TEMPLATE, self._ENCODING)
+        content = self._get_resource_as_string(self._template_name, self._encoding)
         content = content.replace('${clinic_name}', clinic_name)
         content = content.replace('${last_contact}', formatted_last_contact)
-        mail = MIMEText(content, self._TEXT_SUBTYPE, self._ENCODING)
+        mail = MIMEText(content, self._text_subtype, self._encoding)
         mail['Subject'] = "Automatische Information: AKTIN DWH Offline"
         return mail
 
@@ -79,169 +81,261 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
     """
     Get mailing template for node status "no imports" and fills it with content
     """
-    _FILENAME_TEMPLATE: str = 'template_mail_no_imports.html'
+    _template_name: str = 'template_mail_no_imports.html'
 
-    def __init__(self, id_node: str):
+    def __init__(self, node_id: str):
         super().__init__()
-        self.__DIR_ROOT = os.getenv('DIR.WORKING')
-        self.__ID_NODE = id_node
-        self.__HANDLER = InfoCSVHandler()
+        self.__handler = InfoCSVHandler()
+        self.__csv_path = self.__get_csv_file_path(os.getenv('DIR.WORKING'), node_id)
 
-    def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
-        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+    def __get_csv_file_path(self, working_dir: str, node_id: str) -> str:
+        node_dir = os.path.join(working_dir, node_id)
+        name_csv = self.__handler.generate_node_csv_name(node_id)
+        path_csv = os.path.join(node_dir, name_csv)
+        return path_csv
+
+    def get_mail_template_filled_with_information_from_template_page(self, template_page: str) -> MIMEText:
+        soup = bs4.BeautifulSoup(template_page, self._parser)
         clinic_name = soup.find(class_='clinic_name').text
         last_write = soup.find(class_='last_write').text
         last_write = self.__get_last_import_date_from_csv() if last_write == '-' else last_write
         formatted_last_write = self._format_date_string_to_german_format(last_write)
-        content = self._get_resource_as_string(self._FILENAME_TEMPLATE, self._ENCODING)
+        content = self._get_resource_as_string(self._template_name, self._encoding)
         content = content.replace('${clinic_name}', clinic_name)
         content = content.replace('${last_write}', formatted_last_write)
-        mail = MIMEText(content, self._TEXT_SUBTYPE, self._ENCODING)
+        mail = MIMEText(content, self._text_subtype, self._encoding)
         mail['Subject'] = "Automatische Information: AKTIN DWH Keine Imports"
         return mail
 
     def __get_last_import_date_from_csv(self) -> str:
-        path_csv = self.__get_csv_file_path()
-        df = self.__HANDLER.read_csv_as_df(path_csv)
+        df = self.__handler.read_csv_as_df(self.__csv_path)
         series = df['last_write']
-        list_idx = series[series == '-'].index
-        series = series.drop(index=list_idx)
+        idx_list = series[series == '-'].index
+        series = series.drop(index=idx_list)
         return series.values[-1]
-
-    def __get_csv_file_path(self) -> str:
-        dir_working = os.path.join(self.__DIR_ROOT, self.__ID_NODE)
-        name_csv = self.__HANDLER.generate_csv_name(self.__ID_NODE)
-        path_csv = os.path.join(dir_working, name_csv)
-        return path_csv
 
 
 class OutdatedVersionMailTemplateHandler(MailTemplateHandler):
     """
     Get mailing template for node status "outdated version" and fills it with content
     """
-    _FILENAME_TEMPLATE: str = 'template_mail_outdated_version.html'
+    _template_name: str = 'template_mail_outdated_version.html'
 
     def __init__(self):
         super().__init__()
-        self.__CURRENT_VERSION_DWH = os.getenv('AKTIN.DWH_VERSION')
-        self.__CURRENT_VERSION_I2B2 = os.getenv('AKTIN.I2B2_VERSION')
+        self.__current_version_dwh = os.getenv('AKTIN.DWH_VERSION')
+        self.__current_version_i2b2 = os.getenv('AKTIN.I2B2_VERSION')
 
-    def get_mail_template_filled_with_information_from_template_page(self, page_template: str) -> MIMEText:
-        soup = bs4.BeautifulSoup(page_template, self._PARSER)
+    def get_mail_template_filled_with_information_from_template_page(self, template_page: str) -> MIMEText:
+        soup = bs4.BeautifulSoup(template_page, self._parser)
         clinic_name = soup.find(class_='clinic_name').text
         version_dwh = soup.find(class_='dwh-j2ee').text
-        content = self._get_resource_as_string(self._FILENAME_TEMPLATE, self._ENCODING)
+        content = self._get_resource_as_string(self._template_name, self._encoding)
         content = content.replace('${clinic_name}', clinic_name)
         content = content.replace('${version_dwh}', version_dwh)
-        content = content.replace('${current_version_dwh}', self.__CURRENT_VERSION_DWH)
-        content = content.replace('${current_version_i2b2}', self.__CURRENT_VERSION_I2B2)
-        mail = MIMEText(content, self._TEXT_SUBTYPE, self._ENCODING)
+        content = content.replace('${current_version_dwh}', self.__current_version_dwh)
+        content = content.replace('${current_version_i2b2}', self.__current_version_i2b2)
+        mail = MIMEText(content, self._text_subtype, self._encoding)
         mail['Subject'] = "Automatische Information: AKTIN DWH Version veraltet"
         return mail
+
+
+class NotificationHandler(metaclass=SingletonABCMeta):
+    _parser: str = 'html.parser'
+    _my_status: str
+    _handler: MailTemplateHandler
+
+    def __init__(self):
+        self._confluence_recipients_extractor = ConfluencePageRecipientsExtractor()
+        self.__sent_mails_logger = SentMailsLogger()
+        filename_tracking = '_'.join(['tracking', self._my_status.replace(' ', '_')])
+        self._sent_mails_counter = ConsecutiveSentEmailsCounter(filename_tracking)
+        self._mail_sender = MailSender()
+
+    @abstractmethod
+    def did_my_status_occur(self, template_page: str) -> bool:
+        pass
+
+    @abstractmethod
+    def sent_my_mail_to_node(self, node_id: str, template_page: str):
+        pass
+
+    def log_my_sent_mail_to_node(self, node_id: str):
+        self.__sent_mails_logger.log_sent_mail_for_node(node_id, self._my_status)
+
+    def clean_my_status_for_node(self, node_id: str):
+        self._sent_mails_counter.delete_entry_tracking_for_node(node_id)
+
+    def create_or_update_my_status_for_node(self, node_id: str):
+        self._sent_mails_counter.create_or_update_node_entry(node_id)
+
+
+class OfflineNotificationHandler(NotificationHandler):
+    _my_status: str = 'OFFLINE'
+
+    def __init__(self):
+        super().__init__()
+        self._handler = OfflineMailTemplateHandler()
+
+    def did_my_status_occur(self, template_page: str) -> bool:
+        soup = bs4.BeautifulSoup(template_page, self._parser)
+        element_status = soup.find(class_='status')
+        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
+        return status.text == self._my_status
+
+    def sent_my_mail_to_node(self, node_id: str, template_page: str):
+        mail = self._handler.get_mail_template_filled_with_information_from_template_page(template_page)
+        recipients = self._confluence_recipients_extractor.extract_all_recipients_for_node_id(node_id)
+        if recipients:
+            if self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id):
+                self._mail_sender.send_mail(recipients, mail)
+
+
+class NoImportsNotificationHandler(NotificationHandler):
+    _my_status: str = 'NO IMPORTS'
+
+    def did_my_status_occur(self, template_page: str) -> bool:
+        soup = bs4.BeautifulSoup(template_page, self._parser)
+        element_status = soup.find(class_='status')
+        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
+        return status.text == self._my_status
+
+    def sent_my_mail_to_node(self, node_id: str, template_page: str):
+        self._handler = NoImportsMailTemplateHandler(node_id)
+        mail = self._handler.get_mail_template_filled_with_information_from_template_page(template_page)
+        recipients = self._confluence_recipients_extractor.extract_all_recipients_for_node_id(node_id)
+        if recipients:
+            if self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id):
+                self._mail_sender.send_mail(recipients, mail)
+
+
+class OutdatedVersionNotificationHandler(NotificationHandler):
+    _my_status: str = 'DWH OUTDATED'
+    _handler = OutdatedVersionMailTemplateHandler
+
+    def __init__(self):
+        super().__init__()
+        self._handler = OutdatedVersionMailTemplateHandler()
+        self.__current_version_dwh = os.getenv('AKTIN.DWH_VERSION')
+
+    def did_my_status_occur(self, template_page: str) -> bool:
+        soup = bs4.BeautifulSoup(template_page, self._parser)
+        dwh_version = soup.find(class_='dwh-j2ee').text
+        formatted_version = dwh_version.replace('dwh-j2ee-', '')
+        if formatted_version and formatted_version != '-':
+            return version.parse(self.__current_version_dwh) > version.parse(formatted_version)
+        return False
+
+    def sent_my_mail_to_node(self, node_id: str, template_page: str):
+        mail = self._handler.get_mail_template_filled_with_information_from_template_page(template_page)
+        recipients = self._confluence_recipients_extractor.extract_all_recipients_for_node_id(node_id)
+        if recipients:
+            if self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id):
+                self._mail_sender.send_mail(recipients, mail)
 
 
 class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
     """
     Extracts correspondants for broker node from another confluence page
     """
-    __CONFLUENCE_EMAIL_LIST: str = 'E-Mail-Verteiler'
+    __confluence_email_list: str = 'E-Mail-Verteiler'
 
     def __init__(self):
+        """
+        Retrieves the recipients data from the Confluence email list page and prepares it for extraction.
+        """
         confluence = ConfluenceConnection()
-        page_confluence_email = confluence.get_page_content(self.__CONFLUENCE_EMAIL_LIST)
-        tables_email = pd.read_html(page_confluence_email)
-        df = tables_email[0]
+        confluence_email_page = confluence.get_page_content(self.__confluence_email_list)
+        email_tables = pd.read_html(confluence_email_page)
+        df = email_tables[0]
         df['Node ID'] = pd.to_numeric(df['Node ID'])
         df = df.fillna('')
-        self.__DF_EMAIL = df
+        self.__email_df = df
 
-    def extract_all_recipients_for_node_id(self, id_node: str) -> list:
-        recipients_ed = self.__extract_ed_recipients_for_node_id(id_node)
-        recipients_it = self.__extract_it_recipients_for_node_id(id_node)
-        recipients_ed.extend(recipients_it)
-        unique_recipients = list(dict.fromkeys(recipients_ed))
+    def extract_all_recipients_for_node_id(self, node_id: str) -> list:
+        ed_recipients = self.__extract_ed_recipients_for_node_id(node_id)
+        it_recipients = self.__extract_it_recipients_for_node_id(node_id)
+        ed_recipients.extend(it_recipients)
+        unique_recipients = list(dict.fromkeys(ed_recipients))
         return unique_recipients
 
-    def __extract_ed_recipients_for_node_id(self, id_node: str) -> list:
+    def __extract_ed_recipients_for_node_id(self, node_id: str) -> list:
         """
-        For ED contacts, only the main contacts (Hauptansprechpartner) are used (only one in most cases)
+        Extracts ED (Emergency Department) recipients for the specified node ID.
+        Only the main contacts (Hauptansprechpartner) are used (usually only one).
         Contacts can be blacklisted by setting a value in the appropriate column in Confluence.
         """
-        list_contacts = []
-        df_recipients = self.__get_recipients_df_for_node_id(id_node, 'Notaufnahme')
-        df_main_contact = df_recipients[(df_recipients['Hauptansprechpartner?'] != '') & (
-                    df_recipients['Abgemeldet von Monitor-Benachrichtigungen?'] == '')]
-        series_contacts = df_main_contact['Kontakt']
-        for contact in series_contacts:
-            list_contacts.append(contact)
-        return list_contacts
+        contacts_list = []
+        recipients_df = self.__get_recipients_df_for_node_id(node_id, 'Notaufnahme')
+        main_contacts = recipients_df[(recipients_df['Hauptansprechpartner?'] != '') & (
+                recipients_df['Abgemeldet von Monitor-Benachrichtigungen?'] == '')]
+        contacts_series = main_contacts['Kontakt']
+        for contact in contacts_series:
+            contacts_list.append(contact)
+        return contacts_list
 
-    def __extract_it_recipients_for_node_id(self, id_node: str) -> list:
+    def __extract_it_recipients_for_node_id(self, node_id: str) -> list:
         """
-        For IT contacts, all contacts are used.
+        Extracts IT recipients for the specified node ID.
+        All contacts are used.
         Contacts can be blacklisted by setting a value in the appropriate column in Confluence.
         """
-        list_contacts = []
-        df_recipients = self.__get_recipients_df_for_node_id(id_node, 'IT')
-        df_main_contact = df_recipients[df_recipients['Abgemeldet von Monitor-Benachrichtigungen?'] == '']
-        series_contacts = df_main_contact['Kontakt']
-        for contact in series_contacts:
-            list_contacts.append(contact)
-        return list_contacts
+        contacts_list = []
+        recipients_df = self.__get_recipients_df_for_node_id(node_id, 'IT')
+        main_contacts = recipients_df[recipients_df['Abgemeldet von Monitor-Benachrichtigungen?'] == '']
+        contacts_series = main_contacts['Kontakt']
+        for contact in contacts_series:
+            contacts_list.append(contact)
+        return contacts_list
 
-    def __get_recipients_df_for_node_id(self, id_node: str, type_recipients: str) -> pd.DataFrame:
-        list_idx = self.__DF_EMAIL.index[self.__DF_EMAIL['Node ID'] == int(id_node)].tolist()
-        df_node = self.__DF_EMAIL.iloc[list_idx]
-        df_recipients = df_node[df_node['Ansprechpartner für'] == type_recipients]
-        return df_recipients
+    def __get_recipients_df_for_node_id(self, node_id: str, recipients_type: str) -> pd.DataFrame:
+        """
+        Retrieves the recipients dataframe for the specified node ID and recipient type.
+        """
+        idx_list = self.__email_df.index[self.__email_df['Node ID'] == int(node_id)].tolist()
+        node_df = self.__email_df.iloc[idx_list]
+        recipients_df = node_df[node_df['Ansprechpartner für'] == recipients_type]
+        return recipients_df
 
 
 class ConsecutiveSentEmailsCounter:
     """
     Checks when the last email was sent to node correspondants (to avoid notification spamming)
     """
-    __ENCODING = 'utf-8'
-    __DICT_TRACKING: dict = {}
+    __tracking_dict: dict = {}
 
     def __init__(self, filename: str):
-        filename = filename.replace(' ', '_')
-        self.__PATH_TRACKING_JSON = os.path.join(os.getenv('DIR.WORKING'), "{}.json".format(filename))
-        self.__TIMESTAMP_HANDLER = TimestampHandler()
-        self.__MAPPER = ConfluenceNodeMapper()
-        self.__init_tracking_json_if_not_exists()
-        self.__load_tracking_json()
+        self.__filepath = os.path.join(os.getenv('DIR.WORKING'), f"{filename}.json")
+        self.__timestamp = TimestampHandler()
+        self.__mapper = ConfluenceNodeMapper()
+        self.__writer = TextWriter()
+        self.__writer.init_new_file_if_nonexisting(self.__filepath)
+        self.__tracking_dict = self.__writer.load_txt_file_as_dict(self.__filepath)
 
-    def __init_tracking_json_if_not_exists(self):
-        if not os.path.isfile(self.__PATH_TRACKING_JSON):
-            self.__save_tracking_json()
+    def create_or_update_node_entry(self, node_id: str):
+        self.__tracking_dict[node_id] = self.__timestamp.get_current_date()
+        self.__writer.save_dict_as_txt_file(self.__tracking_dict, self.__filepath)
 
-    def __load_tracking_json(self):
-        with open(self.__PATH_TRACKING_JSON, 'r', encoding=self.__ENCODING) as infile:
-            self.__DICT_TRACKING = json.load(infile)
+    def delete_entry_tracking_for_node(self, node_id: str):
+        if node_id in self.__tracking_dict:
+            del self.__tracking_dict[node_id]
+            self.__writer.save_dict_as_txt_file(self.__tracking_dict, self.__filepath)
 
-    def __save_tracking_json(self):
-        with open(self.__PATH_TRACKING_JSON, 'w', encoding=self.__ENCODING) as outfile:
-            json.dump(self.__DICT_TRACKING, outfile)
-
-    def create_or_update_node_entry(self, id_node: str):
-        self.__DICT_TRACKING[id_node] = self.__TIMESTAMP_HANDLER.get_current_date()
-        self.__save_tracking_json()
-
-    def delete_entry_for_node_if_exists(self, id_node: str):
-        if id_node in self.__DICT_TRACKING.keys():
-            del self.__DICT_TRACKING[id_node]
-            self.__save_tracking_json()
-
-    def is_waiting_threshold_reached_for_node(self, id_node: str) -> bool:
-        if id_node in self.__DICT_TRACKING.keys():
-            threshold_weeks = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'WEEKS_NOTIFICATION_INTERVAL')
-            if not threshold_weeks or threshold_weeks is None:
-                threshold_weeks = 1
-            last_sent = self.__DICT_TRACKING.get(id_node)
-            current_date = self.__TIMESTAMP_HANDLER.get_current_date()
-            delta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(last_sent, current_date)
+    def is_waiting_threshold_reached_for_node(self, node_id: str) -> bool:
+        """
+        Checks if the waiting threshold is reached for the specified node ID.
+        The waiting threshold is determined by the 'WEEKS_NOTIFICATION_INTERVAL' value in the node mapping.
+        If the value is not set, the default threshold is 1 week.
+        """
+        if node_id in self.__tracking_dict:
+            threshold = self.__mapper.get_node_value_from_mapping_dict(node_id, 'WEEKS_NOTIFICATION_INTERVAL')
+            if not threshold or threshold is None:
+                threshold = 1
+            last_sent = self.__tracking_dict.get(node_id)
+            current_date = self.__timestamp.get_current_date()
+            delta = self.__timestamp.get_timedelta_in_absolute_hours(last_sent, current_date)
             delta_in_weeks = delta / 168
-            return delta_in_weeks > threshold_weeks
+            return delta_in_weeks > threshold
         return True
 
 
@@ -251,168 +345,54 @@ class SentMailsLogger(metaclass=SingletonMeta):
     """
 
     def __init__(self):
-        self.__DIR_ROOT = os.getenv('DIR.WORKING')
-        self.__TIMESTAMP_HANDLER = TimestampHandler()
+        self.__working_dir = os.getenv('DIR.WORKING')
+        self.__writer = TextWriter()
+        self.__timestamp = TimestampHandler()
 
-    def log_sent_mail_for_node(self, id_node: str, status: str):
-        dir_working = self.__init_working_directory_if_nonexisting(id_node)
-        path_log = self.__generate_mails_log_path(id_node, dir_working)
-        with open(path_log, 'a') as log:
-            current = self.__TIMESTAMP_HANDLER.get_current_date()
-            log.write("{0} : Sent mail for status {1} to node id {2}\n".format(current, status, id_node))
+    def log_sent_mail_for_node(self, node_id: str, status: str):
+        """
+        Logs the sent mail for a specific node with the given status.
+        """
+        log_path = self.__generate_mails_log_path(node_id)
+        current = self.__timestamp.get_current_date()
+        data = f"{current} : Sent mail for status {status} to node id {node_id}\n"
+        self.__writer.write_data_to_file(data, log_path)
 
-    def __init_working_directory_if_nonexisting(self, name_folder: str) -> str:
-        dir_working = os.path.join(self.__DIR_ROOT, name_folder)
-        if not os.path.isdir(dir_working):
-            os.makedirs(dir_working)
-        return dir_working
-
-    @staticmethod
-    def __generate_mails_log_path(id_node: str, dir_working: str) -> str:
-        name_file = '_'.join([id_node, 'sent_mails.log'])
-        return os.path.join(dir_working, name_file)
-
-
-class NotificationHandler(metaclass=SingletonABCMeta):
-    _PARSER: str = 'html.parser'
-    _MY_STATUS: str
-    _TEMPLATE_HANDLER: MailTemplateHandler
-
-    def __init__(self):
-        self._CONFLUENCE_RECIPIENTS_EXTRACTOR = ConfluencePageRecipientsExtractor()
-        self.__SENT_MAILS_LOGGER = SentMailsLogger()
-        filename_tracking = '_'.join(['tracking', self._MY_STATUS.replace(' ', '_')])
-        self._SENT_MAILS_COUNTER = ConsecutiveSentEmailsCounter(filename_tracking)
-        self._MAIL_SENDER = MailSender()
-
-    @abstractmethod
-    def did_my_status_occur(self, page_template: str) -> bool:
-        pass
-
-    @abstractmethod
-    def sent_my_mail_to_node(self, id_node: str, page_template: str):
-        pass
-
-    def log_my_sent_mail_to_node(self, id_node: str):
-        self.__SENT_MAILS_LOGGER.log_sent_mail_for_node(id_node, self._MY_STATUS)
-
-    def clean_my_status_for_node(self, id_node: str):
-        self._SENT_MAILS_COUNTER.delete_entry_for_node_if_exists(id_node)
-
-    def create_or_update_my_status_for_node(self, id_node: str):
-        self._SENT_MAILS_COUNTER.create_or_update_node_entry(id_node)
-
-
-class OfflineNotificationHandler(NotificationHandler):
-    _MY_STATUS: str = 'OFFLINE'
-    _TEMPLATE_HANDLER = OfflineMailTemplateHandler
-
-    def __init__(self):
-        super().__init__()
-        self._TEMPLATE_HANDLER = OfflineMailTemplateHandler()
-
-    def did_my_status_occur(self, page_template: str) -> bool:
-        soup = bs4.BeautifulSoup(page_template, self._PARSER)
-        element_status = soup.find(class_='status')
-        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
-        if status.text == self._MY_STATUS:
-            return True
-        return False
-
-    def sent_my_mail_to_node(self, id_node: str, page_template: str):
-        mail = self._TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(page_template)
-        recipients = self._CONFLUENCE_RECIPIENTS_EXTRACTOR.extract_all_recipients_for_node_id(id_node)
-        if recipients:
-            if self._SENT_MAILS_COUNTER.is_waiting_threshold_reached_for_node(id_node):
-                self._MAIL_SENDER.send_mail(recipients, mail)
-
-
-class NoImportsNotificationHandler(NotificationHandler):
-    _MY_STATUS: str = 'NO IMPORTS'
-    _TEMPLATE_HANDLER: NoImportsMailTemplateHandler
-
-    def did_my_status_occur(self, page_template: str) -> bool:
-        soup = bs4.BeautifulSoup(page_template, self._PARSER)
-        element_status = soup.find(class_='status')
-        status = element_status.find('ac:parameter', attrs={'ac:name': 'title'})
-        if status.text == self._MY_STATUS:
-            return True
-        return False
-
-    def sent_my_mail_to_node(self, id_node: str, page_template: str):
-        self._TEMPLATE_HANDLER = NoImportsMailTemplateHandler(id_node)
-        mail = self._TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(page_template)
-        recipients = self._CONFLUENCE_RECIPIENTS_EXTRACTOR.extract_all_recipients_for_node_id(id_node)
-        if recipients:
-            if self._SENT_MAILS_COUNTER.is_waiting_threshold_reached_for_node(id_node):
-                self._MAIL_SENDER.send_mail(recipients, mail)
-
-
-class OutdatedVersionNotificationHandler(NotificationHandler):
-    _MY_STATUS: str = 'DWH OUTDATED'
-    _TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler
-
-    def __init__(self):
-        super().__init__()
-        self._TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler()
-        self.__CURRENT_VERSION_DWH = os.getenv('AKTIN.DWH_VERSION')
-
-    def did_my_status_occur(self, page_template: str) -> bool:
-        soup = bs4.BeautifulSoup(page_template, self._PARSER)
-        version_dwh = soup.find(class_='dwh-j2ee').text
-        formatted_version = version_dwh.replace('dwh-j2ee-', '')
-        if formatted_version and formatted_version != '-':
-            return version.parse(self.__CURRENT_VERSION_DWH) > version.parse(formatted_version)
-        return False
-
-    def sent_my_mail_to_node(self, id_node: str, page_template: str):
-        mail = self._TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(page_template)
-        recipients = self._CONFLUENCE_RECIPIENTS_EXTRACTOR.extract_all_recipients_for_node_id(id_node)
-        if recipients:
-            if self._SENT_MAILS_COUNTER.is_waiting_threshold_reached_for_node(id_node):
-                self._MAIL_SENDER.send_mail(recipients, mail)
+    def __generate_mails_log_path(self, node_id: str) -> str:
+        node_working_dir = os.path.join(self.__working_dir, node_id)
+        filename = f"{node_id}_sent_mails.log"
+        return os.path.join(node_working_dir, filename)
 
 
 class NodeEventNotifierManager:
+    """
+    Manager class for notifying node recipients on emergency status events.
+    """
 
     def __init__(self):
-        self.__CONFLUENCE = ConfluenceConnection()
-        self.__MAPPER = ConfluenceNodeMapper()
-        self.__OFFLINE_NOTIFIER = OfflineNotificationHandler()
-        self.__NO_IMPORTS_NOTIFER = NoImportsNotificationHandler()
-        self.__OUTDATED_VERSION_NOTIFIER = OutdatedVersionNotificationHandler()
+        self.__confluence = ConfluenceConnection()
+        self.__mapper = ConfluenceNodeMapper()
+        self.__offline = OfflineNotificationHandler()
+        self.__no_imports = NoImportsNotificationHandler()
+        self.__outdated_version = OutdatedVersionNotificationHandler()
 
     def notify_node_recipients_on_emergency_status(self):
-        for id_node in self.__MAPPER.get_all_keys():
-            name_page = self.__MAPPER.get_node_value_from_mapping_dict(id_node, 'COMMON_NAME')
-            if self.__CONFLUENCE.does_page_exists(name_page):
-                page = self.__CONFLUENCE.get_page_content(name_page)
-                for notifier in (self.__OFFLINE_NOTIFIER, self.__NO_IMPORTS_NOTIFER, self.__OUTDATED_VERSION_NOTIFIER):
+        for node_id in self.__mapper.get_all_keys():
+            pagename = self.__mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
+            if self.__confluence.does_page_exists(pagename):
+                page = self.__confluence.get_page_content(pagename)
+                for notifier in (self.__offline, self.__no_imports, self.__outdated_version):
                     if notifier.did_my_status_occur(page):
-                        notifier.sent_my_mail_to_node(id_node, page)
-                        notifier.log_my_sent_mail_to_node(id_node)
-                        notifier.create_or_update_my_status_for_node(id_node)
+                        notifier.sent_my_mail_to_node(node_id, page)
+                        notifier.log_my_sent_mail_to_node(node_id)
+                        notifier.create_or_update_my_status_for_node(node_id)
                     else:
-                        notifier.clean_my_status_for_node(id_node)
-
-
-def main(path_config: str):
-    logger = MyLogger()
-    reader = ConfigReader()
-    try:
-        logger.init_logger()
-        reader.load_config_as_env_vars(path_config)
-        manager = NodeEventNotifierManager()
-        manager.notify_node_recipients_on_emergency_status()
-    except Exception as e:
-        logging.exception(e)
-    finally:
-        logger.stop_logger()
+                        notifier.clean_my_status_for_node(node_id)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        raise SystemExit('path to config file is missing')
-    if len(sys.argv) > 2:
-        raise SystemExit('invalid number of input arguments')
-    main(sys.argv[1])
+        raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
+    manager = NodeEventNotifierManager()
+    functionality = manager.notify_node_recipients_on_emergency_status
+    Main.main(sys.argv[1], functionality)
