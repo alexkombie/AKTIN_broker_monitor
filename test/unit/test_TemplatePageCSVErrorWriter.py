@@ -11,34 +11,34 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import ErrorCSVHandler, PropertiesReader
+from common import ErrorCSVHandler, ConfigReader
 from csv_to_confluence import TemplatePageLoader, TemplatePageCSVErrorWriter
 
 
 class TestTemplatePageCSVErrorWriter(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
-    __DIR_ROOT: str = None
+    __WORKING_DIR: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__CSV_HANDLER = ErrorCSVHandler()
         cls.__CSV_ERROR_WRITER = TemplatePageCSVErrorWriter()
-        name_csv = ErrorCSVHandler().generate_csv_name(cls.__DEFAULT_NODE_ID)
-        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
+        name_csv = ErrorCSVHandler().generate_node_csv_name(cls.__DEFAULT_NODE_ID)
+        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__WORKING_DIR, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
         loader = TemplatePageLoader()
         self.__TEMPLATE = loader.get_template_page()
-        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+        dir_working = os.path.join(self.__WORKING_DIR, self.__DEFAULT_NODE_ID)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
 
     def tearDown(self):
-        rmtree(self.__DIR_ROOT)
+        rmtree(self.__WORKING_DIR)
 
     def test_write_template_from_one_row(self):
         self.__create_error_csv1()
@@ -48,7 +48,7 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
     def __create_error_csv1(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df.loc[len(df)] = ['2022-01-01 12:00:00', '1', 'Error']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_multiple_rows(self):
         self.__create_error_csv2()
@@ -62,7 +62,7 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
             timestamp = '2022-01-{} 12:00:00'.format(day)
             content = 'TestError{}'.format(i)
             df.loc[len(df)] = [timestamp, str(i), content]
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_row_with_null_values(self):
         self.__create_error_csv3()
@@ -72,7 +72,7 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
     def __create_error_csv3(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df.loc[len(df)] = ['2022-01-01 12:00:00', None, 'Error']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_empty_csv(self):
         self.__create_empty_error_csv()
@@ -81,7 +81,7 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
 
     def __create_empty_error_csv(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_missing_csv(self):
         with self.assertRaises(FileNotFoundError):
@@ -95,7 +95,7 @@ class TestTemplatePageCSVErrorWriter(unittest.TestCase):
     def __create_error_csv1_with_missing_rows(self):
         df = pd.DataFrame(columns=['timestamp', 'content'])
         df.loc[len(df)] = ['2022-01-01 12:00:00', 'Error']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_into_missing_template_keys(self):
         template = bs4.BeautifulSoup(self.__TEMPLATE, 'html.parser')

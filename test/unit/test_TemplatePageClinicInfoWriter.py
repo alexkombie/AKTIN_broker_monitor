@@ -8,19 +8,19 @@ path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
 import bs4
-from common import PropertiesReader
+from common import ConfigReader
 from csv_to_confluence import TemplatePageClinicInfoWriter, TemplatePageLoader
 
 
 class TestTemplatePageClinicInfoWriter(unittest.TestCase):
-    __DIR_ROOT: str = None
+    __WORKING_DIR: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__CLINIC_INFO_WRITER = TemplatePageClinicInfoWriter()
 
     def setUp(self):
@@ -61,8 +61,10 @@ class TestTemplatePageClinicInfoWriter(unittest.TestCase):
         self.__check_key_value_of_page(page, 'clinic_name', 'changeme')
 
     def test_clinic_name_no_node_in_mapping(self):
-        with self.assertRaises(KeyError):
-            _ = self.__CLINIC_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, '99')
+        page = self.__CLINIC_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, '99')
+        self.__check_key_value_of_page(page, 'clinic_name', 'changeme')
+        self.__check_key_value_of_page(page, 'information_system', 'changeme')
+        self.__check_key_value_of_page(page, 'interface_import', 'changeme')
 
     def test_full_clinic_ids(self):
         page = self.__CLINIC_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, '3')

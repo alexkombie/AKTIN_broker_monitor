@@ -193,7 +193,7 @@ class TimestampHandler(metaclass=SingletonMeta):
         d1 = parser.parse(date1).astimezone(pytz.utc)
         d2 = parser.parse(date2).astimezone(pytz.utc)
         delta = d2 - d1
-        return abs(delta.total_seconds() // 3600)
+        return round(abs(delta.total_seconds() / 3600))
 
 
 class BrokerNodeConnection(metaclass=SingletonMeta):
@@ -460,7 +460,7 @@ class MailServerConnection(metaclass=SingletonABCMeta):
     """
 
     def __init__(self):
-        self._user = os.getenv('SMTP.USER')
+        self._user = os.getenv('SMTP.USERNAME')
         self.__host = os.getenv('SMTP.SERVER')
         self.__password = os.getenv('SMTP.PASSWORD')
         self._connection = None

@@ -7,15 +7,15 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import BrokerNodeConnection, ConfluenceConnection, ConfluenceNodeMapper, PropertiesReader
+from common import BrokerNodeConnection, ConfluenceConnection, ConfluenceNodeMapper, ConfigReader
 
 
 class TestSingletonMeta(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
 
     def test_BrokerNodeConnection(self):
         connection1 = BrokerNodeConnection()

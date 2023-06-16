@@ -10,60 +10,62 @@ sys.path.insert(0, path_src)
 
 import bs4
 import pandas as pd
-from common import InfoCSVHandler, PropertiesReader
+from common import InfoCSVHandler, ConfigReader
 from csv_to_confluence import TemplatePageLoader, TemplatePageCSVInfoWriter
 
 
 class TestTemplatePageCSVInfoWriter(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
-    __DIR_ROOT: str = None
+    __WORKING_DIR: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__CSV_HANDLER = InfoCSVHandler()
         cls.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter()
-        name_csv = InfoCSVHandler().generate_csv_name(cls.__DEFAULT_NODE_ID)
-        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
+        name_csv = InfoCSVHandler().generate_node_csv_name(cls.__DEFAULT_NODE_ID)
+        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__WORKING_DIR, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
         loader = TemplatePageLoader()
         self.__TEMPLATE = loader.get_template_page()
-        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+        dir_working = os.path.join(self.__WORKING_DIR, self.__DEFAULT_NODE_ID)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
 
     def tearDown(self):
-        rmtree(self.__DIR_ROOT)
+        rmtree(self.__WORKING_DIR)
 
     def test_write_template_from_one_row(self):
         self.__create_csv1()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-')
-        self.__check_template_page_weekly_imports(page, '0.00', '0.00', '0.00', '0.00', '0.00')
+        self.__check_template_page_weekly_imports(page, '-', '-', '-', '-', '-')
         self.__check_template_page_daily_imports(page, '-', '-', '-', '-', '-')
 
     def __create_csv1(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-',
+                           '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_multiple_rows(self):
         self.__create_csv2()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_template_page_dates(page, '2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00')
-        self.__check_template_page_weekly_imports(page, '500.00', '500.00', '500.00', '500.00', '25.00')
-        self.__check_template_page_daily_imports(page, '1000', '1000', '1000', '1000', '50.0')
+        self.__check_template_page_weekly_imports(page, '1000.00', '1000.00', '1000.00', '1000.00', '25.00')
+        self.__check_template_page_daily_imports(page, '2000', '2000', '2000', '2000', '50.0')
 
     def __create_csv2(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
+        df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-',
+                           '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
         df.loc[len(df)] = ['2022-02-02 12:00:00', '2022-02-02 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00',
-                           '2000', '2000', '2000', '2000', '50.0', '1000', '1000', '1000', '1000', '50.0']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+                           '2000', '2000', '2000', '2000', '50.0', '2000', '2000', '2000', '2000', '50.0']
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_row_with_null_values(self):
         self.__create_csv3()
@@ -73,7 +75,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
     def __create_csv3(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', None, '-', None, '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_empty_csv(self):
         self.__create_empty_csv()
@@ -82,7 +84,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
 
     def __create_empty_csv(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_template_from_missing_csv(self):
         with self.assertRaises(FileNotFoundError):
@@ -96,7 +98,7 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
     def __create_csv1_with_missing_rows(self):
         df = pd.DataFrame(columns=['date', 'last_contact', 'last_start'])
         df.loc[len(df)] = ['2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     def test_write_into_missing_template_keys(self):
         template = bs4.BeautifulSoup(self.__TEMPLATE, 'html.parser')

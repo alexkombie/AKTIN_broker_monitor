@@ -13,33 +13,33 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import InfoCSVHandler, PropertiesReader
+from common import InfoCSVHandler, ConfigReader
 from csv_to_confluence import TemplatePageCSVInfoWriter, TemplatePageLoader, TemplatePageStatusChecker
 
 
 class TestTemplatePageStatusChecker(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '10'
-    __DIR_ROOT: str = None
+    __DIR_WORKING: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__DIR_WORKING = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__CHECKER = TemplatePageStatusChecker()
         cls.__CURRENT_YMD_HMS = datetime.now(timezone('Europe/Berlin')).strftime('%Y-%m-%d %H:%M:%S')
         cls.__CSV_HANDLER = InfoCSVHandler()
         cls.__CSV_INFO_WRITER = TemplatePageCSVInfoWriter()
-        name_csv = InfoCSVHandler().generate_csv_name(cls.__DEFAULT_NODE_ID)
-        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_ROOT, cls.__DEFAULT_NODE_ID, name_csv)
+        name_csv = InfoCSVHandler().generate_node_csv_name(cls.__DEFAULT_NODE_ID)
+        cls.__DEFAULT_CSV_PATH = os.path.join(cls.__DIR_WORKING, cls.__DEFAULT_NODE_ID, name_csv)
 
     def setUp(self):
         self.__init_testing_template()
         self.__init_working_dir_with_empty_csv(self.__DEFAULT_NODE_ID)
 
     def tearDown(self):
-        rmtree(self.__DIR_ROOT)
+        rmtree(self.__DIR_WORKING)
 
     def __init_testing_template(self):
         loader = TemplatePageLoader()
@@ -52,13 +52,13 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         self.__TEMPLATE = str(html)
 
     def __init_working_dir_with_empty_csv(self, id_node: str):
-        dir_working = os.path.join(self.__DIR_ROOT, id_node)
+        dir_working = os.path.join(self.__DIR_WORKING, id_node)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        name_csv = self.__CSV_HANDLER.generate_csv_name(id_node)
-        path_csv = os.path.join(self.__DIR_ROOT, id_node, name_csv)
-        self.__CSV_HANDLER.save_df_to_csv(df, path_csv)
+        name_csv = self.__CSV_HANDLER.generate_node_csv_name(id_node)
+        path_csv = os.path.join(self.__DIR_WORKING, id_node, name_csv)
+        self.__CSV_HANDLER.write_data_to_file(df, path_csv)
 
     def test_default_values_for_online(self):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
@@ -179,7 +179,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df['date'] = self.__create_list_of_current_weeks_dates()
         df['daily_imported'] = ['0', '1', '1', '0', '1', '0', '1']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'TESTING', 'Blue')
 
@@ -187,7 +187,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df['date'] = self.__create_list_of_current_weeks_dates()
         df['daily_imported'] = ['0', '0', '1', '1', '1', '0', '0']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
@@ -195,7 +195,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df['date'] = self.__create_list_of_current_weeks_dates()
         df['daily_imported'] = ['1', '1', '1', '1', '1', '1', '1']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
@@ -204,7 +204,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df['date'] = self.__create_list_of_current_weeks_dates()
         df.at[6, 'date'] = self.__get_current_date_moved_back_by_days_and_hours(days=1, hours=1)
         df['daily_imported'] = ['1', '1', '1', '1', '1', '1', '1']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'GAP IN MONITORING', 'Red')
 
@@ -213,7 +213,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df['date'] = self.__create_list_of_current_weeks_dates()
         df.at[5, 'date'] = self.__get_current_date_moved_back_by_days_and_hours(days=1, hours=1)
         df['daily_imported'] = ['1', '1', '1', '1', '1', '1', '1']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'GAP IN MONITORING', 'Red')
 
@@ -222,7 +222,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df['date'] = self.__create_list_of_current_weeks_dates()
         df.at[3, 'date'] = self.__get_current_date_moved_back_by_days_and_hours(days=5, hours=0)
         df['daily_imported'] = ['1', '1', '1', '1', '1', '1', '1']
-        self.__CSV_HANDLER.save_df_to_csv(df, self.__DEFAULT_CSV_PATH)
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 

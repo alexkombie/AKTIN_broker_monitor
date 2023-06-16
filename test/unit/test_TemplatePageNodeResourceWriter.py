@@ -10,31 +10,31 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import PropertiesReader
+from common import ConfigReader
 from csv_to_confluence import TemplatePageLoader, TemplatePageNodeResourceWriter
 
 
 class TestTemplatePageNodeResourceWriter(unittest.TestCase):
     __DEFAULT_NODE_ID: str = '0'
-    __DIR_ROOT: str = None
+    __WORKING_DIR: str = None
     __TEMPLATE: str = None
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
         cls.__NODE_RESOURCE_WRITER = TemplatePageNodeResourceWriter()
 
     def setUp(self):
         loader = TemplatePageLoader()
         self.__TEMPLATE = loader.get_template_page()
-        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+        dir_working = os.path.join(self.__WORKING_DIR, self.__DEFAULT_NODE_ID)
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
 
     def tearDown(self):
-        rmtree(self.__DIR_ROOT)
+        rmtree(self.__WORKING_DIR)
 
     def test_write_resources_into_template(self):
         self.__create_versions_resource_file()
@@ -132,7 +132,7 @@ class TestTemplatePageNodeResourceWriter(unittest.TestCase):
 
     def __generate_resource_file_path(self, name_resource: str) -> str:
         name_file = ''.join([self.__DEFAULT_NODE_ID, '_', name_resource, '.txt'])
-        return os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID, name_file)
+        return os.path.join(self.__WORKING_DIR, self.__DEFAULT_NODE_ID, name_file)
 
     def __check_key_of_template(self, page_template: str, key: str, value_expected: str):
         page = bs4.BeautifulSoup(page_template, 'html.parser')

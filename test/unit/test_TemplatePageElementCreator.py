@@ -47,19 +47,19 @@ class TestTemplatePageElementCreator(unittest.TestCase):
         self.assertEqual(expected, str(element))
 
     def test_create_table_header_element(self):
-        element = self.__ELEMENT_CREATOR.create_table_header_element('name')
+        element = self.__ELEMENT_CREATOR.create_th_html_element('name')
         expected = '<th style="text-align: center;">name</th>'
         self.assertEqual(bs4.Tag, type(element))
         self.assertEqual(expected, str(element))
 
     def test_create_table_data_element(self):
-        element = self.__ELEMENT_CREATOR.create_table_data_element('name')
+        element = self.__ELEMENT_CREATOR.create_td_html_element('name')
         expected = '<td>name</td>'
         self.assertEqual(bs4.Tag, type(element))
         self.assertEqual(expected, str(element))
 
     def test_create_centered_table_data_element(self):
-        element = self.__ELEMENT_CREATOR.create_table_data_element('name', True)
+        element = self.__ELEMENT_CREATOR.create_td_html_element('name', True)
         expected = '<td style="text-align: center;">name</td>'
         self.assertEqual(bs4.Tag, type(element))
         self.assertEqual(expected, str(element))

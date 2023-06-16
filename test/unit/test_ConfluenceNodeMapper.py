@@ -7,15 +7,15 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import ConfluenceNodeMapper, PropertiesReader
+from common import ConfluenceNodeMapper, ConfigReader
 
 
 class TestConfluenceNodeMapper(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
         cls.__CONFLUENCE_NODE_MAPPER = ConfluenceNodeMapper()
 
     def test_get_mapping_dict(self):

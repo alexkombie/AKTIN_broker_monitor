@@ -13,21 +13,21 @@ path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
 from csv_to_confluence import TemplatePageLoader
-from common import InfoCSVHandler, PropertiesReader
+from common import InfoCSVHandler, ConfigReader
 from email_service import NoImportsMailTemplateHandler, OfflineMailTemplateHandler, OutdatedVersionMailTemplateHandler
 
 
 class TestMailTemplateHandler(unittest.TestCase):
     __TEMPLATE: str = None
     __DEFAULT_NODE_ID: str = '1'
-    __DIR_ROOT: str = None
+    __WORKING_DIR: str = None
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        cls.__CSV_HANDLER = InfoCSVHandler()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
+        cls.__HANDLER = InfoCSVHandler()
         cls.__OFFLINE_MAIL_TEMPLATE_HANDLER = OfflineMailTemplateHandler()
         cls.__NO_IMPORTS_MAIL_TEMPLATE_HANDLER = NoImportsMailTemplateHandler(cls.__DEFAULT_NODE_ID)
         cls.__OUTDATED_VERSION_MAIL_TEMPLATE_HANDLER = OutdatedVersionMailTemplateHandler()
@@ -42,8 +42,8 @@ class TestMailTemplateHandler(unittest.TestCase):
         self.__TEMPLATE = str(soup)
 
     def tearDown(self):
-        if Path(self.__DIR_ROOT).exists() and Path(self.__DIR_ROOT).is_dir():
-            rmtree(self.__DIR_ROOT)
+        if Path(self.__WORKING_DIR).exists() and Path(self.__WORKING_DIR).is_dir():
+            rmtree(self.__WORKING_DIR)
 
     def test_offline_mail_template(self):
         mail = self.__OFFLINE_MAIL_TEMPLATE_HANDLER.get_mail_template_filled_with_information_from_template_page(self.__TEMPLATE)
@@ -90,15 +90,15 @@ class TestMailTemplateHandler(unittest.TestCase):
         self.__TEMPLATE = str(soup)
 
     def __create_csv(self):
-        name_csv = self.__CSV_HANDLER.generate_csv_name(self.__DEFAULT_NODE_ID)
-        dir_working = os.path.join(self.__DIR_ROOT, self.__DEFAULT_NODE_ID)
+        name_csv = self.__HANDLER.generate_node_csv_name(self.__DEFAULT_NODE_ID)
+        dir_working = os.path.join(self.__WORKING_DIR, self.__DEFAULT_NODE_ID)
         os.makedirs(dir_working)
         path_csv = os.path.join(dir_working, name_csv)
-        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df = pd.DataFrame(columns=self.__HANDLER.get_csv_columns())
         df.loc[len(df)] = ['-', '-', '-', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
         df.loc[len(df)] = ['-', '-', '-', '2022-11-11 00:00:00', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
         df.loc[len(df)] = ['-', '-', '-', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        self.__CSV_HANDLER.save_df_to_csv(df, path_csv)
+        self.__HANDLER.write_data_to_file(df, path_csv)
 
 
 if __name__ == '__main__':

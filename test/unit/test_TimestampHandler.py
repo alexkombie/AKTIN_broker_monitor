@@ -25,27 +25,27 @@ class TestSingletonMeta(unittest.TestCase):
         self.assertEqual(24, timedelta2)
 
     def test_get_year_from_date_string(self):
-        time = self.__TIMESTAMP_HANDLER.get_year_from_date_string('202201011230')
+        time = self.__TIMESTAMP_HANDLER.get_local_year_from_date_string('202201011230')
         self.assertEqual('2022', time)
 
     def test_get_year_from_date_string_missing_hours(self):
-        time = self.__TIMESTAMP_HANDLER.get_year_from_date_string('20220101')
+        time = self.__TIMESTAMP_HANDLER.get_local_year_from_date_string('20220101')
         self.assertEqual('2022', time)
 
     def test_get_YMD_from_date_string(self):
-        time = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string('202201111230')
+        time = self.__TIMESTAMP_HANDLER.get_local_ymd_from_date_string('202201111230')
         self.assertEqual('2022-01-11', time)
 
     def test_get_YMD_from_date_string_invalid_input(self):
         with self.assertRaises(ValueError):
-            _ = self.__TIMESTAMP_HANDLER.get_YMD_from_date_string('2022011')
+            _ = self.__TIMESTAMP_HANDLER.get_local_ymd_from_date_string('2022011')
 
     def test_get_YMD_HMS_from_date_string(self):
-        time = self.__TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string('20220111123055')
+        time = self.__TIMESTAMP_HANDLER.get_local_ymd_hms_from_date_string('20220111123055')
         self.assertEqual('2022-01-11 12:30:55', time)
 
     def test_get_YMD_HMS_from_date_string_missing_hours(self):
-        time = self.__TIMESTAMP_HANDLER.get_YMD_HMS_from_date_string('20220111')
+        time = self.__TIMESTAMP_HANDLER.get_local_ymd_hms_from_date_string('20220111')
         self.assertEqual('2022-01-11 00:00:00', time)
 
 

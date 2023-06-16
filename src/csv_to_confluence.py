@@ -421,10 +421,11 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
 
     @staticmethod
     def __get_mean_of_series(series: pd.Series) -> str:
+        length = len(series)
         series = series[series != '-']  # drop the rows
         if series.empty:
             return '-'
-        mean = series.astype(float).mean()
+        mean = series.astype(float).sum() / length
         return f'{mean:.2f}'
 
     def __add_daily_imports_to_template_soup(self):

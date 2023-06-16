@@ -12,7 +12,7 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import PropertiesReader
+from common import ConfigReader
 from email_service import ConsecutiveSentEmailsCounter
 
 
@@ -21,21 +21,21 @@ class TestConsecutiveSentEmailsCounter(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = cls.__init_root_dir()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = cls.__init_working_dir()
         cls.__COUNTER = ConsecutiveSentEmailsCounter(cls.__DEFAULT_FILENAME)
-        cls.__DEFAULT_FILEPATH = os.path.join(os.environ['ROOT_DIR'], '.'.join([cls.__DEFAULT_FILENAME, 'json']))
+        cls.__DEFAULT_FILEPATH = os.path.join(os.environ['DIR.WORKING'], '.'.join([cls.__DEFAULT_FILENAME, 'json']))
 
     @staticmethod
-    def __init_root_dir():
-        root_dir = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        if not os.path.exists(root_dir):
-            os.makedirs(root_dir)
-        return root_dir
+    def __init_working_dir():
+        working_dir = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
+        if not os.path.exists(working_dir):
+            os.makedirs(working_dir)
+        return working_dir
 
     def tearDown(self):
-        rmtree(self.__DIR_ROOT)
+        rmtree(self.__WORKING_DIR)
 
     def test_main(self):
         self.__check_file_initialization()
@@ -47,9 +47,10 @@ class TestConsecutiveSentEmailsCounter(unittest.TestCase):
         self.__check_for_not_reached_waiting_threshold()
 
     def __check_file_initialization(self):
-        path_json = os.path.join(os.environ['ROOT_DIR'], 'file_with_spaces_in_name.json')
+        path_json = os.path.join(os.environ['DIR.WORKING'], 'file with spaces in name.json')
         self.assertFalse(os.path.exists(path_json))
         _ = ConsecutiveSentEmailsCounter('file with spaces in name')
+        print(path_json)
         self.assertTrue(os.path.exists(path_json))
 
     def __check_adding_new_key(self):
@@ -64,7 +65,7 @@ class TestConsecutiveSentEmailsCounter(unittest.TestCase):
         id_node = '1'
         file = self.__load_default_file()
         self.assertTrue(id_node in file.keys())
-        self.__COUNTER.delete_entry_for_node_if_exists('1')
+        self.__COUNTER.delete_entry_tracking_for_node('1')
         file = self.__load_default_file()
         self.assertFalse(id_node in file.keys())
 
@@ -81,7 +82,7 @@ class TestConsecutiveSentEmailsCounter(unittest.TestCase):
     def __check_deleting_unknown_key(self):
         file = self.__load_default_file()
         self.assertEqual(1, len(file))
-        self.__COUNTER.delete_entry_for_node_if_exists('3')
+        self.__COUNTER.delete_entry_tracking_for_node('3')
         file = self.__load_default_file()
         self.assertEqual(1, len(file))
 

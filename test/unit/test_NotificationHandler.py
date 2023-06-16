@@ -9,7 +9,7 @@ path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
 import bs4
-from common import PropertiesReader
+from common import ConfigReader
 from csv_to_confluence import TemplatePageElementCreator, TemplatePageLoader
 from email_service import NoImportsNotificationHandler, OfflineNotificationHandler, OutdatedVersionNotificationHandler
 
@@ -19,9 +19,9 @@ class TestNotificationHandler(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
-        cls.__DIR_ROOT = cls.__init_root_dir()
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
+        cls.__WORKING_DIR = cls.__init_working_dir()
         cls.__LOADER = TemplatePageLoader()
         cls.__ELEMENT_CREATOR = TemplatePageElementCreator()
         cls.__OFFLINE_NOTIFIER = OfflineNotificationHandler()
@@ -29,15 +29,15 @@ class TestNotificationHandler(unittest.TestCase):
         cls.__OUTDATED_VERSION_NOTIFIER = OutdatedVersionNotificationHandler()
 
     @staticmethod
-    def __init_root_dir():
-        root_dir = os.environ['ROOT_DIR'] if os.environ['ROOT_DIR'] else os.getcwd()
-        if not os.path.exists(root_dir):
-            os.makedirs(root_dir)
-        return root_dir
+    def __init_working_dir():
+        working_dir = os.environ['DIR.WORKING'] if os.environ['DIR.WORKING'] else os.getcwd()
+        if not os.path.exists(working_dir):
+            os.makedirs(working_dir)
+        return working_dir
 
     @classmethod
     def tearDownClass(cls):
-        rmtree(cls.__DIR_ROOT)
+        rmtree(cls.__WORKING_DIR)
 
     def test_offline_status(self):
         template = self.__set_status_of_template_page('OFFLINE')

@@ -8,7 +8,7 @@ this_path = Path(os.path.realpath(__file__))
 path_src = os.path.join(this_path.parents[2], 'src')
 sys.path.insert(0, path_src)
 
-from common import MailSender, PropertiesReader
+from common import MailSender, ConfigReader
 
 
 class TestMailSender(unittest.TestCase):
@@ -16,12 +16,12 @@ class TestMailSender(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.json')
-        PropertiesReader().load_properties_as_env_vars(path_settings)
+        path_settings = os.path.join(this_path.parents[1], 'resources', 'settings.toml')
+        ConfigReader().load_config_as_env_vars(path_settings)
         cls.__MAIL_SENDER = MailSender()
 
     def test_mailing(self):
-        mail = MIMEText('test', 'html', 'iso-8859-1')
+        mail = MIMEText('test', 'html', 'utf-8')
         self.__MAIL_SENDER.send_mail([self.__MAIL_RECEIVER], mail)
 
 
