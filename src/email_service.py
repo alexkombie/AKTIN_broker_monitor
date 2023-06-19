@@ -303,6 +303,7 @@ class ConsecutiveSentEmailsCounter:
     Checks when the last email was sent to node correspondants (to avoid notification spamming)
     """
     __tracking_dict: dict = {}
+    __default_weeks_notification_interval = 1
 
     def __init__(self, filename: str):
         self.__filepath = os.path.join(os.getenv('DIR.WORKING'), f'{filename}.json')
@@ -331,7 +332,7 @@ class ConsecutiveSentEmailsCounter:
         if node_id in self.__tracking_dict:
             threshold = self.__mapper.get_node_value_from_mapping_dict(node_id, 'WEEKS_NOTIFICATION_INTERVAL')
             if not threshold or threshold is None:
-                threshold = 1
+                threshold = self.__default_weeks_notification_interval
             last_sent = self.__tracking_dict.get(node_id)
             current_date = self.__timestamp.get_current_date()
             delta = self.__timestamp.get_timedelta_in_absolute_hours(last_sent, current_date)

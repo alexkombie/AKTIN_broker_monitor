@@ -494,6 +494,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     status as a custom HTML element.
     Should always be the last class called in the processing pipeline!
     """
+    __default_threshold_hours_failure = 24
 
     def __init__(self):
         super().__init__()
@@ -581,7 +582,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         """
         threshold_hours = self._mapper.get_node_value_from_mapping_dict(self._node_id, 'THRESHOLD_HOURS_FAILURE')
         if not threshold_hours or threshold_hours is None:
-            threshold_hours = 24
+            threshold_hours = self.__default_threshold_hours_failure
         input_date = self._timestamp_handler.get_local_ymd_hms_from_date_string(input_date)
         current_date = self._timestamp_handler.get_current_date()
         delta = self._timestamp_handler.get_timedelta_in_absolute_hours(input_date, current_date)
