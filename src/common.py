@@ -481,7 +481,7 @@ class MailSender(MailServerConnection):
 
     def __init__(self):
         super().__init__()
-        self.__static_recipients = []
+        self.__static_recipients = os.getenv('SMTP.STATIC_RECIPIENTS').split(',')
 
     def __enter__(self):
         self._connect()
@@ -497,9 +497,6 @@ class MailSender(MailServerConnection):
             recipients = list(set(recipients))  # Remove duplicates
             mail['To'] = ', '.join(recipients)
             self._connection.sendmail(self._user, recipients, mail.as_string())
-
-    def add_static_recipients(self, recipients: list):
-        self.__static_recipients = recipients
 
 
 class ConfigReader(metaclass=SingletonMeta):
@@ -521,6 +518,7 @@ class ConfigReader(metaclass=SingletonMeta):
         'SMTP.SERVER',
         'SMTP.USERNAME',
         'SMTP.PASSWORD',
+        'SMTP.STATIC_RECIPIENTS',
         'AKTIN.DWH_VERSION',
         'AKTIN.I2B2_VERSION'
     }
@@ -530,7 +528,10 @@ class ConfigReader(metaclass=SingletonMeta):
         flattened_props = self.__flatten_config(properties)
         self.__validate_config(flattened_props)
         for key in self.__required_keys:
-            os.environ[key] = flattened_props.get(key)
+            if key == 'SMTP.STATIC_RECIPIENTS':
+                os.environ[key] = ','.join(flattened_props.get(key))
+            else:
+                os.environ[key] = flattened_props.get(key)
 
     @staticmethod
     def __load_config_file(path: str) -> dict:

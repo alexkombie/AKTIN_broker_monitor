@@ -16,6 +16,7 @@ MAPPING_JSON = "/home/akomi/PycharmProjects/broker-monitor/test/resources/mappin
 SERVER = "CHANGEME"
 USERNAME = "CHANGEME"
 PASSWORD = "CHANGEME"
+STATIC_RECIPIENTS = []
 
 [AKTIN]
 DWH_VERSION = "1.5.1rc1"

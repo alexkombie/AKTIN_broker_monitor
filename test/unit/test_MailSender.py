@@ -12,7 +12,6 @@ from common import MailSender, ConfigReader
 
 
 class TestMailSender(unittest.TestCase):
-    __MAIL_RECEIVER: str = 'CHANGEME'
 
     @classmethod
     def setUpClass(cls):
@@ -21,8 +20,11 @@ class TestMailSender(unittest.TestCase):
         cls.__MAIL_SENDER = MailSender()
 
     def test_mailing(self):
+        """
+        Sent mail to configured static recipients
+        """
         mail = MIMEText('test', 'html', 'utf-8')
-        self.__MAIL_SENDER.send_mail([self.__MAIL_RECEIVER], mail)
+        self.__MAIL_SENDER.send_mail([], mail)
 
 
 if __name__ == '__main__':

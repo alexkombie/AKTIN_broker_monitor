@@ -10,21 +10,22 @@ Simple scripts that monitor connected node activity of the [AKTIN Broker](https:
 
 A TOML configuration file with the following content is required to run the scripts (see also the example in `test\resources`):
 
-| Scope      | Key          | Description                                                                                                               | Example                  |
-|------------|--------------|---------------------------------------------------------------------------------------------------------------------------|--------------------------|
-| BROKER     | URL          | URL to your broker server                                                                                                 | http://localhost:8080    |
-| BROKER     | API_KEY      | API key of your broker server administrator                                                                               | xxxAdmin1234             |
-| DIR        | WORKING      | Working directory of the script. Directories for each connected node to store the retrieved information are created here. | /opt                     |
-| DIR        | RESOURCES    | Path to the directory with HTML templates and other resources                                                             | /opt/resources           |
-| CONFLUENCE | URL          | URL to your confluence server                                                                                             | http://my-confluence.com |
-| CONFLUENCE | SPACE        | Your Confluence space where the pages with node information should be created                                             | MY_SPACE                 |
-| CONFLUENCE | TOKEN        | Your token for authentication in Confluence                                                                               | jAzMjQ4Omy               |
-| CONFLUENCE | MAPPING_JSON | Path to the confluence json mapping file                                                                                  | /opt/mapping.json        |
-| SMTP       | SERVER       | URL to your mailing server                                                                                                | http://localhost:8888    |
-| SMTP       | USERNAME     | Your user of your mailing server                                                                                          | myuser@myserver.net      |
-| SMTP       | PASSWORD     | The password to your mailing server user                                                                                  | Hc5sGhdr2577             |
-| AKTIN      | DWH_VERSION  | The current package version of aktin-notaufnahme-dwh.deb                                                                  | 1.5.1rc1                 |
-| AKTIN      | I2B2_VERSION | The current package version of aktin-notaufnahme-i2b2.deb                                                                 | 1.5.3                    |
+| Scope      | Key               | Description                                                                                                                                | Example                                  |
+|------------|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------|
+| BROKER     | URL               | URL to your broker server                                                                                                                  | http://localhost:8080                    |
+| BROKER     | API_KEY           | API key of your broker server administrator                                                                                                | xxxAdmin1234                             |
+| DIR        | WORKING           | Working directory of the script. Directories for each connected node to store the retrieved information are created here.                  | /opt                                     |
+| DIR        | RESOURCES         | Path to the directory with HTML templates and other resources                                                                              | /opt/resources                           |
+| CONFLUENCE | URL               | URL to your confluence server                                                                                                              | http://my-confluence.com                 |
+| CONFLUENCE | SPACE             | Your Confluence space where the pages with node information should be created                                                              | MY_SPACE                                 |
+| CONFLUENCE | TOKEN             | Your token for authentication in Confluence                                                                                                | jAzMjQ4Omy                               |
+| CONFLUENCE | MAPPING_JSON      | Path to the confluence json mapping file                                                                                                   | /opt/mapping.json                        |
+| SMTP       | SERVER            | URL to your mailing server                                                                                                                 | http://localhost:8888                    |
+| SMTP       | USERNAME          | Your user of your mailing server                                                                                                           | myuser@myserver.net                      |
+| SMTP       | PASSWORD          | The password to your mailing server user                                                                                                   | Hc5sGhdr2577                             |
+| SMTP       | STATIC_RECIPIENTS | Static email recipients set as CC for each sent mail. Usually the support team is set here to keep track of sent mails and current events. | ["person1@mail.com", "person2@mail.com"] |
+| AKTIN      | DWH_VERSION       | The current package version of aktin-notaufnahme-dwh.deb                                                                                   | 1.5.1rc1                                 |
+| AKTIN      | I2B2_VERSION      | The current package version of aktin-notaufnahme-i2b2.deb                                                                                  | 1.5.3                                    |
 
 The configuration file must be passed to the scripts as an input argument. Additionally, the script `common.py` must be located in the same folder as the executed script:
 
