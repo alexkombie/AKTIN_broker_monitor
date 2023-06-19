@@ -92,7 +92,7 @@ csv_to_confluence.py
 
 email_service.py
 - MailTemplateHandler
-    - anstract clas
+    - abstract class
 - OfflineMailTemplateHandler
     - tested
 - NoImportsMailTemplateHandler

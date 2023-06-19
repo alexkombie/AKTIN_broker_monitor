@@ -45,6 +45,7 @@ class TestConsecutiveSentEmailsCounter(unittest.TestCase):
         self.__check_deleting_unknown_key()
         self.__check_for_reached_waiting_threshold()
         self.__check_for_not_reached_waiting_threshold()
+        self.__check_for_reached_waiting_threshold_of_unknown_key()
 
     def __check_file_initialization(self):
         path_json = os.path.join(os.environ['DIR.WORKING'], 'file with spaces in name.json')
@@ -102,6 +103,10 @@ class TestConsecutiveSentEmailsCounter(unittest.TestCase):
         self.__save_default_file(file)
         self.__COUNTER = ConsecutiveSentEmailsCounter(self.__DEFAULT_FILENAME)
         self.assertFalse(self.__COUNTER.is_waiting_threshold_reached_for_node('3'))
+
+    def __check_for_reached_waiting_threshold_of_unknown_key(self):
+        self.__COUNTER = ConsecutiveSentEmailsCounter(self.__DEFAULT_FILENAME)
+        self.assertTrue(self.__COUNTER.is_waiting_threshold_reached_for_node('99'))
 
     def __load_default_file(self) -> dict:
         with open(self.__DEFAULT_FILEPATH, 'r', encoding='utf-8') as file:

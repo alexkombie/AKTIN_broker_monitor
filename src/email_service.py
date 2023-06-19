@@ -136,7 +136,7 @@ class OutdatedVersionMailTemplateHandler(MailTemplateHandler):
         content = content.replace('${current_version_dwh}', self.__current_version_dwh)
         content = content.replace('${current_version_i2b2}', self.__current_version_i2b2)
         mail = MIMEText(content, self._text_subtype, self._encoding)
-        mail['Subject'] = "Automatische Information: AKTIN DWH Version veraltet"
+        mail['Subject'] = 'Automatische Information: AKTIN DWH Version veraltet'
         return mail
 
 
@@ -169,6 +169,9 @@ class NotificationHandler(metaclass=SingletonABCMeta):
     def create_or_update_my_status_for_node(self, node_id: str):
         self._sent_mails_counter.create_or_update_node_entry(node_id)
 
+    def is_waiting_threshold_reached_for_node(self, node_id) -> bool:
+        return self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id)
+
 
 class OfflineNotificationHandler(NotificationHandler):
     _my_status: str = 'OFFLINE'
@@ -187,8 +190,7 @@ class OfflineNotificationHandler(NotificationHandler):
         mail = self._handler.get_mail_template_filled_with_information_from_template_page(template_page)
         recipients = self._confluence_recipients_extractor.extract_all_recipients_for_node_id(node_id)
         if recipients:
-            if self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id):
-                self._mail_sender.send_mail(recipients, mail)
+            self._mail_sender.send_mail(recipients, mail)
 
 
 class NoImportsNotificationHandler(NotificationHandler):
@@ -205,8 +207,7 @@ class NoImportsNotificationHandler(NotificationHandler):
         mail = self._handler.get_mail_template_filled_with_information_from_template_page(template_page)
         recipients = self._confluence_recipients_extractor.extract_all_recipients_for_node_id(node_id)
         if recipients:
-            if self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id):
-                self._mail_sender.send_mail(recipients, mail)
+            self._mail_sender.send_mail(recipients, mail)
 
 
 class OutdatedVersionNotificationHandler(NotificationHandler):
@@ -230,8 +231,7 @@ class OutdatedVersionNotificationHandler(NotificationHandler):
         mail = self._handler.get_mail_template_filled_with_information_from_template_page(template_page)
         recipients = self._confluence_recipients_extractor.extract_all_recipients_for_node_id(node_id)
         if recipients:
-            if self._sent_mails_counter.is_waiting_threshold_reached_for_node(node_id):
-                self._mail_sender.send_mail(recipients, mail)
+            self._mail_sender.send_mail(recipients, mail)
 
 
 class ConfluencePageRecipientsExtractor(metaclass=SingletonMeta):
@@ -305,7 +305,7 @@ class ConsecutiveSentEmailsCounter:
     __tracking_dict: dict = {}
 
     def __init__(self, filename: str):
-        self.__filepath = os.path.join(os.getenv('DIR.WORKING'), f"{filename}.json")
+        self.__filepath = os.path.join(os.getenv('DIR.WORKING'), f'{filename}.json')
         self.__timestamp = TimestampHandler()
         self.__mapper = ConfluenceNodeMapper()
         self.__writer = TextWriter()
@@ -326,6 +326,7 @@ class ConsecutiveSentEmailsCounter:
         Checks if the waiting threshold is reached for the specified node ID.
         The waiting threshold is determined by the 'WEEKS_NOTIFICATION_INTERVAL' value in the node mapping.
         If the value is not set, the default threshold is 1 week.
+        Returns True if the node is not in the tracking_dict as waiting threshold would be 0.
         """
         if node_id in self.__tracking_dict:
             threshold = self.__mapper.get_node_value_from_mapping_dict(node_id, 'WEEKS_NOTIFICATION_INTERVAL')
@@ -355,12 +356,12 @@ class SentMailsLogger(metaclass=SingletonMeta):
         """
         log_path = self.__generate_mails_log_path(node_id)
         current = self.__timestamp.get_current_date()
-        data = f"{current} : Sent mail for status {status} to node id {node_id}\n"
+        data = f'{current} : Sent mail for status {status} to node id {node_id}\n'
         self.__writer.write_data_to_file(data, log_path)
 
     def __generate_mails_log_path(self, node_id: str) -> str:
         node_working_dir = os.path.join(self.__working_dir, node_id)
-        filename = f"{node_id}_sent_mails.log"
+        filename = f'{node_id}_sent_mails.log'
         return os.path.join(node_working_dir, filename)
 
 
@@ -383,9 +384,10 @@ class NodeEventNotifierManager:
                 page = self.__confluence.get_page_content(pagename)
                 for notifier in (self.__offline, self.__no_imports, self.__outdated_version):
                     if notifier.did_my_status_occur(page):
-                        notifier.sent_my_mail_to_node(node_id, page)
-                        notifier.log_my_sent_mail_to_node(node_id)
-                        notifier.create_or_update_my_status_for_node(node_id)
+                        if notifier.is_waiting_threshold_reached_for_node(node_id):
+                            notifier.sent_my_mail_to_node(node_id, page)
+                            notifier.log_my_sent_mail_to_node(node_id)
+                            notifier.create_or_update_my_status_for_node(node_id)
                     else:
                         notifier.clean_my_status_for_node(node_id)
 
