@@ -110,9 +110,10 @@ class NoImportsMailTemplateHandler(MailTemplateHandler):
     def __get_last_import_date_from_csv(self) -> str:
         df = self.__handler.read_csv_as_df(self.__csv_path)
         series = df['last_write']
-        idx_list = series[series == '-'].index
-        series = series.drop(index=idx_list)
-        return series.values[-1]
+        filtered_series = series[series != '-']
+        if filtered_series.empty:
+            return '???'
+        return filtered_series.iloc[-1]
 
 
 class OutdatedVersionMailTemplateHandler(MailTemplateHandler):

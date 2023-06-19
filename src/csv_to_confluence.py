@@ -599,7 +599,11 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     def __is_template_soup_not_importing(self) -> bool:
         last_write = self._page_template.find(class_='last_write').string
         if last_write == '-':
-            return True
+            series = self._df['last_write']
+            filtered_series = series[series != '-']
+            if filtered_series.empty:
+                return False
+            last_write = filtered_series.iloc[-1]
         return self.__is_date_longer_ago_than_set_hours(last_write)
 
     def __is_template_soup_daily_error_rate_above_threshold(self, threshold: float) -> bool:

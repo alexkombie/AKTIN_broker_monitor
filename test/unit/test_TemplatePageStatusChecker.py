@@ -124,7 +124,27 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
-    def test_empty_last_write(self):
+    def test_empty_last_write_and_no_csv(self):
+        self.__set_value_in_template('last_write', '-')
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
+
+    def test_empty_last_write_and_csv_with_current_timetamps(self):
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df['date'] = self.__create_list_of_current_weeks_dates()
+        df['daily_imported'] = ['0', '1', '1', '1', '1', '1', '0']
+        df['last_write'] = self.__create_list_of_current_weeks_dates()
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
+        self.__set_value_in_template('last_write', '-')
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
+
+    def test_empty_last_write_and_csv_with_past_timetamps(self):
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df['date'] = self.__create_list_of_current_weeks_dates()
+        df['daily_imported'] = ['0', '1', '1', '1', '1', '1', '0']
+        df['last_write'] = ['-', '-', '-', self.__get_current_date_moved_back_by_days_and_hours(days=5, hours=0), '-', '-', '-']
+        self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         self.__set_value_in_template('last_write', '-')
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'NO IMPORTS', 'Red')
