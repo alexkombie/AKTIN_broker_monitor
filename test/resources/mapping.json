@@ -12,6 +12,7 @@
     "2": {
         "COMMON_NAME": "[2] Clinic2",
         "LONG_NAME": "Institute of Two",
+        "CONSECUTIVE_IMPORT_DAYS": 99,
         "JIRA_LABELS": [
             "label3"
         ],
@@ -20,7 +21,8 @@
     "3": {
         "COMMON_NAME": "[3] ÄÜÖ äüö",
         "THRESHOLD_HOURS_FAILURE": 12,
-        "WEEKS_NOTIFICATION_INTERVAL" : 2,
+        "WEEKS_NOTIFICATION_INTERVAL": 2,
+        "CONSECUTIVE_IMPORT_DAYS": 7,
         "ROOT": {
             "PATIENT": "1.2.2",
             "ENCOUNTER": "1.2.45",

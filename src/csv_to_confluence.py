@@ -28,7 +28,6 @@ import logging
 import os
 import sys
 from abc import ABC, abstractmethod
-from itertools import islice, tee
 
 import bs4
 import pandas as pd
@@ -495,6 +494,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     Should always be the last class called in the processing pipeline!
     """
     __default_threshold_hours_failure = 24
+    __default_days_of_consecutive_imports = 3
 
     def __init__(self):
         super().__init__()
@@ -504,17 +504,16 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
 
     def __append_last_year_rows_to_df_if_necessary(self):
         """
-        If the CSV has less than 4 rows, try to append the last 10 rows of the previous year's CSV
+        If the CSV has less than set rows, try to append the previous year's CSV
         to this CSV.
         """
-        if len(self._df) < 4:
+        if len(self._df) < self.__default_days_of_consecutive_imports:
             current_year = self._timestamp_handler.get_current_year()
             last_year = str(int(current_year) - 1)
             last_years_csv_name = self._handler.generate_node_csv_name(self._node_id, last_year)
             last_years_csv_path = os.path.join(self._working_dir, self._node_id, last_years_csv_name)
             if os.path.isfile(last_years_csv_path):
                 last_years_df = self._handler.read_csv_as_df(last_years_csv_path)
-                last_years_df = last_years_df.iloc[-10:]
                 self._df = pd.concat([last_years_df, self._df], ignore_index=True)
 
     def _add_content_to_template_soup(self):
@@ -560,17 +559,26 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     def __is_template_soup_still_testing(self) -> bool:
         """
         Checks if the node is still testing by verifying the consecutive days of imports.
+        If the set value for consecutive days is higher than the number of rows in the csv file,
+        the check is dropped and False is returned.
         """
+        consecutive_imports = self._mapper.get_node_value_from_mapping_dict(self._node_id, 'CONSECUTIVE_IMPORT_DAYS')
+        if not consecutive_imports or consecutive_imports is None:
+            consecutive_imports = self.__default_days_of_consecutive_imports
         series = self._df['daily_imported']
-        if len(series) < 3:
+        if len(series) < consecutive_imports:
             return False
         series = series.str.replace('-', '0')
         series = pd.to_numeric(series)
-        iterators = tee(series, 3)
-        for idx, it in enumerate(iterators):
-            next(islice(it, idx, idx), None)
-        consecutive_imports_slices = (iterslice for iterslice in zip(*iterators) if all(x > 0 for x in iterslice))
-        return not any(consecutive_imports_slices)
+        count = 0
+        for value in series:
+            if value > 0:
+                count += 1
+                if count == consecutive_imports:
+                    return False
+            else:
+                count = 0
+        return True
 
     def __is_template_soup_offline(self) -> bool:
         last_contact = self._page_template.find(class_='last_contact').string

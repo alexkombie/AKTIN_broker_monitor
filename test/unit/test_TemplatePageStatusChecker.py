@@ -178,7 +178,7 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
     def test_no_consecutive_imports(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
         df['date'] = self.__create_list_of_current_weeks_dates()
-        df['daily_imported'] = ['0', '1', '1', '0', '1', '0', '1']
+        df['daily_imported'] = ['0', '1', '1', '0', '1', '0', '0']
         self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
         self.__check_title_and_color_of_status_element_on_page(page, 'TESTING', 'Blue')
@@ -189,6 +189,32 @@ class TestTemplatePageStatusChecker(unittest.TestCase):
         df['daily_imported'] = ['0', '0', '1', '1', '1', '0', '0']
         self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
         page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
+        self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
+
+    def test_custom_value_set_for_consecutive_imports(self):
+        id_node = '3'
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(id_node)
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df['date'] = self.__create_list_of_current_weeks_dates()
+        df['daily_imported'] = ['0', '1', '1', '1', '1', '1', '0']
+        name_csv = self.__CSV_HANDLER.generate_node_csv_name(id_node)
+        path_csv = os.path.join(self.__DIR_WORKING, id_node, name_csv)
+        self.__CSV_HANDLER.write_data_to_file(df, path_csv)
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
+        self.__check_title_and_color_of_status_element_on_page(page, 'TESTING', 'Blue')
+
+    def test_consecutive_imports_higher_than_csv_rows(self):
+        id_node = '2'
+        self.__init_testing_template()
+        self.__init_working_dir_with_empty_csv(id_node)
+        df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
+        df['date'] = self.__create_list_of_current_weeks_dates()
+        df['daily_imported'] = ['0', '1', '1', '1', '1', '1', '0']
+        name_csv = self.__CSV_HANDLER.generate_node_csv_name(id_node)
+        path_csv = os.path.join(self.__DIR_WORKING, id_node, name_csv)
+        self.__CSV_HANDLER.write_data_to_file(df, path_csv)
+        page = self.__CHECKER.add_content_to_template_page(self.__TEMPLATE, id_node)
         self.__check_title_and_color_of_status_element_on_page(page, 'ONLINE', 'Green')
 
     def test_no_gap_in_monitoring(self):
