@@ -16,3 +16,4 @@ jobs:
           src-path: 'src/'
           python-version: '3.10.6'
           pylint-ini-path: '.github/workflows/pylint.ini'
+          bandit-toml-path: '.github/workflows/bandit.toml'
