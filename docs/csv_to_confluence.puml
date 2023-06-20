@@ -8,34 +8,6 @@ entity confluence #aliceblue;line:blue;text:blue
 hide confluence members
 hide confluence circle
 
-entity "JSON file with configuration" as settings {
-* URL broker-server
-* API Key broker-server
-* Working directory of scripts
-* Path to resource directory
-* Confluence URL
-* Confluence Space
-* Confluence Token
-* Path to Confluence mapping file
-* E-Mail-Server URL
-* E-Mail-Server User
-* E-Mail-Server Password
-* Current version of DWH
-.deb package
-* Current version of i2b2
-.deb package
-}
-entity settings #aliceblue;line:blue;text:blue
-hide settings circle
-
-entity "JSON file with confluence node mapping" as mapping {
-* maps id of a node to its common name
-* maps id of a node to its institution name
-* optional jira query labels can be set for id
-}
-entity mapping #aliceblue;line:blue;text:blue
-hide mapping circle
-
 '###################################################################'
 
 package "common.py" as common <<Package>> {
@@ -75,25 +47,12 @@ class "**ConfluenceNodeMapper**" as ConfluenceNodeMapper {
 * loads json file with confluence node mapping
 as python dictionary
 }
-
-class MyLogger {
-* starts/stops logging
-}
-
-class PropertiesReader {
-* validates and loads given settings file
-as python environment variables
-}
-hide PropertiesReader circle
-note top of PropertiesReader: Classes with bold names need items\nfrom JSON configuration file
 }
 
 InfoCSVHandler -u-|> CSVHandler
 ErrorCSVHandler -u-|> CSVHandler
 
 ConfluenceConnection -d--> confluence
-ConfluenceNodeMapper -d--> mapping
-PropertiesReader --> settings
 
 '###################################################################'
 
@@ -188,63 +147,65 @@ class "**ConfluencePageHandlerManager**" as ConfluencePageHandlerManager {
 * creates confluence page with summarization of
 all connected nodes as parent page
 }
+
+class SummaryTableCreator {
+* creates a confluence page with an
+overview table of all connected nodes
+}
 }
 
 TemplatePageLoader --|> ResourceLoader
 
-TemplatePageCSVContentWriter -d------> CSVHandler
+TemplatePageContentWriter --> TemplatePageElementCreator
 
-TemplatePageCSVInfoWriter -d---|> TemplatePageCSVContentWriter
+TemplatePageNodeResourceWriter --|> TemplatePageContentWriter
 
-TemplatePageCSVErrorWriter -d---|> TemplatePageCSVContentWriter
-TemplatePageCSVErrorWriter -d--> TemplatePageElementCreator
-
-TemplatePageStatusChecker -d---|> TemplatePageCSVContentWriter
-TemplatePageStatusChecker -d--> TemplatePageElementCreator
-TemplatePageStatusChecker ----> TimestampHandler
-TemplatePageStatusChecker -----> ConfluenceNodeMapper
-
-TemplatePageMonitoringStartDateWriter -d---|> TemplatePageCSVContentWriter
-TemplatePageMonitoringStartDateWriter -d--> TemplatePageElementCreator
-TemplatePageMonitoringStartDateWriter ----> TimestampHandler
-
-TemplatePageClinicInfoWriter -d---|> TemplatePageContentWriter
-TemplatePageClinicInfoWriter --> ConfluenceNodeMapper
-TemplatePageClinicInfoWriter -d--> TemplatePageElementCreator
-
-TemplatePageNodeResourceWriter -d---|> TemplatePageContentWriter
-
-TemplatePageJiraTableWriter -d---|> TemplatePageContentWriter
+TemplatePageJiraTableWriter --|> TemplatePageContentWriter
 TemplatePageJiraTableWriter --> ConfluenceNodeMapper
-TemplatePageJiraTableWriter --> TemplatePageElementCreator
 
-TemplatePageMigrator ---> TemplatePageLoader
-TemplatePageMigrator -d--> TemplatePageElementCreator
+ConfluenceClinicContactGrabber --|> TemplatePageContentWriter
 
-ConfluenceClinicContactGrabber -d---|> TemplatePageContentWriter
-ConfluenceClinicContactGrabber --> ConfluenceConnection
-ConfluenceClinicContactGrabber -d--> TemplatePageElementCreator
+TemplatePageClinicInfoWriter --|> TemplatePageContentWriter
+TemplatePageClinicInfoWriter --> ConfluenceNodeMapper
 
-ConfluenceHandler --> ConfluenceConnection
+TemplatePageCSVContentWriter --|> TemplatePageContentWriter
+TemplatePageCSVContentWriter --> CSVHandler
+
+TemplatePageCSVInfoWriter --|> TemplatePageCSVContentWriter
+TemplatePageCSVErrorWriter --|> TemplatePageCSVContentWriter
+
+TemplatePageStatusChecker --|> TemplatePageCSVContentWriter
+TemplatePageStatusChecker --> TimestampHandler
+TemplatePageStatusChecker --> ConfluenceNodeMapper
+
+TemplatePageMonitoringStartDateWriter --|> TemplatePageCSVContentWriter
+TemplatePageMonitoringStartDateWriter --> TimestampHandler
+
+TemplatePageMigrator --> TemplatePageLoader
+TemplatePageMigrator --> TemplatePageElementCreator
+
 ConfluenceHandler --> ConfluenceNodeMapper
+ConfluenceHandler --> ConfluenceConnection
 
-ConfluencePageHandler ---|> ConfluenceHandler
-ConfluencePageHandler ---> TemplatePageLoader
-ConfluencePageHandler ---> TemplatePageClinicInfoWriter
-ConfluencePageHandler ---> TemplatePageMonitoringStartDateWriter
-ConfluencePageHandler ---> TemplatePageMigrator
-ConfluencePageHandler ---> TemplatePageCSVInfoWriter
-ConfluencePageHandler ---> TemplatePageCSVErrorWriter
-ConfluencePageHandler ---> TemplatePageNodeResourceWriter
-ConfluencePageHandler ---> TemplatePageJiraTableWriter
-ConfluencePageHandler ---> TemplatePageStatusChecker
-ConfluencePageHandler ---> ConfluenceClinicContactGrabber
+ConfluencePageHandler -d---|> ConfluenceHandler
+ConfluencePageHandler -d---> TemplatePageLoader
+ConfluencePageHandler -d---> TemplatePageMonitoringStartDateWriter
+ConfluencePageHandler -d---> TemplatePageMigrator
+ConfluencePageHandler -d---> TemplatePageClinicInfoWriter
+ConfluencePageHandler -d---> ConfluenceClinicContactGrabber
+ConfluencePageHandler -d---> TemplatePageCSVInfoWriter
+ConfluencePageHandler -d---> TemplatePageCSVErrorWriter
+ConfluencePageHandler -d---> TemplatePageNodeResourceWriter
+ConfluencePageHandler -d---> TemplatePageJiraTableWriter
+ConfluencePageHandler -d---> TemplatePageStatusChecker
 
 FileBackupManager --|> ConfluenceHandler
 
+SummaryTableCreator --> TemplatePageElementCreator
+
 ConfluencePageHandlerManager --|> ConfluenceHandler
 ConfluencePageHandlerManager --> ConfluencePageHandler
+ConfluencePageHandlerManager --> SummaryTableCreator
 ConfluencePageHandlerManager --> FileBackupManager
-ConfluencePageHandlerManager --> TemplatePageElementCreator
 
 @enduml
