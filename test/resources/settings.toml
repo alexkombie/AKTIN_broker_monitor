@@ -3,7 +3,7 @@ URL = "CHANGEME"
 API_KEY = "CHANGEME"
 
 [DIR]
-WORKING = "/home/akomi/PycharmProjects/broker-monitor/test/resources"
+WORKING = "/home/akomi/PycharmProjects/broker-monitor/test/tmp"
 RESOURCES = "/home/akomi/PycharmProjects/broker-monitor/src/resources"
 
 [CONFLUENCE]

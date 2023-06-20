@@ -80,3 +80,5 @@ mapping looks like the following:
 To test the script, **integration-test.bat** and **integration-test.sh** are attached. To run an integration test, a running instance of [Docker](https://www.docker.com/) is required. The script will create a container to
 simulate the [AKTIN Broker Server](https://github.com/aktin/broker/tree/master/broker-server) and a second container to run the scripts on. Every class of the scripts, which does not need a connection to Confluence or the
 E-Mail-Server, is tested within the integration tests.
+
+IMPORTANT: During the unit tests, the scripts create a temporary working folder and then delete it after the tests finished. Do not set `DIR.WORKING` in `test/resources/settings.toml` to an existing folder, as IT WILL BE DELETED automatically after the test.
