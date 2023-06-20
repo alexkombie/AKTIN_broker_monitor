@@ -369,17 +369,17 @@ class TemplatePageCSVContentWriter(TemplatePageContentWriter, ABC):
         super().__init__()
         self._df = None
 
-    def add_content_to_template_page(self, page_template: str, id_node: str) -> str:
-        self._node_id = id_node
-        self._page_template = bs4.BeautifulSoup(page_template, self._creator.get_parser())
-        dir_working = os.path.join(self._working_dir, id_node)
-        self._df = self.__load_csv_as_df(id_node, dir_working)
+    def add_content_to_template_page(self, template_page: str, node_id: str) -> str:
+        self._node_id = node_id
+        self._page_template = bs4.BeautifulSoup(template_page, self._creator.get_parser())
+        dir_working = os.path.join(self._working_dir, node_id)
+        self._df = self.__load_csv_as_df(node_id, dir_working)
         self._add_content_to_template_soup()
         return str(self._page_template)
 
-    def __load_csv_as_df(self, id_node: str, dir_working: str) -> pd.DataFrame:
-        name_csv = self._handler.generate_node_csv_name(id_node)
-        path_csv = os.path.join(dir_working, name_csv)
+    def __load_csv_as_df(self, node_id: str, working_dir: str) -> pd.DataFrame:
+        name_csv = self._handler.generate_node_csv_name(node_id)
+        path_csv = os.path.join(working_dir, name_csv)
         return self._handler.read_csv_as_df(path_csv)
 
 
@@ -548,12 +548,11 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         delta = self._timestamp_handler.get_timedelta_in_absolute_hours(current_date, todays_csv)
         if delta > 24:
             return True
-        else:
-            if len(series) >= 2:
-                yesterdays_csv = series.iloc[-2]
-                delta2 = self._timestamp_handler.get_timedelta_in_absolute_hours(yesterdays_csv, todays_csv)
-                if delta2 > 24:
-                    return True
+        if len(series) >= 2:
+            yesterdays_csv = series.iloc[-2]
+            delta2 = self._timestamp_handler.get_timedelta_in_absolute_hours(yesterdays_csv, todays_csv)
+            if delta2 > 24:
+                return True
         return False
 
     def __is_template_soup_still_testing(self) -> bool:
@@ -846,7 +845,7 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
                 self.__handler.upload_node_information_as_confluence_page(node_id)
                 self.__backup.backup_files(node_id)
             else:
-                logging.info(f'Directory for id {node_id} not found. Skipping...')
+                logging.info('Directory for id %s not found. Skipping...', node_id)
 
     def upload_summary_for_confluence_pages(self):
         node_ids = self._mapper.get_all_keys()
