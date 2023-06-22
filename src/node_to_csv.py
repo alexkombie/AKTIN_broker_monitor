@@ -381,6 +381,4 @@ class NodeRetrieverManager:
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    manager = NodeRetrieverManager()
-    functionality = manager.fetch_broker_node_information
-    Main.main(sys.argv[1], functionality)
+    Main.main(sys.argv[1], lambda: NodeRetrieverManager().fetch_broker_node_information())

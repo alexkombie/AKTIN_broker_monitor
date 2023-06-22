@@ -397,6 +397,4 @@ class NodeEventNotifierManager:
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    manager = NodeEventNotifierManager()
-    functionality = manager.notify_node_recipients_on_emergency_status
-    Main.main(sys.argv[1], functionality)
+    Main.main(sys.argv[1], lambda: NodeEventNotifierManager().notify_node_recipients_on_emergency_status())

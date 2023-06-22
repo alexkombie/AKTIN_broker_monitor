@@ -383,6 +383,7 @@ class TemplatePageCSVContentWriter(TemplatePageContentWriter, ABC):
         return self._handler.read_csv_as_df(path_csv)
 
 
+# TODO bei last-import soll der tatsächliche last import stehen
 class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
     """
     Writes the content of an info CSV (of a single node) into predefined elements of the template.
@@ -801,8 +802,8 @@ class SummaryTableCreator:
         last_check = self.__create_table_data_from_page_template_key(template, 'last_check')
         todays_error_rate = self.__create_table_data_from_page_template_key(template, 'daily_error_rate')
         last_weeks_error_rate = self.__create_table_data_from_page_template_key(template, 'error_rate')
-        todays_imports = self.__get_sum_of_two_table_data_elements(template, 'imported', 'updated')
-        todays_errors = self.__get_sum_of_two_table_data_elements(template, 'invalid', 'failed')
+        todays_imports = self.__get_sum_of_two_table_data_elements(template, 'daily_imported', 'daily_updated')
+        todays_errors = self.__get_sum_of_two_table_data_elements(template, 'daily_invalid', 'daily_failed')
         row = self.__creator.create_html_element('tr')
         row.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate, last_weeks_error_rate])
         return row
@@ -815,7 +816,12 @@ class SummaryTableCreator:
     def __get_sum_of_two_table_data_elements(self, template_page: bs4.BeautifulSoup, key1: str, key2: str) -> Tag:
         value1 = template_page.find(class_=key1).string
         value2 = template_page.find(class_=key2).string
-        sum_values = float(value1) + float(value2)
+        if value1 == '-' and value2 == '-':
+            sum_values = '-'
+        else:
+            value1 = float(value1) if value1 != '-' else 0.0
+            value2 = float(value2) if value2 != '-' else 0.0
+            sum_values = round(value1 + value2, 2)
         td = self.__creator.create_td_html_element(str(sum_values), centered=True)
         return td
 
@@ -864,7 +870,5 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    manager = ConfluencePageHandlerManager()
-    functionality = [manager.upload_node_information_as_confluence_pages,
-                     manager.upload_summary_for_confluence_pages]
-    Main.main(sys.argv[1], functionality)
+    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
+    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
