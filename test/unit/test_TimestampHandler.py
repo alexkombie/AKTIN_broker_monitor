@@ -14,39 +14,61 @@ class TestSingletonMeta(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.__TIMESTAMP_HANDLER = TimestampHandler()
+        cls.__handler = TimestampHandler()
 
     def test_get_yesterdays_date(self):
-        date_today = self.__TIMESTAMP_HANDLER.get_current_date()
-        date_yesterday = self.__TIMESTAMP_HANDLER.get_yesterdays_date()
-        timedelta = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_yesterday, date_today)
+        date_today = self.__handler.get_current_date()
+        date_yesterday = self.__handler.get_yesterdays_date()
+        timedelta = self.__handler.get_timedelta_in_absolute_hours(date_yesterday, date_today)
         self.assertEqual(24, timedelta)
-        timedelta2 = self.__TIMESTAMP_HANDLER.get_timedelta_in_absolute_hours(date_today, date_yesterday)
+        timedelta2 = self.__handler.get_timedelta_in_absolute_hours(date_today, date_yesterday)
         self.assertEqual(24, timedelta2)
 
     def test_get_year_from_date_string(self):
-        time = self.__TIMESTAMP_HANDLER.get_local_year_from_date_string('202201011230')
-        self.assertEqual('2022', time)
+        self.assertEqual('2023', self.__handler.get_utc_year_from_date_string('2023-06-22T15:58:05Z'))
+
+    def test_get_year_from_date_string_different_tz(self):
+        self.assertEqual('2024', self.__handler.get_utc_year_from_date_string('2023-12-31T20:00:00-04:00'))
 
     def test_get_year_from_date_string_missing_hours(self):
-        time = self.__TIMESTAMP_HANDLER.get_local_year_from_date_string('20220101')
-        self.assertEqual('2022', time)
+        self.assertEqual('2021', self.__handler.get_utc_year_from_date_string('20220101'))
 
-    def test_get_YMD_from_date_string(self):
-        time = self.__TIMESTAMP_HANDLER.get_local_ymd_from_date_string('202201111230')
-        self.assertEqual('2022-01-11', time)
+    def test_get_ymd_from_date_string(self):
+        self.assertEqual('2023-06-22', self.__handler.get_utc_ymd_from_date_string('2023-06-22T15:58:05Z'))
 
-    def test_get_YMD_from_date_string_invalid_input(self):
+    def test_get_ymd_from_date_string_different_tz(self):
+        self.assertEqual('2024-01-01', self.__handler.get_utc_ymd_from_date_string('2023-12-31T20:00:00-04:00'))
+
+    def test_get_ymd_from_date_string_invalid_input(self):
         with self.assertRaises(ValueError):
-            _ = self.__TIMESTAMP_HANDLER.get_local_ymd_from_date_string('2022011')
+            _ = self.__handler.get_utc_ymd_from_date_string('2023062')
 
-    def test_get_YMD_HMS_from_date_string(self):
-        time = self.__TIMESTAMP_HANDLER.get_local_ymd_hms_from_date_string('20220111123055')
-        self.assertEqual('2022-01-11 12:30:55', time)
+    def test_get_ymd_hms_from_date_string(self):
+        self.assertEqual('2023-06-22 15:58:05', self.__handler.get_utc_ymd_hms_from_date_string('2023-06-22T15:58:05Z'))
 
-    def test_get_YMD_HMS_from_date_string_missing_hours(self):
-        time = self.__TIMESTAMP_HANDLER.get_local_ymd_hms_from_date_string('20220111')
-        self.assertEqual('2022-01-11 00:00:00', time)
+    def test_get_ymd_hms_from_date_string_different_tz(self):
+        self.assertEqual('2024-01-01 00:00:00', self.__handler.get_utc_ymd_hms_from_date_string('2023-12-31T20:00:00-04:00'))
+
+    def test_get_timedelta_in_absolute_hours(self):
+        self.assertEqual(24.0, self.__handler.get_timedelta_in_absolute_hours('2023-06-22T15:58:05Z', '2023-06-23T15:58:05Z'))
+
+    def test_get_timedelta_in_absolute_hours_different_tz(self):
+        self.assertEqual(0, self.__handler.get_timedelta_in_absolute_hours('2023-12-31T20:00:00-04:00', '2024-01-01T04:00:00+04:00'))
+
+    def test_convert_to_berlin_time1(self):
+        self.assertEqual('2023-06-22 02:00:00+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-22 00:00:00', '%Y-%m-%d %H:%M:%S'))
+
+    def test_convert_to_berlin_time2(self):
+        self.assertEqual('2023-12-22 01:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2023-12-22 00:00:00', '%Y-%m-%d %H:%M:%S'))
+
+    def test_convert_to_berlin_time3(self):
+        self.assertEqual('2023-12-22 01:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2023-12-22', '%Y-%m-%d'))
+
+    def test_convert_to_berlin_time_with_tzinfo(self):
+        self.assertEqual('2022-01-01 12:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2022-01-01 12:00:00+01:00', '%Y-%m-%d %H:%M:%S%z'))
+
+    def test_convert_to_berlin_time_with_tzinfo2(self):
+        self.assertEqual('2023-06-22 02:00:00+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-22 00:00:00Z', '%Y-%m-%d %H:%M:%S%z'))
 
 
 if __name__ == '__main__':

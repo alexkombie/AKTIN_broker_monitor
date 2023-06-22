@@ -169,17 +169,16 @@ TemplatePageClinicInfoWriter --|> TemplatePageContentWriter
 TemplatePageClinicInfoWriter --> ConfluenceNodeMapper
 
 TemplatePageCSVContentWriter --|> TemplatePageContentWriter
+TemplatePageCSVContentWriter --> TimestampHandler
 TemplatePageCSVContentWriter --> CSVHandler
 
 TemplatePageCSVInfoWriter --|> TemplatePageCSVContentWriter
 TemplatePageCSVErrorWriter --|> TemplatePageCSVContentWriter
 
 TemplatePageStatusChecker --|> TemplatePageCSVContentWriter
-TemplatePageStatusChecker --> TimestampHandler
 TemplatePageStatusChecker --> ConfluenceNodeMapper
 
 TemplatePageMonitoringStartDateWriter --|> TemplatePageCSVContentWriter
-TemplatePageMonitoringStartDateWriter --> TimestampHandler
 
 TemplatePageMigrator --> TemplatePageLoader
 TemplatePageMigrator --> TemplatePageElementCreator

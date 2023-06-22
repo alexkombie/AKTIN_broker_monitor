@@ -367,6 +367,7 @@ class TemplatePageCSVContentWriter(TemplatePageContentWriter, ABC):
 
     def __init__(self):
         super().__init__()
+        self._timestamp_handler = TimestampHandler()
         self._df = None
 
     def add_content_to_template_page(self, template_page: str, node_id: str) -> str:
@@ -399,25 +400,34 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
         self.__add_daily_imports_to_template_soup()
 
     def __add_dates_to_template_soup(self):
+        fields = {
+            'date': 'last_check',
+            'last_contact': 'last_contact',
+            'last_start': 'last_start',
+            'last_write': 'last_write',
+            'last_reject': 'last_reject',
+        }
         last_row = self._df.iloc[-1].to_dict()
-        self._page_template.find(class_='last_check').string.replace_with(last_row.get('date'))
-        self._page_template.find(class_='last_contact').string.replace_with(last_row.get('last_contact'))
-        self._page_template.find(class_='last_start').string.replace_with(last_row.get('last_start'))
-        self._page_template.find(class_='last_write').string.replace_with(last_row.get('last_write'))
-        self._page_template.find(class_='last_reject').string.replace_with(last_row.get('last_reject'))
+        for field, template_class in fields.items():
+            time = last_row.get(field)
+            if time is not None and time != '-':
+                time = self._timestamp_handler.convert_ts_to_berlin_time(time, '%Y-%m-%d %H:%M:%S%z')
+            else:
+                time = '-'
+            self._page_template.find(class_=template_class).string.replace_with(time)
 
     def __add_weekly_imports_to_template_soup(self):
+        fields = {
+            'daily_imported': 'imported',
+            'daily_updated': 'updated',
+            'daily_invalid': 'invalid',
+            'daily_failed': 'failed',
+            'daily_error_rate': 'error_rate',
+        }
         last_week = self._df.tail(7)
-        imported = self.__get_mean_of_series(last_week['daily_imported'])
-        updated = self.__get_mean_of_series(last_week['daily_updated'])
-        invalid = self.__get_mean_of_series(last_week['daily_invalid'])
-        failed = self.__get_mean_of_series(last_week['daily_failed'])
-        error_rate = self.__get_mean_of_series(last_week['daily_error_rate'])
-        self._page_template.find(class_='imported').string.replace_with(imported)
-        self._page_template.find(class_='updated').string.replace_with(updated)
-        self._page_template.find(class_='invalid').string.replace_with(invalid)
-        self._page_template.find(class_='failed').string.replace_with(failed)
-        self._page_template.find(class_='error_rate').string.replace_with(error_rate)
+        for field, template_class in fields.items():
+            mean = self.__get_mean_of_series(last_week[field])
+            self._page_template.find(class_=template_class).string.replace_with(mean)
 
     @staticmethod
     def __get_mean_of_series(series: pd.Series) -> str:
@@ -430,11 +440,9 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
 
     def __add_daily_imports_to_template_soup(self):
         last_row = self._df.iloc[-1].to_dict()
-        self._page_template.find(class_='daily_imported').string.replace_with(last_row.get('daily_imported'))
-        self._page_template.find(class_='daily_updated').string.replace_with(last_row.get('daily_updated'))
-        self._page_template.find(class_='daily_invalid').string.replace_with(last_row.get('daily_invalid'))
-        self._page_template.find(class_='daily_failed').string.replace_with(last_row.get('daily_failed'))
-        self._page_template.find(class_='daily_error_rate').string.replace_with(last_row.get('daily_error_rate'))
+        fields = ['daily_imported', 'daily_updated', 'daily_invalid', 'daily_failed', 'daily_error_rate']
+        for field in fields:
+            self._page_template.find(class_=field).string.replace_with(last_row.get(field))
 
 
 class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
@@ -465,6 +473,7 @@ class TemplatePageCSVErrorWriter(TemplatePageCSVContentWriter):
         return table
 
     def __create_error_table_row(self, timestamp: str, repeats: str, content: str) -> Tag:
+        timestamp = self._timestamp_handler.get_utc_ymd_hms_from_date_string(timestamp)
         timestamp_column = self._creator.create_td_html_element(timestamp, centered=True)
         repeats_column = self._creator.create_td_html_element(repeats, centered=True)
         content_column = self._creator.create_td_html_element(content)
@@ -500,7 +509,6 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     def __init__(self):
         super().__init__()
         self._handler = InfoCSVHandler()
-        self._timestamp_handler = TimestampHandler()
         self._mapper = ConfluenceNodeMapper()
 
     def __append_last_year_rows_to_df_if_necessary(self):
@@ -591,7 +599,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         threshold_hours = self._mapper.get_node_value_from_mapping_dict(self._node_id, 'THRESHOLD_HOURS_FAILURE')
         if not threshold_hours or threshold_hours is None:
             threshold_hours = self.__default_threshold_hours_failure
-        input_date = self._timestamp_handler.get_local_ymd_hms_from_date_string(input_date)
+        input_date = self._timestamp_handler.get_utc_ymd_hms_from_date_string(input_date)
         current_date = self._timestamp_handler.get_current_date()
         delta = self._timestamp_handler.get_timedelta_in_absolute_hours(input_date, current_date)
         return delta > threshold_hours
@@ -630,11 +638,11 @@ class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
     def __init__(self):
         super().__init__()
         self._handler = InfoCSVHandler()
-        self._timestamp_handler = TimestampHandler()
 
     def _add_content_to_template_soup(self):
         first_monitoring = self._df['date'].iloc[0]
-        start_monitoring = self._timestamp_handler.get_local_ymd_from_date_string(first_monitoring)
+        start_monitoring = self._timestamp_handler.convert_ts_to_berlin_time(first_monitoring, '%Y-%m-%d %H:%M:%S%z')
+        start_monitoring = start_monitoring[:10]  # cutoff HH:MM:SS
         time_element = self._creator.create_html_element('time', {'datetime': start_monitoring})
         td = self._creator.create_html_element('td', {'class': 'online_since'})
         td.append(time_element)

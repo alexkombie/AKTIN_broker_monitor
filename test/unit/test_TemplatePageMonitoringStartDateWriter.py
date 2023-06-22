@@ -40,7 +40,7 @@ class TestTemplatePageMonitoringStartDateWriter(unittest.TestCase):
         if not os.path.exists(dir_working):
             os.makedirs(dir_working)
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 00:00:00', '2022-02-02 00:00:00', '2022-03-03 00:00:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
+        df.loc[len(df)] = ['2022-01-01 00:00:00+01:00', '2022-02-02 00:00:00+01:00', '2022-03-03 00:00:00+01:00', '-', '-', '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
         path_csv = os.path.join(dir_working, name_csv)
         self.__CSV_HANDLER.write_data_to_file(df, path_csv)
 

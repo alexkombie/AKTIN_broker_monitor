@@ -40,7 +40,6 @@ import requests
 import toml
 from atlassian import Confluence
 from dateutil import parser
-from pytz import timezone
 
 
 class SingletonMeta(type):
@@ -85,7 +84,9 @@ class CSVHandler(DataWriter, ABC):
     """
     _category: str
     _separator: str = ';'
-    _timezone: str = 'Europe/Berlin'
+
+    def __init__(self):
+        self.__timestamp = TimestampHandler()
 
     def write_data_to_file(self, data: pd.DataFrame, filepath: str):
         data.to_csv(filepath, sep=self._separator, encoding=self._encoding, index=False)
@@ -98,7 +99,7 @@ class CSVHandler(DataWriter, ABC):
         Naming convention is <ID_NODE>_<CATEGORY>_<CURRENT YEAR>
         """
         if year is None:
-            year = str(pd.Timestamp.now(tz=self._timezone).year)
+            year = self.__timestamp.get_current_year()
         csv_name = '_'.join([node_id, self._category, year])
         return ''.join([csv_name, '.csv'])
 
@@ -162,38 +163,46 @@ class TimestampHandler(metaclass=SingletonMeta):
     """
     Handles everything regarding dates and timestamps
     """
-    __timezone = timezone('Europe/Berlin')
+    __tzinfo = pytz.UTC
 
     def get_current_date(self) -> str:
-        return str(datetime.now(self.__timezone))
+        return str(datetime.utcnow().replace(tzinfo=self.__tzinfo))
 
     def get_yesterdays_date(self) -> str:
-        date = datetime.now(self.__timezone) - timedelta(days=1)
+        date = datetime.utcnow().replace(tzinfo=self.__tzinfo) - timedelta(days=1)
         return str(date)
 
     def get_current_year(self) -> str:
-        date = datetime.now(self.__timezone)
+        date = datetime.utcnow().replace(tzinfo=self.__tzinfo)
         return str(date.year)
 
+    def __to_utc(self, date: str) -> datetime:
+        return parser.parse(date).astimezone(self.__tzinfo)
+
+    def get_utc_year_from_date_string(self, date: str) -> str:
+        return str(self.__to_utc(date).year)
+
+    def get_utc_ymd_from_date_string(self, date: str) -> str:
+        return self.__to_utc(date).strftime('%Y-%m-%d')
+
+    def get_utc_ymd_hms_from_date_string(self, date: str) -> str:
+        return self.__to_utc(date).strftime('%Y-%m-%d %H:%M:%S')
+
+    def get_timedelta_in_absolute_hours(self, date1: str, date2: str) -> float:
+        delta = abs(self.__to_utc(date2) - self.__to_utc(date1))
+        return round(delta.total_seconds() / 3600)
+
     @staticmethod
-    def get_local_year_from_date_string(date: str) -> str:
-        d = parser.parse(date)
-        return str(d.year)
-
-    def get_local_ymd_from_date_string(self, date: str) -> str:
-        d = parser.parse(date).astimezone(self.__timezone)
-        return d.strftime('%Y-%m-%d')
-
-    def get_local_ymd_hms_from_date_string(self, date: str) -> str:
-        d = parser.parse(date).astimezone(self.__timezone)
-        return d.strftime('%Y-%m-%d %H:%M:%S')
-
-    @staticmethod
-    def get_timedelta_in_absolute_hours(date1: str, date2: str) -> float:
-        d1 = parser.parse(date1).astimezone(pytz.utc)
-        d2 = parser.parse(date2).astimezone(pytz.utc)
-        delta = d2 - d1
-        return round(abs(delta.total_seconds() / 3600))
+    def convert_ts_to_berlin_time(date: str, input_format: str) -> str:
+        """
+        If dt is naive, it is assumed to be in UTC
+        """
+        dt = datetime.strptime(date, input_format)
+        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+            dt = pytz.UTC.localize(dt)
+        berlin_tz = pytz.timezone('Europe/Berlin')
+        berlin_time = dt.astimezone(berlin_tz)
+        return str(berlin_time)
 
 
 class BrokerNodeConnection(metaclass=SingletonMeta):

@@ -4,9 +4,9 @@ from datetime import datetime
 from shutil import rmtree
 
 import pandas as pd
+import pytz
 from common import ErrorCSVHandler, ConfigReader
 from node_to_csv import NodeErrorRetriever
-from pytz import timezone
 
 from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeError
 
@@ -16,7 +16,7 @@ class TestNodeErrorRetriever(unittest.TestCase):
     __DEFAULT_API_KEY: str = 'xxxApiKey123'
     __DIR_ROOT: str = None
 
-    __TIMEZONE = timezone('Europe/Berlin')
+    __TIMEZONE = pytz.timezone('Europe/Berlin')
 
     @classmethod
     def setUpClass(cls):
@@ -71,37 +71,37 @@ class TestNodeErrorRetriever(unittest.TestCase):
     def test_fetch_default_error_to_csv(self):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
         self.assertEqual(1, df.shape[0])
-        ts_expected = ''.join([str(datetime.now().year), '-01-01 02:00:00'])
+        ts_expected = ''.join([str(datetime.now().year), '-10-30 02:00:00+0100'])
         self.__check_error_row_from_csv(df.iloc[0], ts_expected, '5', 'TestError')
 
     def test_update_error_in_csv(self):
         error = self.__create_error1_update()
         df = self.__put_import_error_on_broker_and_get_fetched_csv_as_df(error)
         self.assertEqual(1, df.shape[0])
-        ts_expected = ''.join([str(datetime.now().year), '-10-10 03:00:00'])
+        ts_expected = ''.join([str(datetime.now().year), '-10-10 03:00:00+0200'])
         self.__check_error_row_from_csv(df.iloc[0], ts_expected, '10', 'TestError')
 
     def test_fetch_next_error_to_csv(self):
         error = self.__create_error2()
         df = self.__put_import_error_on_broker_and_get_fetched_csv_as_df(error)
         self.assertEqual(2, df.shape[0])
-        ts_expected = ''.join([str(datetime.now().year), '-05-05 04:00:00'])
-        self.__check_error_row_from_csv(df.iloc[0], ts_expected, '5', 'TestError2')
-        ts_expected2 = ''.join([str(datetime.now().year), '-01-01 02:00:00'])
-        self.__check_error_row_from_csv(df.iloc[1], ts_expected2, '5', 'TestError')
+        ts_expected = ''.join([str(datetime.now().year), '-10-30 02:00:00+0100'])
+        self.__check_error_row_from_csv(df.iloc[0], ts_expected, '5', 'TestError')
+        ts_expected2 = ''.join([str(datetime.now().year), '-05-05 04:00:00+0200'])
+        self.__check_error_row_from_csv(df.iloc[1], ts_expected2, '5', 'TestError2')
 
     def test_fetch_default_error_to_csv_with_missing_repeats(self):
         error = self.__create_error_without_repeats()
         df = self.__put_import_error_on_broker_and_get_fetched_csv_as_df(error)
         self.assertEqual(1, df.shape[0])
-        ts_expected = ''.join([str(datetime.now().year), '-01-01 02:00:00'])
+        ts_expected = ''.join([str(datetime.now().year), '-01-01 02:00:00+0100'])
         self.__check_error_row_from_csv(df.iloc[0], ts_expected, '1', 'TestError')
 
     def test_fetch_identical_error_to_csv(self):
         error = self.__create_error1()
         df = self.__put_import_error_on_broker_and_get_fetched_csv_as_df(error)
         self.assertEqual(1, df.shape[0])
-        ts_expected = ''.join([str(datetime.now().year), '-01-01 02:00:00'])
+        ts_expected = ''.join([str(datetime.now().year), '-10-30 02:00:00+0100'])
         self.__check_error_row_from_csv(df.iloc[0], ts_expected, '5', 'TestError')
 
     def test_fetch_error_from_last_year_to_csv(self):
@@ -111,29 +111,32 @@ class TestNodeErrorRetriever(unittest.TestCase):
         self.assertEqual(0, df.shape[0])
 
     def __create_error1(self):
-        ts_error = self.__create_timestamp_for_broker(datetime.now().year, 1, 1, 1, 0)
+        ts_error = self.__create_local_timestamp_for_broker(datetime.now().year, 10, 30, 1, 0)
         return BrokerNodeError(ts_error, '5', 'TestError')
 
     def __create_error1_update(self):
-        ts_error = self.__create_timestamp_for_broker(datetime.now().year, 10, 10, 1, 0)
+        ts_error = self.__create_local_timestamp_for_broker(datetime.now().year, 10, 10, 1, 0)
         return BrokerNodeError(ts_error, '10', 'TestError')
 
     def __create_error2(self):
-        ts_error = self.__create_timestamp_for_broker(datetime.now().year, 5, 5, 2, 0)
+        ts_error = self.__create_local_timestamp_for_broker(datetime.now().year, 5, 5, 2, 0)
         return BrokerNodeError(ts_error, '5', 'TestError2')
 
     def __create_error_last_year(self):
-        ts_error = self.__create_timestamp_for_broker(datetime.now().year - 1, 1, 1, 1, 0)
+        ts_error = self.__create_local_timestamp_for_broker(datetime.now().year - 1, 1, 1, 1, 0)
         return BrokerNodeError(ts_error, '1', 'TestError')
 
     def __create_error_without_repeats(self):
-        ts_error = self.__create_timestamp_for_broker(datetime.now().year, 1, 1, 1, 0)
+        ts_error = self.__create_local_timestamp_for_broker(datetime.now().year, 1, 1, 1, 0)
         return BrokerNodeError(ts_error, '', 'TestError')
 
-    def __create_timestamp_for_broker(self, year: int, month: int, day: int, hour: int, minute: int) -> str:
-        timestamp = datetime(year, month, day, hour, minute, 0)  # datetime assumes an utc timestamp
-        self.__TIMEZONE.localize(timestamp)
-        return timestamp.isoformat()
+    def __create_local_timestamp_for_broker(self, year: int, month: int, day: int, hour: int, minute: int) -> str:
+        """
+        input as UTC, is converted to local afterwards
+        """
+        timestamp = datetime(year, month, day, hour, minute, 0, tzinfo=pytz.UTC)
+        localized_timestamp = timestamp.astimezone(self.__TIMEZONE)
+        return localized_timestamp.strftime('%Y-%m-%d %H:%M:%S%z')
 
     def __check_error_row_from_csv(self, row: pd.Series, timestamp: str, repeats: str, content: str):
         self.assertEqual(timestamp, row['timestamp'])

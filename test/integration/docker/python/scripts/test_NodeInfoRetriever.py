@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 from shutil import rmtree
 
 import pandas as pd
+import pytz
 from common import InfoCSVHandler, ConfigReader
 from dateutil import parser
 from node_to_csv import NodeInfoRetriever
-from pytz import timezone
 
 from BrokerNodeDummy import BrokerNodeDummy, BrokerNodeImports
 
@@ -72,7 +72,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
     def test_fetch_default_stats_to_csv(self):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '-', '-')
+        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00+0100', '-', '-')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '0', '0', '0', '0', '-')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
@@ -80,7 +80,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00+0100', '2020-03-03 01:00:00+0100', '2020-03-03 01:00:00+0100')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
@@ -89,7 +89,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 01:00:00+0100', '2020-03-03 01:00:00+0100', '2020-03-03 01:00:00+0100')
         self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
 
@@ -98,7 +98,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 01:00:00+0100', '2020-03-03 01:00:00+0100', '2020-03-03 01:00:00+0100')
         self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
@@ -107,7 +107,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
         stats2 = self.__create_stats2_dwh_restart()
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(2, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 13:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[1], '2020-01-01 13:00:00+0100', '2020-03-03 01:00:00+0100', '2020-03-03 01:00:00+0100')
         self.__check_global_import_stats_in_csv_row(df.iloc[1], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[1], '-', '-', '-', '-', '-')
 
@@ -117,7 +117,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00+0100', '2020-03-03 01:00:00+0100', '2020-03-03 01:00:00+0100')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
 
@@ -127,7 +127,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
         stats2 = self.__create_stats2()
         df = self.__put_import_stats_on_broker_and_get_fetched_csv_as_df(stats2)
         self.assertEqual(1, df.shape[0])
-        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00', '2020-03-03 01:00:00', '2020-03-03 01:00:00')
+        self.__check_date_stats_in_csv_row(df.iloc[0], '2020-01-01 01:00:00+0100', '2020-03-03 01:00:00+0100', '2020-03-03 01:00:00+0100')
         self.__check_global_import_stats_in_csv_row(df.iloc[0], '2000', '400', '250', '350', '20.00')
         self.__check_daily_import_stats_in_csv_row(df.iloc[0], '-', '-', '-', '-', '-')
 
@@ -160,7 +160,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
 
     @staticmethod
     def __add_timezone_to_date_string(date: str) -> str:
-        d = parser.parse(date).astimezone(timezone('Europe/Berlin'))
+        d = parser.parse(date).astimezone(pytz.timezone('Europe/Berlin'))
         return d.strftime('%Y-%m-%d %H:%M:%S%z')
 
     def __check_date_stats_in_csv_row(self, row: pd.Series, start: str, last_write: str, last_reject: str):
@@ -189,10 +189,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
 
     def __change_date_of_current_csv_to_past_days(self, days: int):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
-        ts_current = datetime.now(timezone('Europe/Berlin'))
-        ts_past = ts_current - timedelta(days=days)
-        date_past = ts_past.strftime('%Y-%m-%d %H:%M:%S')
-        df.iloc[0]['date'] = date_past
+        df.iloc[0]['date'] = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(days=days)
         self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     @staticmethod
