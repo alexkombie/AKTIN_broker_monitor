@@ -193,11 +193,11 @@ class TimestampHandler(metaclass=SingletonMeta):
         return round(delta.total_seconds() / 3600)
 
     @staticmethod
-    def convert_ts_to_berlin_time(date: str, input_format: str) -> str:
+    def convert_ts_to_berlin_time(date: str) -> str:
         """
         If dt is naive, it is assumed to be in UTC
         """
-        dt = datetime.strptime(date, input_format)
+        dt = parser.parse(date)
         if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
             dt = pytz.UTC.localize(dt)
         berlin_tz = pytz.timezone('Europe/Berlin')

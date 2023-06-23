@@ -411,7 +411,7 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
         for field, template_class in fields.items():
             time = last_row.get(field)
             if time is not None and time != '-':
-                time = self._timestamp_handler.convert_ts_to_berlin_time(time, '%Y-%m-%d %H:%M:%S%z')
+                time = self._timestamp_handler.convert_ts_to_berlin_time(time)
                 time = time[:19]
             else:
                 time = '-'
@@ -642,7 +642,7 @@ class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
 
     def _add_content_to_template_soup(self):
         first_monitoring = self._df['date'].iloc[0]
-        start_monitoring = self._timestamp_handler.convert_ts_to_berlin_time(first_monitoring, '%Y-%m-%d %H:%M:%S%z')
+        start_monitoring = self._timestamp_handler.convert_ts_to_berlin_time(first_monitoring)
         start_monitoring = start_monitoring[:10]  # cutoff HH:MM:SS
         time_element = self._creator.create_html_element('time', {'datetime': start_monitoring})
         td = self._creator.create_html_element('td', {'class': 'online_since'})

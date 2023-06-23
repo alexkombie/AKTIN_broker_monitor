@@ -56,20 +56,22 @@ class TestSingletonMeta(unittest.TestCase):
         self.assertEqual(0, self.__handler.get_timedelta_in_absolute_hours('2023-12-31T20:00:00-04:00', '2024-01-01T04:00:00+04:00'))
 
     def test_convert_to_berlin_time1(self):
-        self.assertEqual('2023-06-22 02:00:00+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-22 00:00:00', '%Y-%m-%d %H:%M:%S'))
+        self.assertEqual('2023-06-22 02:00:00+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-22 00:00:00'))
 
     def test_convert_to_berlin_time2(self):
-        self.assertEqual('2023-12-22 01:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2023-12-22 00:00:00', '%Y-%m-%d %H:%M:%S'))
+        self.assertEqual('2023-12-22 01:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2023-12-22 00:00:00'))
 
     def test_convert_to_berlin_time3(self):
-        self.assertEqual('2023-12-22 01:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2023-12-22', '%Y-%m-%d'))
+        self.assertEqual('2023-12-22 01:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2023-12-22'))
 
     def test_convert_to_berlin_time_with_tzinfo(self):
-        self.assertEqual('2022-01-01 12:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2022-01-01 12:00:00+01:00', '%Y-%m-%d %H:%M:%S%z'))
+        self.assertEqual('2022-01-01 12:00:00+01:00', self.__handler.convert_ts_to_berlin_time('2022-01-01 12:00:00+01:00'))
 
     def test_convert_to_berlin_time_with_tzinfo2(self):
-        self.assertEqual('2023-06-22 02:00:00+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-22 00:00:00Z', '%Y-%m-%d %H:%M:%S%z'))
+        self.assertEqual('2023-06-22 02:00:00+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-22 00:00:00Z'))
 
+    def test_convert_to_berlin_time_with_ms(self):
+        self.assertEqual('2023-06-23 12:05:49.301685+02:00', self.__handler.convert_ts_to_berlin_time('2023-06-23 10:05:49.301685+00:00'))
 
 if __name__ == '__main__':
     unittest.main()
