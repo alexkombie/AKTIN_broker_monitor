@@ -412,6 +412,7 @@ class TemplatePageCSVInfoWriter(TemplatePageCSVContentWriter):
             time = last_row.get(field)
             if time is not None and time != '-':
                 time = self._timestamp_handler.convert_ts_to_berlin_time(time, '%Y-%m-%d %H:%M:%S%z')
+                time = time[:19]
             else:
                 time = '-'
             self._page_template.find(class_=template_class).string.replace_with(time)
@@ -511,20 +512,6 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         self._handler = InfoCSVHandler()
         self._mapper = ConfluenceNodeMapper()
 
-    def __append_last_year_rows_to_df_if_necessary(self):
-        """
-        If the CSV has less than set rows, try to append the previous year's CSV
-        to this CSV.
-        """
-        if len(self._df) < self.__default_days_of_consecutive_imports:
-            current_year = self._timestamp_handler.get_current_year()
-            last_year = str(int(current_year) - 1)
-            last_years_csv_name = self._handler.generate_node_csv_name(self._node_id, last_year)
-            last_years_csv_path = os.path.join(self._working_dir, self._node_id, last_years_csv_name)
-            if os.path.isfile(last_years_csv_path):
-                last_years_df = self._handler.read_csv_as_df(last_years_csv_path)
-                self._df = pd.concat([last_years_df, self._df], ignore_index=True)
-
     def _add_content_to_template_soup(self):
         self.__append_last_year_rows_to_df_if_necessary()
         if self.__has_csv_a_gap_in_broker_connection():
@@ -544,6 +531,21 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         else:
             status = self.__create_status_element('ONLINE', 'Green')
         self._page_template.find(class_='status').replace_with(status)
+
+    # TODO test missing
+    def __append_last_year_rows_to_df_if_necessary(self):
+        """
+        If the CSV has less than set rows, try to append the previous year's CSV
+        to this CSV.
+        """
+        if len(self._df) < self.__default_days_of_consecutive_imports:
+            current_year = self._timestamp_handler.get_current_year()
+            last_year = str(int(current_year) - 1)
+            last_years_csv_name = self._handler.generate_node_csv_name(self._node_id, last_year)
+            last_years_csv_path = os.path.join(self._working_dir, self._node_id, last_years_csv_name)
+            if os.path.isfile(last_years_csv_path):
+                last_years_df = self._handler.read_csv_as_df(last_years_csv_path)
+                self._df = pd.concat([last_years_df, self._df], ignore_index=True)
 
     def __has_csv_a_gap_in_broker_connection(self) -> bool:
         """
@@ -589,23 +591,11 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
         return True
 
     def __is_template_soup_offline(self) -> bool:
-        last_contact = self._page_template.find(class_='last_contact').string
+        last_contact = self._df['last_contact'].iloc[-1]
         return self.__is_date_longer_ago_than_set_hours(last_contact)
 
-    def __is_date_longer_ago_than_set_hours(self, input_date: str) -> bool:
-        """
-        Checks if the date is longer ago than the set threshold hours.
-        """
-        threshold_hours = self._mapper.get_node_value_from_mapping_dict(self._node_id, 'THRESHOLD_HOURS_FAILURE')
-        if not threshold_hours or threshold_hours is None:
-            threshold_hours = self.__default_threshold_hours_failure
-        input_date = self._timestamp_handler.get_utc_ymd_hms_from_date_string(input_date)
-        current_date = self._timestamp_handler.get_current_date()
-        delta = self._timestamp_handler.get_timedelta_in_absolute_hours(input_date, current_date)
-        return delta > threshold_hours
-
     def __is_template_soup_not_importing(self) -> bool:
-        last_write = self._page_template.find(class_='last_write').string
+        last_write = self._df['last_write'].iloc[-1]
         if last_write == '-':
             series = self._df['last_write']
             filtered_series = series[series != '-']
@@ -614,8 +604,19 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
             last_write = filtered_series.iloc[-1]
         return self.__is_date_longer_ago_than_set_hours(last_write)
 
+    def __is_date_longer_ago_than_set_hours(self, input_date: str) -> bool:
+        """
+        Checks if the date is longer ago than the set threshold hours.
+        """
+        threshold_hours = self._mapper.get_node_value_from_mapping_dict(self._node_id, 'THRESHOLD_HOURS_FAILURE')
+        if not threshold_hours or threshold_hours is None:
+            threshold_hours = self.__default_threshold_hours_failure
+        current_date = self._timestamp_handler.get_current_date()
+        delta = self._timestamp_handler.get_timedelta_in_absolute_hours(input_date, current_date)
+        return delta > threshold_hours
+
     def __is_template_soup_daily_error_rate_above_threshold(self, threshold: float) -> bool:
-        error_rate = self._page_template.find(class_='daily_error_rate').string
+        error_rate = self._df['daily_error_rate'].iloc[-1]
         if error_rate == '-':
             return False
         return float(error_rate) >= threshold

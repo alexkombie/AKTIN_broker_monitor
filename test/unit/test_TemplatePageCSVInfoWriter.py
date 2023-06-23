@@ -42,14 +42,14 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
     def test_write_template_from_one_row(self):
         self.__create_csv1()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
-        self.__check_template_page_dates(page, '2022-01-01 12:00:00+01:00', '2022-01-01 11:00:00+01:00', '2022-01-01 00:00:00+01:00', '-', '-')
+        self.__check_template_page_dates(page, '2022-01-01 12:00:00', '2022-01-01 11:00:00', '2022-01-01 00:00:00', '-', '-')
         self.__check_template_page_weekly_imports(page, '-', '-', '-', '-', '-')
         self.__check_template_page_daily_imports(page, '-', '-', '-', '-', '-')
 
     def test_write_template_from_multiple_rows(self):
         self.__create_csv2()
         page = self.__CSV_INFO_WRITER.add_content_to_template_page(self.__TEMPLATE, self.__DEFAULT_NODE_ID)
-        self.__check_template_page_dates(page, '2022-02-02 12:00:00+01:00', '2022-02-02 11:00:00+01:00', '2022-02-02 00:00:00+01:00', '2022-02-02 10:00:00+01:00', '2022-02-02 10:00:00+01:00')
+        self.__check_template_page_dates(page, '2022-02-02 12:00:00', '2022-10-10 11:00:00', '2022-02-02 00:00:00', '2022-02-02 10:00:00', '2022-02-02 10:00:00')
         self.__check_template_page_weekly_imports(page, '1000.00', '1000.00', '1000.00', '1000.00', '25.00')
         self.__check_template_page_daily_imports(page, '2000', '2000', '2000', '2000', '50.0')
 
@@ -85,9 +85,9 @@ class TestTemplatePageCSVInfoWriter(unittest.TestCase):
 
     def __create_csv2(self):
         df = pd.DataFrame(columns=self.__CSV_HANDLER.get_csv_columns())
-        df.loc[len(df)] = ['2022-01-01 12:00:00+0100', '2022-01-01 11:00:00+0100', '2022-01-01 00:00:00+0100', '-', '-',
+        df.loc[len(df)] = ['2022-01-01 12:00:00+0100', '2022-10-10 11:00:00+0200', '2022-01-01 00:00:00+0100', '-', '-',
                            '0', '0', '0', '0', '0.0', '-', '-', '-', '-', '-']
-        df.loc[len(df)] = ['2022-02-02 12:00:00+0100', '2022-02-02 11:00:00+0100', '2022-02-02 00:00:00+0100', '2022-02-02 10:00:00+0100', '2022-02-02 10:00:00+0100',
+        df.loc[len(df)] = ['2022-02-02 12:00:00+0100', '2022-10-10 11:00:00+0200', '2022-02-02 00:00:00+0100', '2022-02-02 10:00:00+0100', '2022-02-02 10:00:00+0100',
                            '2000', '2000', '2000', '2000', '50.0', '2000', '2000', '2000', '2000', '50.0']
         self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
