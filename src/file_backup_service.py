@@ -4,8 +4,9 @@ Created on 14.02.2024
 @AUTHOR=WILIAM HOY (whoy@ukaachen.de)
 @VERSION=1.3
 """
+import logging
 #
-#      Copyright (c) 2022  AKTIN
+#      Copyright (c) 2024  AKTIN
 #
 #      This program is free software: you can redistribute it and/or modify
 #      it under the terms of the GNU Affero General Public License as
@@ -24,7 +25,11 @@ Created on 14.02.2024
 
 
 import os
+import sys
 from abc import ABC, ABCMeta
+from typing import Callable
+
+import toml
 from atlassian import Confluence  # use "pip install atlassian-python-api" to install atlassian (used pip 24.0)
 import json
 
@@ -53,6 +58,109 @@ class SingletonABCMeta(ABCMeta):
         if cls not in cls._instances:
             cls._instances[cls] = super(SingletonABCMeta, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+class MyLogger(metaclass=SingletonMeta):
+    """
+    This class should be called by every other script on startup!
+    """
+
+    def __init__(self):
+        self.__logger = self.init_logger()
+
+    @staticmethod
+    def init_logger():
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+        return logger
+
+    def stop_logger(self):
+        handlers = self.__logger.handlers[:]
+        for handler in handlers:
+            handler.close()
+            self.__logger.removeHandler(handler)
+        logging.shutdown()
+
+class ConfigReader(metaclass=SingletonMeta):
+    """
+    This class should be called by every other script on startup!
+    Checks given config file to include required keys and loads key-values as
+    environment variables after validation. The environment variables are assumed
+    by the classes of other scripts
+    """
+    __required_keys = {
+        'BROKER.URL',
+        'BROKER.API_KEY',
+        'DIR.WORKING',
+        'DIR.RESOURCES',
+        'CONFLUENCE.URL',
+        'CONFLUENCE.SPACE',
+        'CONFLUENCE.TOKEN',
+        'CONFLUENCE.MAPPING_JSON',
+        'SMTP.SERVER',
+        'SMTP.USERNAME',
+        'SMTP.PASSWORD',
+        'SMTP.STATIC_RECIPIENTS',
+        'AKTIN.DWH_VERSION',
+        'AKTIN.I2B2_VERSION'
+    }
+
+    def load_config_as_env_vars(self, path: str):
+        properties = self.__load_config_file(path)
+        flattened_props = self.__flatten_config(properties)
+        self.__validate_config(flattened_props)
+        for key in self.__required_keys:
+            if key == 'SMTP.STATIC_RECIPIENTS':
+                os.environ[key] = ','.join(flattened_props.get(key))
+            else:
+                os.environ[key] = flattened_props.get(key)
+
+    @staticmethod
+    def __load_config_file(path: str) -> dict:
+        if not os.path.isfile(path):
+            raise SystemExit('invalid TOML file path')
+        with open(path, encoding='utf-8') as file:
+            return toml.load(file)
+
+    @staticmethod
+    def __flatten_config(config: dict, parent_key='', sep='.') -> dict:
+        items = []
+        for key, val in config.items():
+            new_key = f'{parent_key}{sep}{key}' if parent_key else key
+            if isinstance(val, dict):
+                items.extend(ConfigReader.__flatten_config(val, new_key, sep=sep).items())
+            else:
+                items.append((new_key, val))
+        return dict(items)
+
+    def __validate_config(self, config: dict):
+        loaded_keys = set(config.keys())
+        if not self.__required_keys.issubset(loaded_keys):
+            missing_keys = self.__required_keys - loaded_keys
+            raise SystemExit(f'following keys are missing in config file: {missing_keys}')
+
+
+class Main(metaclass=SingletonMeta):
+    """
+    Main class responsible for executing the main functionality of a script.
+    """
+
+    @staticmethod
+    def main(path_config: str, functionality: Callable[[], None]):
+        logger = MyLogger()
+        reader = ConfigReader()
+        try:
+            logger.init_logger()
+            reader.load_config_as_env_vars(path_config)
+            functionality()  # Call the provided function to execute the specific functionality
+        except Exception as e:
+            logging.exception(e)
+        finally:
+            logger.stop_logger()
+
 
 
 class ConfluenceNodeMapper(metaclass=SingletonMeta):
@@ -161,3 +269,9 @@ class FileBackupManager(ConfluenceHandler):
     @staticmethod
     def __get_all_files_in_directory_with_line_ending(directory: str, line_ending: str) -> list:
         return [name_file for name_file in os.listdir(directory) if name_file.endswith(line_ending)]
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
+    Main.main(sys.argv[1], lambda: FileBackupManager().backup_files(node_id=sys.argv[2]))
