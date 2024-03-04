@@ -36,7 +36,7 @@ from packaging import version
 
 from common import Main, CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
-from src.FileBackupManager import FileBackupManager
+from src.file_backup_service import FileBackupManager
 
 
 class TemplatePageLoader(ResourceLoader):
