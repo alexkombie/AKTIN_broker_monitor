@@ -5,6 +5,7 @@ Simple scripts that monitor connected node activity of the [AKTIN Broker](https:
 * `node_to_csv.py` retrieves information from broker connected nodes and stores them locally. Import statistics and import errors are stored in CSV files. Resource information is written into text files.
 * `csv_to_confluence.py` takes the generated files and fills a HTML template of a Confluence page with their content. The template is then uploaded to Confluence. Existing pages on Confluence are updated in the same way.
 * `email_service.py` checks the pages generated in Confluence for a specific node status and informs the node's correspondents via e-mail if there is an interruption in connection or data import.
+* `file_backup_service.py` backs up files related to broker nodes by uploading them as attachments to the node's corresponding Confluence pages
 
 ### Usage
 
