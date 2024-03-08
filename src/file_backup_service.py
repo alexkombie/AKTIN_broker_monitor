@@ -2,8 +2,9 @@
 """
 Created on 14.02.2024
 @AUTHOR=WILIAM HOY (whoy@ukaachen.de)
-@VERSION=1.3
+@VERSION=1.31
 """
+
 #
 #      Copyright (c) 2024  AKTIN
 #
@@ -21,7 +22,6 @@ Created on 14.02.2024
 #      along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 #
-
 
 import os
 import sys
