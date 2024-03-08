@@ -733,37 +733,6 @@ class ConfluencePageHandler(ConfluenceHandler):
         return template
 
 
-class FileBackupManager(ConfluenceHandler):
-    """
-    Backs up all files of the corresponding broker node ID on its confluence page.
-    Identically named attachments are overwritten when uploaded to Confluence.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.__working_dir = os.getenv('DIR.WORKING')
-
-    def backup_files(self, node_id: str):
-        """
-        Backs up files of the specified broker node ID by uploading them as attachments to the Confluence page.
-        """
-        self.__backup_files_with_line_ending(node_id, 'csv')
-        self.__backup_files_with_line_ending(node_id, 'txt')
-        self.__backup_files_with_line_ending(node_id, 'log')
-
-    def __backup_files_with_line_ending(self, node_id: str, line_ending: str):
-        node_dir = os.path.join(self.__working_dir, node_id)
-        files_list = self.__get_all_files_in_directory_with_line_ending(node_dir, line_ending)
-        name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
-        for filename in files_list:
-            filepath = os.path.join(node_dir, filename)
-            self._confluence.upload_file_as_attachement_to_page(name, filepath)
-
-    @staticmethod
-    def __get_all_files_in_directory_with_line_ending(directory: str, line_ending: str) -> list:
-        return [name_file for name_file in os.listdir(directory) if name_file.endswith(line_ending)]
-
-
 class SummaryTableCreator:
     """
     Creates summary tables for displaying information in HTML format.
@@ -845,7 +814,6 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         self.__working_dir = os.getenv('DIR.WORKING')
         self.__handler = ConfluencePageHandler()
         self.__summary = SummaryTableCreator()
-        self.__backup = FileBackupManager()
         self.__init_parent_page()
 
     def __init_parent_page(self):
@@ -858,7 +826,6 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
             node_dir = os.path.join(self.__working_dir, node_id)
             if os.path.isdir(node_dir):
                 self.__handler.upload_node_information_as_confluence_page(node_id)
-                self.__backup.backup_files(node_id)
             else:
                 logging.info('Directory for id %s not found. Skipping...', node_id)
 
