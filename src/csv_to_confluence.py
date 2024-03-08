@@ -36,7 +36,6 @@ from packaging import version
 
 from common import Main, CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
-from src.file_backup_service import FileBackupManager
 
 
 class TemplatePageLoader(ResourceLoader):
@@ -815,7 +814,6 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         self.__working_dir = os.getenv('DIR.WORKING')
         self.__handler = ConfluencePageHandler()
         self.__summary = SummaryTableCreator()
-        self.__backup = FileBackupManager()
         self.__init_parent_page()
 
     def __init_parent_page(self):
@@ -828,7 +826,6 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
             node_dir = os.path.join(self.__working_dir, node_id)
             if os.path.isdir(node_dir):
                 self.__handler.upload_node_information_as_confluence_page(node_id)
-                self.__backup.backup_files(node_id)
             else:
                 logging.info('Directory for id %s not found. Skipping...', node_id)
 

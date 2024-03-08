@@ -26,7 +26,7 @@ Created on 14.02.2024
 import os
 import sys
 from abc import ABC
-from src.common import SingletonABCMeta, ConfluenceNodeMapper, ConfluenceConnection, Main
+from common import SingletonABCMeta, ConfluenceNodeMapper, ConfluenceConnection, Main
 
 
 # Implementation of classes needed from the original "csv_to_confluence.py"
