@@ -504,7 +504,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     status as a custom HTML element.
     Should always be the last class called in the processing pipeline!
     """
-    __default_threshold_hours_failure = 24
+    __default_threshold_hours_failure = 72
     __default_days_of_consecutive_imports = 3
 
     def __init__(self):
