@@ -60,9 +60,6 @@ class NodeInfoRetriever(BrokerNodeRetriever):
     """
     _handler = InfoCSVHandler()
 
-    # TODO TEST: On change of the year, two rows for New Years Eve are created?
-    # csv old year : last row with check on 01-01 00:35
-    # csv new year : first row with check on 01-01 18:00
     def download_broker_data_to_file(self, node_id: str):
         """
         Calls AKTIN Broker Endpoints to get import statistics of the connected node and writes the response to a CSV file.
