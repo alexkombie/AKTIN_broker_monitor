@@ -11,7 +11,7 @@ readonly GRE='\e[0;32m'
 readonly ROOT_DIR=$(dirname $(cd ..; pwd))
 
 echo -e "${YEL}Build the docker-compose stack ${WHI}"
-docker-compose -f docker/docker-compose.yml up -d --force-recreate --build
+docker compose -f docker/docker-compose.yml up -d --force-recreate --build
 
 echo -e "${YEL}Copy python scripts from repository to python container${WHI}"
 docker cp $ROOT_DIR/src/common.py python:/opt/

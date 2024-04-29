@@ -1,4 +1,4 @@
-FROM ghcr.io/aktin/aktin-broker:latest
+FROM ghcr.io/aktin/aktin-broker:1.3.4
 
 USER root
 
