@@ -228,7 +228,7 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
         return query
 
     def __generate_jira_table_with_query(self, query: str) -> Tag:
-        server_param = self._creator.create_ac_parameter_element('server', 'Jira IMI UK Aachen')
+        server_param = self._creator.create_ac_parameter_element('server', 'Jira IMI Cloud')
         column_ids = self._creator.create_ac_parameter_element(
             'columnIds',
             'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
