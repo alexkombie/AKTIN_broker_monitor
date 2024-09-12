@@ -26,6 +26,7 @@ Created on 22.03.2022
 import json
 import logging
 import os
+import re
 import sys
 from abc import ABC, abstractmethod
 
@@ -36,6 +37,7 @@ from packaging import version
 
 from common import Main, CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
+from src.error_histogram_service import ChartManager
 
 
 class TemplatePageLoader(ResourceLoader):
@@ -841,6 +843,50 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         table = self.__summary.create_summary_table_frame()
         table.append(tbody)
         self._confluence.update_confluence_page(self._confluence_parent_page, str(table))
+
+        self.upload_error_rate_histogram_image()
+
+    def upload_error_rate_histogram_image(self):
+        # TODO get node stats csvs and generate a Graph
+        creator = TemplatePageElementCreator()
+        def extract_year(filename):
+            match = re.search(year_pattern, filename)
+            if match:
+                return int(match.group(1))
+            return None
+
+        node_ids = self._mapper.get_all_keys()
+        valid_paths = []    # List of paths leading to newest data file of each node
+        stat_year = None
+        for node_id in node_ids:
+            node_dir = os.path.join(self.__working_dir, node_id)
+            filenames = [name_file for name_file in os.listdir(node_dir) if name_file.__contains__('_stats_') and name_file.endswith("csv")]
+            year_pattern = r"_(\d{4})\.csv$"
+            latest_filename = sorted(filenames, key=extract_year, reverse=True)[0]
+
+            # Check if all stat files are from the same year
+            match = re.match(year_pattern, latest_filename)
+            if stat_year is None:
+                if match:
+                    stat_year = int(match.group(1))
+                    valid_paths.append(os.path.join(node_dir, latest_filename))
+            else:
+                if match and stat_year == int(match.group(1)):
+                    valid_paths.append(os.path.join(node_dir, latest_filename))
+
+        # generate graph
+        cman = ChartManager()
+        save_path = os.path.join(self.__working_dir, 'src', 'resources', 'error_rates_hist.png')
+        cman.mult_line_chart(valid_paths, save_path)
+
+        # upload graph
+        image_container = creator.create_html_element('img', {
+            'src': save_path,
+            'width': '200',
+            'height': '100'
+        })
+        image_soup = creator.convert_element_to_soup(image_container)
+        self._confluence.update_confluence_page(self._confluence_parent_page, str(image_soup))
 
 
 if __name__ == '__main__':
