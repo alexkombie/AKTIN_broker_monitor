@@ -410,6 +410,9 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         self.__space = os.getenv('CONFLUENCE.SPACE')
         self.__confluence = Confluence(url=confluence_url, token=confluence_token)
 
+    def get_confluence(self):
+        return self.__confluence
+
     def does_page_exists(self, pagename: str) -> bool:
         return self.__confluence.page_exists(self.__space, pagename)
 
@@ -425,6 +428,14 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         """
         page_id = self.__confluence.get_page_id(self.__space, pagename)
         self.__confluence.attach_file(filepath, content_type='text/csv', page_id=page_id)
+
+    def upload_image_as_attachement_to_page(self, pagename: str, filepath: str):
+        """
+        Identical named images are automatically replaced on confluence
+        """
+        page_id = self.__confluence.get_page_id(self.__space, pagename)
+        self.__confluence.attach_file(filepath, content_type='image/png', page_id=page_id)
+        return page_id
 
     def create_confluence_page(self, pagename: str, parentname: str, content: str):
         parent_id = self.__confluence.get_page_id(self.__space, parentname)
