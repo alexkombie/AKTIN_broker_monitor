@@ -4,7 +4,7 @@ Created on 22.03.2022
 @AUTHOR=Alexander Kombeiz (akombeiz@ukaachen.de)
 @VERSION=1.32
 """
-
+import datetime
 #
 #      Copyright (c) 2022  AKTIN
 #
@@ -26,18 +26,19 @@ Created on 22.03.2022
 import json
 import logging
 import os
-import re
-import sys
+import requests
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 import bs4
 import pandas as pd
 from bs4.element import Tag
 from packaging import version
 
-from common import Main, CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, ResourceLoader, SingletonABCMeta, \
+from common import Main, CSVHandler, ConfluenceConnection, ConfluenceNodeMapper, ErrorCSVHandler, InfoCSVHandler, \
+    ResourceLoader, SingletonABCMeta, \
     SingletonMeta, TimestampHandler
-from src.error_histogram_service import ChartManager
+from src.error_histogram_service import ChartManager, DataManager
 
 
 class TemplatePageLoader(ResourceLoader):
@@ -681,7 +682,8 @@ class TemplatePageMigrator:
         return str(new_template)
 
     @staticmethod
-    def __migrate_key_from_old_to_new_template(key: str, old_soup: bs4.BeautifulSoup, new_soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
+    def __migrate_key_from_old_to_new_template(key: str, old_soup: bs4.BeautifulSoup,
+                                               new_soup: bs4.BeautifulSoup) -> bs4.BeautifulSoup:
         value = old_soup.find(class_=key)
         new_soup.find(class_=key).replace_with(value)
         return new_soup
@@ -768,7 +770,8 @@ class SummaryTableCreator:
         todays_imports = self.__creator.create_th_html_element('Imports heute')
         todays_errors = self.__creator.create_th_html_element('Fehler heute')
         header = self.__creator.create_html_element('tr')
-        header.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate, last_weeks_error_rate])
+        header.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate,
+                       last_weeks_error_rate])
         return header
 
     def create_summary_table_row_from_confluence_page(self, commonname: str, confluence_page: str) -> Tag:
@@ -785,7 +788,29 @@ class SummaryTableCreator:
         todays_imports = self.__get_sum_of_two_table_data_elements(template, 'daily_imported', 'daily_updated')
         todays_errors = self.__get_sum_of_two_table_data_elements(template, 'daily_invalid', 'daily_failed')
         row = self.__creator.create_html_element('tr')
-        row.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate, last_weeks_error_rate])
+        row.extend([node, interface, last_check, status, todays_imports, todays_errors, todays_error_rate,
+                    last_weeks_error_rate])
+        return row
+
+    def create_histogram_table_row(self, row_element: bs4, page_name: str, file_path: str) -> Tag:
+        """
+        Uploads a image file to attachements of the confluence page. Then creates a new table row containing the image.
+        """
+        columns = len(row_element.find_all(['td', 'th']))
+        confluence = ConfluenceConnection()
+        page_id = confluence.upload_image_as_attachement_to_page(page_name, file_path)
+        table_cell = self.__creator.create_html_element('td', {
+            'style': 'text-align: left;',
+            'colspan': str(columns)
+        })
+        image_container = self.__creator.create_html_element('img', {
+            'src': f"{os.getenv('CONFLUENCE.URL')}/download/attachments/{page_id}/{os.path.basename(file_path)}",
+            'width': '100%',
+            'height': '100%'
+        })
+        table_cell.append(image_container)
+        row = self.__creator.create_html_element('tr')
+        row.append(table_cell)
         return row
 
     def __create_table_data_from_page_template_key(self, template_page: bs4.BeautifulSoup, key: str) -> Tag:
@@ -835,62 +860,56 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         node_ids = self._mapper.get_all_keys()
         tbody = self.__summary.create_empty_summary_table()
         for node_id in node_ids:
-            commonname = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
-            if self._confluence.does_page_exists(commonname):
-                page = self._confluence.get_page_content(commonname)
-                row = self.__summary.create_summary_table_row_from_confluence_page(commonname, page)
+            common_name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
+            if self._confluence.does_page_exists(common_name):
+                page = self._confluence.get_page_content(common_name)
+                row = self.__summary.create_summary_table_row_from_confluence_page(common_name, page)
                 tbody.find('tbody').append(row)
+
+        file_path = self.__create_error_rate_histogram_image()
+        row = self.__summary.create_histogram_table_row(row, self._confluence_parent_page, file_path)
+        tbody.find('tbody').append(row)
         table = self.__summary.create_summary_table_frame()
         table.append(tbody)
         self._confluence.update_confluence_page(self._confluence_parent_page, str(table))
+        self.__delete_char_file(file_path)
 
-        self.upload_error_rate_histogram_image()
 
-    def upload_error_rate_histogram_image(self):
-        # TODO get node stats csvs and generate a Graph
-        creator = TemplatePageElementCreator()
-        def extract_year(filename):
-            match = re.search(year_pattern, filename)
-            if match:
-                return int(match.group(1))
-            return None
-
+    def __create_error_rate_histogram_image(self):
+        """
+        This method collects statistical data from each node and uses them to generate a histogram
+        """
+        space = os.getenv('CONFLUENCE.SPACE')
         node_ids = self._mapper.get_all_keys()
-        valid_paths = []    # List of paths leading to newest data file of each node
-        stat_year = None
+        valid_paths = []  # List of paths leading to newest data file of each node
+        year = datetime.now().year
+        data_man = DataManager(self.__handler._confluence.get_confluence())
         for node_id in node_ids:
-            node_dir = os.path.join(self.__working_dir, node_id)
-            filenames = [name_file for name_file in os.listdir(node_dir) if name_file.__contains__('_stats_') and name_file.endswith("csv")]
-            year_pattern = r"_(\d{4})\.csv$"
-            latest_filename = sorted(filenames, key=extract_year, reverse=True)[0]
+            common_name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
+            filename = f"{node_id}_stats_{year}.csv"
+            path = data_man.get_stat_file_from_page(self.__handler._confluence.get_confluence().get_page_id(space, common_name), filename)
 
-            # Check if all stat files are from the same year
-            match = re.match(year_pattern, latest_filename)
-            if stat_year is None:
-                if match:
-                    stat_year = int(match.group(1))
-                    valid_paths.append(os.path.join(node_dir, latest_filename))
-            else:
-                if match and stat_year == int(match.group(1)):
-                    valid_paths.append(os.path.join(node_dir, latest_filename))
+            if path is not None:
+                valid_paths.append(path)
 
         # generate graph
-        cman = ChartManager()
         save_path = os.path.join(self.__working_dir, 'src', 'resources', 'error_rates_hist.png')
-        cman.mult_line_chart(valid_paths, save_path)
+        cman = ChartManager(csv_paths=valid_paths, save_path=save_path, mapper=self._mapper)
+        cman.mult_line_chart()
+        return save_path
 
-        # upload graph
-        image_container = creator.create_html_element('img', {
-            'src': save_path,
-            'width': '200',
-            'height': '100'
-        })
-        image_soup = creator.convert_element_to_soup(image_container)
-        self._confluence.update_confluence_page(self._confluence_parent_page, str(image_soup))
-
+    def __delete_char_file(self, dir: str):
+        if os.path.exists(dir) and os.path.isfile(dir):
+            os.remove(dir)
+        else:
+            print("Directory does not exist")
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
-    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
+    # if len(sys.argv) == 1:
+    #     raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
+    # Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
+    # Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
+
+    toml = "/home/wiliam/PycharmProjects/broker-monitor/test/resources/settings.toml"
+    # Main.main(toml, lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
+    Main.main(toml, lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
