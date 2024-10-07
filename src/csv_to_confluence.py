@@ -26,6 +26,8 @@ import datetime
 import json
 import logging
 import os
+import sys
+
 import requests
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -839,6 +841,7 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
     def __init__(self):
         super().__init__()
         self.__working_dir = os.getenv('DIR.WORKING')
+        self.__space = os.getenv('CONFLUENCE.SPACE')
         self.__handler = ConfluencePageHandler()
         self.__summary = SummaryTableCreator()
         self.__init_parent_page()
@@ -874,12 +877,10 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         self._confluence.update_confluence_page(self._confluence_parent_page, str(table))
         self.__delete_char_file(file_path)
 
-
     def __create_error_rate_histogram_image(self):
         """
         This method collects statistical data from each node and uses them to generate a histogram
         """
-        space = os.getenv('CONFLUENCE.SPACE')
         node_ids = self._mapper.get_all_keys()
         valid_paths = []  # List of paths leading to newest data file of each node
         year = datetime.now().year
@@ -887,7 +888,8 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         for node_id in node_ids:
             common_name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
             filename = f"{node_id}_stats_{year}.csv"
-            path = data_man.get_stat_file_from_page(self.__handler._confluence.get_confluence().get_page_id(space, common_name), filename)
+            path = data_man.get_stat_file_from_page(
+                self.__handler._confluence.get_confluence().get_page_id(self.__space, common_name), filename)
 
             if path is not None:
                 valid_paths.append(path)
@@ -904,12 +906,9 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         else:
             print("Directory does not exist")
 
-if __name__ == '__main__':
-    # if len(sys.argv) == 1:
-    #     raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    # Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
-    # Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
 
-    toml = "/home/wiliam/PycharmProjects/broker-monitor/test/resources/settings.toml"
-    # Main.main(toml, lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
-    Main.main(toml, lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
+    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
+    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
