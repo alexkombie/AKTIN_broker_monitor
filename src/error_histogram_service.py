@@ -18,7 +18,7 @@ class DataManager:
 
     def __init__(self, confluence: ConfluenceConnection):
         self.__confluence = confluence
-        self.generic_attachment_save_path = f"{os.getenv('DIR.RESOURCES')}/tmp"  # A temporary working file
+        self.generic_attachment_save_path = f"{os.getenv('DIR.RESOURCES')}/download"  # A temporary working file
         self.correct_attachment_save_path = f"{os.getenv('DIR.RESOURCES')}/stats"  # Path, where the correct file from temp dir will be moved to
         if not os.path.exists(self.correct_attachment_save_path):
             os.makedirs(self.correct_attachment_save_path)
