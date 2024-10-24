@@ -1,6 +1,8 @@
 import os.path
 import random
 import shutil
+
+import atlassian.errors
 import pandas as pd
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt
@@ -33,12 +35,16 @@ class DataManager:
         """
         if not os.path.exists(self.generic_attachment_save_path):
             os.makedirs(self.generic_attachment_save_path)
-        self.__confluence.download_attachments_from_page(page_id, path=self.generic_attachment_save_path)
-        src = os.path.join(self.generic_attachment_save_path, filename)
-        dest = os.path.join(self.correct_attachment_save_path, filename)
-        file = self.__move_file(src, dest)
-        self.__delete_temp_dir()
-        return file
+        try:
+            self.__confluence.download_attachments_from_page(page_id, path=self.generic_attachment_save_path)
+            src = os.path.join(self.generic_attachment_save_path, filename)
+            dest = os.path.join(self.correct_attachment_save_path, filename)
+            file = self.__move_file(src, dest)
+            self.__delete_temp_dir()
+            return file
+        except atlassian.errors.ApiError:
+            print(page_id)
+            return None
 
     def __move_file(self, src: str, dest: str):
         """
@@ -80,7 +86,6 @@ class LineChartFactory:
         plt.figure(figsize=(20, 10))
         plt.axhline(y=self._threashold, color='lightgray', linestyle='--', linewidth=1)
 
-    """The first plot needs to span from the first to the last day without missing values"""  # Todo fix
 
     def plot(self, _dates: np.array, _error_rates: np.array, clinic_name: str):
         if self.x_labels is None:
@@ -100,7 +105,7 @@ class LineChartFactory:
         else:
             plt.plot(_dates, _error_rate, marker=',', linestyle='-', linewidth=1, color=color, label=clinic_name,
                      zorder=2)
-            self._clinic_label_positions.append({"y": _error_rate[-1], "name": clinic_name, "col": color})
+            self._clinic_label_positions.append({"y": _error_rate[-1], "name": clinic_name.split(" ")[0], "col": color})
 
     def place_clinic_name_labels(self, _dates):
         # Create clinic name at the end of an highlighted graph
@@ -133,7 +138,7 @@ class LineChartFactory:
 
         # Create an anchored offset box to place the combined text on the plot
         anchored_box = AnchoredOffsetbox(loc='center', child=combined_text, pad=0, frameon=False,
-                                         bbox_to_anchor=(self._DAYS - 0.5, _y),  # Adjust (1.05, _y) to position
+                                         bbox_to_anchor=(self._DAYS - 0.5, _y),  # Box location
                                          bbox_transform=plt.gca().transData, borderpad=0.)
 
         plt.gca().add_artist(anchored_box)
@@ -166,6 +171,43 @@ class LineChartFactory:
     def set_days(self, days: int):
         self._DAYS = days
 
+class HeatMapFactory:
+    def plot(self, data: dict):
+        clinics = []
+        data_matrix = []
+        for clinic in data:
+            clinics.append(clinic)
+            clinics.append("")
+            data_matrix.append(data[clinic])
+            data_matrix.append(np.zeros(len(data[clinic])))
+
+        colors = [(0, 'darkblue'),  # 0 starts to blue
+                  (0.049, 'darkblue'),  # Values below 4.9 are blue
+                  (0.05, 'yellow'),  # Values above 5 are red
+                  (0.75, 'red'),  # 10 corresponds to yellow
+                  (1, 'darkred')]  # Values above 10 transition to whi
+        # Create a custom linear segmented colormap
+        cmap = mc.LinearSegmentedColormap.from_list('custom_cmap', colors)
+
+        height_scaling_factor = 4
+        width_scaling_factor = 2
+        plt.figure(figsize=(10, 10))
+        extent = (0, len(data_matrix[0]*width_scaling_factor), 0, len(data_matrix) * height_scaling_factor)
+        # Create the heatmap using plt.imshow
+        plt.imshow(data_matrix, cmap=cmap, vmin=0, vmax=30, aspect="auto", extent=extent)
+
+
+        # Add a colorbar to show the scale of values
+        plt.colorbar(label="Error Rate Severity")
+
+        ticks = (np.arange(len(data_matrix)) * height_scaling_factor)
+
+        plt.yticks(ticks=ticks, labels=clinics, fontsize=8)
+
+    def save(self, save_path:str):
+        # Save the figure
+        plt.savefig(save_path)
+
 
 class ChartManager:
 
@@ -195,6 +237,26 @@ class ChartManager:
             _is_first = False
 
         lc.save(self.save_path)
+
+    def heat_map(self):
+        hm = HeatMapFactory()
+        _skipped_paths = []
+        _data = {}
+        for path in self.csv_paths:
+            try:
+                _dates, _error_rates = Helper.read_error_rates(path)
+            except Exception as e:
+                print(e)
+                continue
+
+            _error_rates = _error_rates[-self.max_days:]
+
+            clinic_id = Helper.get_clinic_num(path)
+            clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
+            _data[clinic_name] = _error_rates
+        hm.plot(_data)
+
+        hm.save(self.save_path)
 
 
 class Helper:
@@ -241,10 +303,12 @@ class Helper:
             _df = pd.read_csv(csv_file, sep=',')
             _df['date'] = pd.to_datetime(_df['date'], format='%Y-%m-%d %H:%M:%S.%f%z')
         _df = _df.sort_values(by='date')
-
         _date = [x.strftime('%d-%m') for x in _df['date']]
+
+        _df[_df == '-'] = -10.00
+        _df['daily_error_rate'] = _df['daily_error_rate'].apply(lambda x: float(x))
         _error_rates = _df['daily_error_rate'].to_numpy()
-        _error_rates[_error_rates == '-'] = '-10.00'
+
 
         return _date, _error_rates
 

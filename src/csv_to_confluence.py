@@ -897,7 +897,8 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         # generate graph
         save_path = os.path.join(self.__working_dir, 'src', 'resources', 'error_rates_hist.png')
         cman = ChartManager(csv_paths=valid_paths, save_path=save_path, mapper=self._mapper)
-        cman.mult_line_chart()
+        cman.heat_map()
+        # cman.mult_line_chart()
         return save_path
 
     def __delete_char_file(self, dir: str):
@@ -908,7 +909,11 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
-    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
-    Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
+    # if len(sys.argv) == 1:
+    #     raise SystemExit(f'Usage: python {__file__} <path_to_config.toml>')
+    # Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
+    # Main.main(sys.argv[1], lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
+
+    toml = "/home/wiliam/PycharmProjects/broker-monitor/test/resources/settings.toml"
+    # Main.main(toml, lambda: ConfluencePageHandlerManager().upload_node_information_as_confluence_pages())
+    Main.main(toml, lambda: ConfluencePageHandlerManager().upload_summary_for_confluence_pages())
