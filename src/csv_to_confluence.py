@@ -891,7 +891,10 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
             path = data_man.get_stat_file_from_page(
                 self.__handler._confluence.get_confluence().get_page_id(self.__space, common_name), filename)
 
-            if path is not None:
+            confluence_page = self._confluence.get_page_content(common_name)
+            template = TemplatePageElementCreator().convert_element_to_soup(confluence_page)
+            status_element = template.find(class_='status')
+            if path is not None and not status_element.text.__contains__("TESTING"):
                 valid_paths.append(path)
 
         # generate graph

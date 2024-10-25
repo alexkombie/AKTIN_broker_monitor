@@ -173,36 +173,85 @@ class LineChartFactory:
 
 class HeatMapFactory:
     def plot(self, data: dict):
+        data = self.order_dict(data)
         clinics = []
         data_matrix = []
         for clinic in data:
             clinics.append(clinic)
-            clinics.append("")
+            # clinics.append("")
             data_matrix.append(data[clinic])
-            data_matrix.append(np.zeros(len(data[clinic])))
+            # data_matrix.append(np.full((len(error_rates),), -10))
+        data_matrix = np.array(data_matrix)
+        # data_matrix[(0 <= data_matrix) & (data_matrix <= 0.001)] = 0.001
+        # data_matrix[data_matrix == -10] = 0
 
-        colors = [(0, 'darkblue'),  # 0 starts to blue
-                  (0.049, 'darkblue'),  # Values below 4.9 are blue
-                  (0.05, 'yellow'),  # Values above 5 are red
-                  (0.75, 'red'),  # 10 corresponds to yellow
-                  (1, 'darkred')]  # Values above 10 transition to whi
-        # Create a custom linear segmented colormap
-        cmap = mc.LinearSegmentedColormap.from_list('custom_cmap', colors)
 
+
+        # Define the colors and thresholds (absolute values)
+        colors = [
+            'black',  # For values in the range < 0
+            'darkblue',  # Prussian Blue for values [0.001, 0.049]
+            'yellow',  # For values [0.05, 0.75]
+            'red',  # For values [0.75, 1]
+            'darkred'  # For values = 1
+        ]
+        bounds = [-10, -0.01, 5, 15, 30, 90]
+
+        # Define bounds as absolute values for thresholds
+        cmap = mc.ListedColormap(colors)
+
+        # Create a norm that uses the specified bounds for absolute values
+        # Create a norm that uses the specified bounds for absolute values
+        norm = mc.BoundaryNorm(bounds, cmap.N)
+
+        # Set up figure and axis scaling
         height_scaling_factor = 4
         width_scaling_factor = 2
         plt.figure(figsize=(10, 10))
-        extent = (0, len(data_matrix[0]*width_scaling_factor), 0, len(data_matrix) * height_scaling_factor)
-        # Create the heatmap using plt.imshow
-        plt.imshow(data_matrix, cmap=cmap, vmin=0, vmax=30, aspect="auto", extent=extent)
+        extent = (0, len(data_matrix[0]) * width_scaling_factor, 0, len(data_matrix) * height_scaling_factor)
+
+        # Create the heatmap
+        plt.imshow(data_matrix, cmap=cmap, norm=norm, aspect="auto", extent=extent)
+        plt.colorbar()
+
+        # colors = [(0, 'black'),
+        #           # (0.0009, 'black'),
+        #           (0.001, 'darkblue'),
+        #           (0.049, 'darkblue'),
+        #           (0.05, 'yellow'),
+        #           (0.75, 'red'),
+        #           (1, 'darkred')]
+        #
+        # # Create a custom linear segmented colormap
+        # cmap = mc.LinearSegmentedColormap.from_list('custom_cmap', colors)
+        #
+        # # colors = ['white', 'white', 'darkblue', 'darkblue', 'yellow', 'red', 'darkred']
+        # # cmap = mc.ListedColormap(colors)
+        # # bounds = [-10, -0.001, 0, 0.049, 0.05, 0.75, 1]
+        # # norm = mc.BoundaryNorm(bounds, cmap.N)
+        #
+        #
+        # height_scaling_factor = 4
+        # width_scaling_factor = 2
+        # plt.figure(figsize=(10, 10))
+        # extent = (0, len(data_matrix[0]*width_scaling_factor), 0, len(data_matrix) * height_scaling_factor)
+        # # Create the heatmap using plt.imshow
+        # plt.imshow(data_matrix, cmap=cmap, aspect="auto", extent=extent)
 
 
         # Add a colorbar to show the scale of values
         plt.colorbar(label="Error Rate Severity")
 
-        ticks = (np.arange(len(data_matrix)) * height_scaling_factor)
+        ticks = (np.arange(len(data_matrix)) * height_scaling_factor)+(height_scaling_factor/2)
 
-        plt.yticks(ticks=ticks, labels=clinics, fontsize=8)
+        plt.yticks(ticks=ticks, labels=clinics[::-1], fontsize=10)
+        plt.savefig('heatmap.png')
+
+    def order_dict(self, data: dict):
+        sorted_data = dict(
+            sorted(data.items(), key=lambda item: sum(item[1]), reverse=True)
+        )
+        return sorted_data
 
     def save(self, save_path:str):
         # Save the figure
