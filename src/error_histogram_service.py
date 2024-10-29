@@ -109,31 +109,30 @@ class HeatMapFactory:
 
 
 class ChartManager:
-
-    def __init__(self, mapper: ConfluenceNodeMapper, csv_paths: [], save_path: str = "error_rates_histogram.png", max_days: int = 42):
+    def __init__(self, mapper: ConfluenceNodeMapper, csv_paths: list = None,
+                 save_path: str = "error_rates_histogram.png", max_days: int = 42):
         self.mapper = mapper
-        self.csv_paths = csv_paths
+        self.csv_paths = csv_paths if csv_paths is not None else []
         self.save_path = save_path
         self.max_days = max_days
 
     def heat_map(self):
         """
-        This method manages the collection auf needed error rate data and initializes the Heatmap generation factory
+        This method manages the collection of needed error rate data and initializes the Heatmap generation factory.
         """
         hm = HeatMapFactory()
-        _skipped_paths = []
-        _data = {}
+        data = {}
 
         def process_path(path):
             try:
-                _dates, _error_rates = Helper.read_error_rates(path)
-                _error_rates = _error_rates[-self.max_days:]
-                _dates = _dates[-self.max_days:]
+                dates, error_rates = Helper.read_error_rates(path)
+                error_rates = error_rates[-self.max_days:]
+                dates = dates[-self.max_days:]
 
                 clinic_id = Helper.get_clinic_num(path)
                 clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
-                _data[clinic_name] = _error_rates
-                return _data, _dates
+                data[clinic_name] = error_rates
+                return data, dates
             except Exception as e:
                 print(f"Error processing {path}: {e}")
                 return None
@@ -143,8 +142,9 @@ class ChartManager:
             for future in as_completed(futures):
                 result = future.result()
                 if result:
-                    _data, _dates = result
-        hm.plot(_data, _dates)
+                    data, dates = result
+
+        hm.plot(data, dates)
         plt.savefig(self.save_path)
 
 
@@ -175,7 +175,7 @@ class Helper:
         _df = _df.sort_values(by='date')
         _date = [x.strftime('%d-%m') for x in _df['date']]
 
-        _df[_df == '-'] = -10.00
+        _df[_df == '-'] = -1.0
         _df['daily_error_rate'] = _df['daily_error_rate'].apply(lambda x: float(x))
         _error_rates = _df['daily_error_rate'].to_numpy()
 
