@@ -30,7 +30,7 @@ class DataManager:
 
     def get_stat_file_from_page(self, page_id, filename: str):
         """
-        This method downloads all available files of the page ID from confluence. The needed stats file will be moved
+        This method downloads all available files from the page with the ID from confluence. The needed stats file will be moved
         to a permanent directory and the temporary directory will be deleted.
         """
         if not os.path.exists(self.generic_attachment_save_path):
@@ -73,119 +73,15 @@ class DataManager:
             print("Directory does not exist")
 
 
-class LineChartFactory:
-    def __init__(self, threashold: float, observation_time: int):
-        self.x_labels = None
-        self._DAYS = None
-        self._threashold = threashold
-        self._observation_time = observation_time
-        self._unmarked_chart_color = "gainsboro"
-        self._y_top_lim = 30.0
-        self._clinic_label_positions = []  # represents a grid, in wich graph labels will be placed to avoid overlapping
-        self._label_font_size = 12
-        plt.figure(figsize=(20, 10))
-        plt.axhline(y=self._threashold, color='lightgray', linestyle='--', linewidth=1)
-
-
-    def plot(self, _dates: np.array, _error_rates: np.array, clinic_name: str):
-        if self.x_labels is None:
-            self.x_labels = _dates
-        _clinic_day_reports = self._DAYS
-        if _clinic_day_reports > len(_error_rates):
-            _clinic_day_reports = len(_error_rates)
-            _dates = _dates[-(_clinic_day_reports + 1):]
-            _error_rate = _error_rates[-(_clinic_day_reports + 1):]
-        else:
-            _dates = _dates[-(_clinic_day_reports + 1):-1]
-            _error_rate = _error_rates[-(_clinic_day_reports + 1):-1]
-        _error_rate = np.array(list(map(float, _error_rate)))
-        color = self.get_color_for_graph(_error_rate, self._threashold, self._observation_time)
-        if color.__eq__(self._unmarked_chart_color):
-            plt.plot(_dates, _error_rate, marker=',', linestyle='-', linewidth=1, color=color, label='', zorder=1)
-        else:
-            plt.plot(_dates, _error_rate, marker=',', linestyle='-', linewidth=1, color=color, label=clinic_name,
-                     zorder=2)
-            self._clinic_label_positions.append({"y": _error_rate[-1], "name": clinic_name.split(" ")[0], "col": color})
-
-    def place_clinic_name_labels(self, _dates):
-        # Create clinic name at the end of an highlighted graph
-        if _dates is not None and len(_dates) > 0 and len(self._clinic_label_positions) > 0:
-            _label_matrix = sorted(self._clinic_label_positions, key=lambda x: x["y"])
-            _position_matrix = [[]]  # This variable groups clinic names that would otherwise overlap each other
-
-            for i in range(len(_label_matrix)):
-                _label = _label_matrix[i]
-                if i == 0:
-                    _position_matrix[-1].append(_label)
-                else:
-                    _prev = _label_matrix[i - 1]
-                    if _label["y"] - _prev["y"] <= 1.0:
-                        _position_matrix[-1].append(_label)
-                    else:
-                        _position_matrix.append([_label])
-
-            for tuples in _position_matrix:
-                _y = tuples[0]["y"]
-                self._pack_labels_together(_y, tuples)
-
-    def _pack_labels_together(self, _y: float, tuples: []):
-        _text_areas = []
-        for t in tuples:
-            _text_areas.append(TextArea(t["name"], textprops=dict(color=t["col"], fontsize=self._label_font_size)))
-
-        # Combine them into a single label using VPacker
-        combined_text = HPacker(children=_text_areas, align="center", pad=0, sep=0)
-
-        # Create an anchored offset box to place the combined text on the plot
-        anchored_box = AnchoredOffsetbox(loc='center', child=combined_text, pad=0, frameon=False,
-                                         bbox_to_anchor=(self._DAYS - 0.5, _y),  # Box location
-                                         bbox_transform=plt.gca().transData, borderpad=0.)
-
-        plt.gca().add_artist(anchored_box)
-
-    def get_color_for_graph(self, values, threashold, observation_time):
-        recent_values = values[-observation_time:]
-        is_over_threashold = any(value > threashold for value in recent_values)
-        if is_over_threashold:
-            return Helper.random_color()
-        else:
-            return self._unmarked_chart_color
-
-    def save(self, filename):
-        self.place_clinic_name_labels(self.x_labels)
-        plt.xlim(right=self._DAYS)
-        plt.ylim(bottom=-10, top=30)
-
-        plt.xticks(rotation=45, fontsize=10)
-        y_ticks = plt.yticks()[0]
-        # Create custom labels
-        y_labels = [f"N/A" if tick == -10 else str(tick) for tick in y_ticks]
-        plt.yticks(y_ticks, y_labels, fontsize=10)
-
-        plt.ylabel('Fehlerrate [%]')
-        plt.legend()
-
-        plt.savefig(filename)
-        plt.clf()
-
-    def set_days(self, days: int):
-        self._DAYS = days
-
 class HeatMapFactory:
-    def plot(self, data: dict):
+    def plot(self, data: dict, _dates: []):
         data = self.order_dict(data)
         clinics = []
         data_matrix = []
         for clinic in data:
             clinics.append(clinic)
-            # clinics.append("")
             data_matrix.append(data[clinic])
-            # data_matrix.append(np.full((len(error_rates),), -10))
         data_matrix = np.array(data_matrix)
-        # data_matrix[(0 <= data_matrix) & (data_matrix <= 0.001)] = 0.001
-        # data_matrix[data_matrix == -10] = 0
-
-
 
         # Define the colors and thresholds (absolute values)
         colors = [
@@ -195,31 +91,24 @@ class HeatMapFactory:
             'red',  # For values [0.75, 1]
             'darkred'  # For values = 1
         ]
-        bounds = [-10, -0.01, 5, 15, 30, 90]
+        bounds = [-1, -0.01, 5, 15, 30, 90]
 
-        # Define bounds as absolute values for thresholds
+        # Create the heatmap with its configurations
         cmap = mc.ListedColormap(colors)
-
-        # Create a norm that uses the specified bounds for absolute values
-        # Create a norm that uses the specified bounds for absolute values
         norm = mc.BoundaryNorm(bounds, cmap.N)
-
         plt.figure(figsize=(data_matrix.shape[1]/4, data_matrix.shape[0]/4))
         extent = (0, len(data_matrix[0]), 0, len(data_matrix))
-
-        # Create the heatmap
         plt.imshow(data_matrix, cmap=cmap, norm=norm, aspect="auto", extent=extent)
-
-        # Add a colorbar to show the scale of values
         plt.colorbar(label="Error Rate in %")
         plt.subplots_adjust(left=0.2)
 
+        # Create horizontal lines and clinic labels for y axis
         ticks = np.arange(len(data_matrix))
         plt.hlines(ticks, xmin=0, xmax=data_matrix.shape[1], color='grey', linewidth=0.5)
-
         label_ticks = ticks + .5
         plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=8)
-
+        plt.xticks(ticks=np.arange(len(_dates)) + 0.5, labels=_dates,
+           rotation=45, ha="right", fontsize=8)
         plt.savefig('heatmap.png')
 
     def order_dict(self, data: dict):
@@ -227,10 +116,6 @@ class HeatMapFactory:
             sorted(data.items(), key=lambda item: sum(item[1]), reverse=True)
         )
         return sorted_data
-
-    def save(self, save_path:str):
-        # Save the figure
-        plt.savefig(save_path)
 
 
 class ChartManager:
@@ -241,28 +126,10 @@ class ChartManager:
         self.save_path = save_path
         self.max_days = max_days
 
-    def mult_line_chart(self):
-        lc = LineChartFactory(threashold=5.0, observation_time=7)
-        _is_first = True  # True if no graph has been plotted yet
-        _skipped_paths = []
-        for path in self.csv_paths:
-            try:
-                _dates, _error_rates = Helper.read_error_rates(path)
-            except Exception as e:
-                print(e)
-                continue
-
-            if _is_first and len(_dates) < self.max_days:
-                self.max_days = len(_dates)
-            lc.set_days(self.max_days)
-            clinic_id = Helper.get_clinic_num(path)
-            clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
-            lc.plot(_dates, _error_rates, clinic_name)
-            _is_first = False
-
-        lc.save(self.save_path)
-
     def heat_map(self):
+        """
+        This method manages the collection auf needed error rate data and initializes the Heatmap generation factory
+        """
         hm = HeatMapFactory()
         _skipped_paths = []
         _data = {}
@@ -274,13 +141,14 @@ class ChartManager:
                 continue
 
             _error_rates = _error_rates[-self.max_days:]
+            _dates = _dates[-self.max_days:]
 
             clinic_id = Helper.get_clinic_num(path)
             clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
             _data[clinic_name] = _error_rates
-        hm.plot(_data)
+        hm.plot(_data, _dates)
 
-        hm.save(self.save_path)
+        plt.savefig(self.save_path)
 
 
 class Helper:
@@ -291,25 +159,6 @@ class Helper:
         """
         num = path.split('/')[-1].split("_")[0]
         return num
-
-    @staticmethod
-    def random_color():
-        """
-        Generates a random color in hexadecimal format.
-
-        Returns:
-        - A string representing a random color.
-        """
-        color = ''
-        keys = list(mc.cnames.keys())
-        while color.__eq__('') or color.__contains__('white') or color.__contains__('gray') or Helper.brightness(
-                mc.to_rgb(color)) > 0.8:
-            color = random.choice(list(keys))
-        return color
-
-    @staticmethod
-    def brightness(rgb):
-        return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
 
     @staticmethod
     def read_error_rates(csv_file):
@@ -332,7 +181,6 @@ class Helper:
         _df[_df == '-'] = -10.00
         _df['daily_error_rate'] = _df['daily_error_rate'].apply(lambda x: float(x))
         _error_rates = _df['daily_error_rate'].to_numpy()
-
 
         return _date, _error_rates
 
