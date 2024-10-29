@@ -6,71 +6,69 @@ import atlassian.errors
 import pandas as pd
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt
-from matplotlib.offsetbox import AnchoredOffsetbox, TextArea, HPacker
 import numpy as np
 from src.common import ConfluenceConnection, ConfluenceNodeMapper
 
 
 class DataManager:
     """
-    This class Downloads attachments from Confluence and filters them for the needed attachments, because confluence
-    api does not support single downloading attachments. The correct attachment will be stored in a file system and
-    the remaining attachments will be deleted.
+    This class downloads attachments from Confluence and filters them for the needed attachments,
+    as the Confluence API does not support single downloading of attachments. The correct attachment
+    will be stored in a file system, and the remaining attachments will be deleted.
     """
 
     def __init__(self, confluence: ConfluenceConnection):
         self.__confluence = confluence
-        self.generic_attachment_save_path = f"{os.getenv('DIR.RESOURCES')}/download"  # A temporary working file
-        self.correct_attachment_save_path = f"{os.getenv('DIR.RESOURCES')}/stats"  # Path, where the correct file from temp dir will be moved to
-        if not os.path.exists(self.correct_attachment_save_path):
-            os.makedirs(self.correct_attachment_save_path)
+        self.generic_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'), 'download')  # Temporary working file
+        self.correct_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'), 'stats')  # Permanent storage path
+        self.__ensure_directory_exists(self.correct_attachment_save_path)
 
     def __del__(self):
-        self.__delete_stats_dir()
+        self.__delete_directory(self.correct_attachment_save_path)
 
-    def get_stat_file_from_page(self, page_id, filename: str):
+    def get_stat_file_from_page(self, page_id: str, filename: str):
         """
-        This method downloads all available files from the page with the ID from confluence. The needed stats file will be moved
-        to a permanent directory and the temporary directory will be deleted.
+        Downloads all available files from the page with the specified ID in Confluence.
+        The needed stats file will be moved to a permanent directory, and the temporary directory will be deleted.
         """
-        if not os.path.exists(self.generic_attachment_save_path):
-            os.makedirs(self.generic_attachment_save_path)
+        self.__ensure_directory_exists(self.generic_attachment_save_path)
         try:
             self.__confluence.download_attachments_from_page(page_id, path=self.generic_attachment_save_path)
             src = os.path.join(self.generic_attachment_save_path, filename)
             dest = os.path.join(self.correct_attachment_save_path, filename)
-            file = self.__move_file(src, dest)
-            self.__delete_temp_dir()
-            return file
+            moved_file = self.__move_file(src, dest)
+            self.__delete_directory(self.generic_attachment_save_path)
+            return moved_file
         except atlassian.errors.ApiError:
-            print(page_id)
+            print(f"Error downloading attachments for page ID: {page_id}")
             return None
 
     def __move_file(self, src: str, dest: str):
         """
-        This method moves files from a source to a destination path. When any kind of exception occurs, it will be
-        catched, so the whole program can continue to run.
+        Moves files from a source to a destination path. Catches exceptions to allow the program to continue running.
         """
         try:
             shutil.move(src, dest)
             return dest
-        except Exception:
-            print(f"Exception: Could not move file from {src} to {dest}")
+        except Exception as e:
+            print(f"Exception: Could not move file from {src} to {dest}. Error: {e}")
             return None
 
-    def __delete_temp_dir(self):
-        dir = self.generic_attachment_save_path
-        if os.path.exists(dir) and os.path.isdir(dir):
-            shutil.rmtree(dir)
+    def __delete_directory(self, dir_path: str):
+        """
+        Deletes the specified directory if it exists.
+        """
+        if os.path.exists(dir_path) and os.path.isdir(dir_path):
+            shutil.rmtree(dir_path)
         else:
-            print("Directory does not exist")
+            print(f"Directory does not exist: {dir_path}")
 
-    def __delete_stats_dir(self):
-        dir = self.correct_attachment_save_path
-        if os.path.exists(dir) and os.path.isdir(dir):
-            shutil.rmtree(dir)
-        else:
-            print("Directory does not exist")
+    def __ensure_directory_exists(self, dir_path: str):
+        """
+        Ensures that the specified directory exists, creating it if necessary.
+        """
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
 
 class HeatMapFactory:
