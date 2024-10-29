@@ -71,10 +71,6 @@ class DataManager:
             os.makedirs(dir_path)
 
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mc
-
 class HeatMapFactory:
     def plot(self, data: dict, dates: list):
         sorted_data = self._order_dict(data)
@@ -105,7 +101,7 @@ class HeatMapFactory:
         plt.hlines(ticks, xmin=0, xmax=data_matrix.shape[1], color='grey', linewidth=0.5)
         label_ticks = ticks + 0.5
         plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=8)
-        plt.xticks(ticks=np.arange(len(dates)) + 0.25, labels=dates, rotation=90, ha="left", fontsize=8)
+        plt.xticks(ticks=np.arange(len(dates)), labels=dates, rotation=90, ha="left", fontsize=8)
         plt.savefig('heatmap.png')
 
     def _order_dict(self, data: dict) -> dict:
