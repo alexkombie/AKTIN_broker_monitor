@@ -204,47 +204,22 @@ class HeatMapFactory:
         # Create a norm that uses the specified bounds for absolute values
         norm = mc.BoundaryNorm(bounds, cmap.N)
 
-        # Set up figure and axis scaling
-        height_scaling_factor = 4
-        width_scaling_factor = 2
-        plt.figure(figsize=(10, 10))
-        extent = (0, len(data_matrix[0]) * width_scaling_factor, 0, len(data_matrix) * height_scaling_factor)
+        plt.figure(figsize=(data_matrix.shape[1]/4, data_matrix.shape[0]/4))
+        extent = (0, len(data_matrix[0]), 0, len(data_matrix))
 
         # Create the heatmap
         plt.imshow(data_matrix, cmap=cmap, norm=norm, aspect="auto", extent=extent)
-        plt.colorbar()
-
-        # colors = [(0, 'black'),
-        #           # (0.0009, 'black'),
-        #           (0.001, 'darkblue'),
-        #           (0.049, 'darkblue'),
-        #           (0.05, 'yellow'),
-        #           (0.75, 'red'),
-        #           (1, 'darkred')]
-        #
-        # # Create a custom linear segmented colormap
-        # cmap = mc.LinearSegmentedColormap.from_list('custom_cmap', colors)
-        #
-        # # colors = ['white', 'white', 'darkblue', 'darkblue', 'yellow', 'red', 'darkred']
-        # # cmap = mc.ListedColormap(colors)
-        # # bounds = [-10, -0.001, 0, 0.049, 0.05, 0.75, 1]
-        # # norm = mc.BoundaryNorm(bounds, cmap.N)
-        #
-        #
-        # height_scaling_factor = 4
-        # width_scaling_factor = 2
-        # plt.figure(figsize=(10, 10))
-        # extent = (0, len(data_matrix[0]*width_scaling_factor), 0, len(data_matrix) * height_scaling_factor)
-        # # Create the heatmap using plt.imshow
-        # plt.imshow(data_matrix, cmap=cmap, aspect="auto", extent=extent)
-
 
         # Add a colorbar to show the scale of values
-        plt.colorbar(label="Error Rate Severity")
+        plt.colorbar(label="Error Rate in %")
+        plt.subplots_adjust(left=0.2)
 
-        ticks = (np.arange(len(data_matrix)) * height_scaling_factor)+(height_scaling_factor/2)
+        ticks = np.arange(len(data_matrix))
+        plt.hlines(ticks, xmin=0, xmax=data_matrix.shape[1], color='grey', linewidth=0.5)
 
-        plt.yticks(ticks=ticks, labels=clinics[::-1], fontsize=10)
+        label_ticks = ticks + .5
+        plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=8)
+
         plt.savefig('heatmap.png')
 
     def order_dict(self, data: dict):
