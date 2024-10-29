@@ -71,31 +71,31 @@ class DataManager:
             os.makedirs(dir_path)
 
 
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mc
+
 class HeatMapFactory:
-    def plot(self, data: dict, _dates: []):
-        data = self.order_dict(data)
-        clinics = []
-        data_matrix = []
-        for clinic in data:
-            clinics.append(clinic)
-            data_matrix.append(data[clinic])
-        data_matrix = np.array(data_matrix)
+    def plot(self, data: dict, dates: list):
+        sorted_data = self._order_dict(data)
+        clinics = list(sorted_data.keys())
+        data_matrix = np.array(list(sorted_data.values()))
 
         # Define the colors and thresholds (absolute values)
         colors = [
-            'black',  # For values in the range < 0
-            'darkblue',  # Prussian Blue for values [0.001, 0.049]
-            'yellow',  # For values [0.05, 0.75]
-            'red',  # For values [0.75, 1]
-            'darkred'  # For values = 1
+            'black',      # For values in the range < 0
+            'darkblue',   # Prussian Blue for values [0, 5]
+            'yellow',     # For values [5, 15]
+            'red',        # For values [15, 30]
+            'darkred'     # For values [30, 100]
         ]
-        bounds = [-1, -0.01, 5, 15, 30, 90]
+        bounds = [-1, 0, 5, 15, 30, 100]
 
         # Create the heatmap with its configurations
         cmap = mc.ListedColormap(colors)
         norm = mc.BoundaryNorm(bounds, cmap.N)
-        plt.figure(figsize=(data_matrix.shape[1]/4, data_matrix.shape[0]/4))
-        extent = (0, len(data_matrix[0]), 0, len(data_matrix))
+        plt.figure(figsize=(data_matrix.shape[1] / 4, data_matrix.shape[0] / 4))
+        extent = (0, data_matrix.shape[1], 0, data_matrix.shape[0])
         plt.imshow(data_matrix, cmap=cmap, norm=norm, aspect="auto", extent=extent)
         plt.colorbar(label="Error Rate in %")
         plt.subplots_adjust(left=0.2)
@@ -103,17 +103,13 @@ class HeatMapFactory:
         # Create horizontal lines and clinic labels for y axis
         ticks = np.arange(len(data_matrix))
         plt.hlines(ticks, xmin=0, xmax=data_matrix.shape[1], color='grey', linewidth=0.5)
-        label_ticks = ticks + .5
+        label_ticks = ticks + 0.5
         plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=8)
-        plt.xticks(ticks=np.arange(len(_dates)) + .25, labels=_dates,
-           rotation=90, ha="left", fontsize=8)
+        plt.xticks(ticks=np.arange(len(dates)) + 0.25, labels=dates, rotation=90, ha="left", fontsize=8)
         plt.savefig('heatmap.png')
 
-    def order_dict(self, data: dict):
-        sorted_data = dict(
-            sorted(data.items(), key=lambda item: sum(item[1]), reverse=True)
-        )
-        return sorted_data
+    def _order_dict(self, data: dict) -> dict:
+        return dict(sorted(data.items(), key=lambda item: sum(item[1]), reverse=True))
 
 
 class ChartManager:
