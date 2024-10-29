@@ -1,6 +1,6 @@
 import os.path
-import random
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import atlassian.errors
 import pandas as pd
@@ -107,8 +107,8 @@ class HeatMapFactory:
         plt.hlines(ticks, xmin=0, xmax=data_matrix.shape[1], color='grey', linewidth=0.5)
         label_ticks = ticks + .5
         plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=8)
-        plt.xticks(ticks=np.arange(len(_dates)) + 0.5, labels=_dates,
-           rotation=45, ha="right", fontsize=8)
+        plt.xticks(ticks=np.arange(len(_dates)) + .25, labels=_dates,
+           rotation=90, ha="left", fontsize=8)
         plt.savefig('heatmap.png')
 
     def order_dict(self, data: dict):
@@ -133,21 +133,28 @@ class ChartManager:
         hm = HeatMapFactory()
         _skipped_paths = []
         _data = {}
-        for path in self.csv_paths:
+
+        def process_path(path):
             try:
                 _dates, _error_rates = Helper.read_error_rates(path)
+                _error_rates = _error_rates[-self.max_days:]
+                _dates = _dates[-self.max_days:]
+
+                clinic_id = Helper.get_clinic_num(path)
+                clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
+                _data[clinic_name] = _error_rates
+                return _data, _dates
             except Exception as e:
-                print(e)
-                continue
+                print(f"Error processing {path}: {e}")
+                return None
 
-            _error_rates = _error_rates[-self.max_days:]
-            _dates = _dates[-self.max_days:]
-
-            clinic_id = Helper.get_clinic_num(path)
-            clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
-            _data[clinic_name] = _error_rates
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(process_path, path): path for path in self.csv_paths}
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    _data, _dates = result
         hm.plot(_data, _dates)
-
         plt.savefig(self.save_path)
 
 
