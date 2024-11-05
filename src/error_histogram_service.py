@@ -107,7 +107,7 @@ class HeatMapFactory:
         ticks = np.arange(len(data_matrix))
         plt.hlines(ticks, xmin=0, xmax=data_matrix.shape[1], color='grey', linewidth=0.5)
         label_ticks = ticks + 0.5
-        plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=8)
+        plt.yticks(ticks=label_ticks, labels=clinics[::-1], fontsize=10)
         plt.xticks(ticks=np.arange(len(dates)), labels=dates, rotation=90, ha="left", fontsize=8)
         plt.savefig('heatmap.png')
 
