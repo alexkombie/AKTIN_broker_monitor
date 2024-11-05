@@ -19,7 +19,8 @@ class DataManager:
 
     def __init__(self, confluence: ConfluenceConnection):
         self.__confluence = confluence
-        self.generic_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'), 'download')  # Temporary working file
+        self.generic_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'),
+                                                         'download')  # Temporary working file
         self.correct_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'), 'stats')  # Permanent storage path
         self.__ensure_directory_exists(self.correct_attachment_save_path)
 
@@ -79,21 +80,27 @@ class HeatMapFactory:
 
         # Define the colors and thresholds (absolute values)
         colors = [
-            'black',      # For values in the range < 0
-            'darkblue',   # Prussian Blue for values [0, 5]
-            'yellow',     # For values [5, 15]
-            'red',        # For values [15, 30]
-            'darkred'     # For values [30, 100]
+            'black',
+            'mediumblue',
+            'yellow',
+            'yellow',
+            'red'
         ]
-        bounds = [-1, 0, 5, 15, 30, 100]
+        no_imp = -10
+        zero = 0
+        low_err = 1
+        high_err = 5
+        extr_err = 10
+        bounds = [no_imp, zero, low_err, high_err, extr_err, extr_err*2]
 
         # Create the heatmap with its configurations
         cmap = mc.ListedColormap(colors)
         norm = mc.BoundaryNorm(bounds, cmap.N)
-        plt.figure(figsize=(data_matrix.shape[1] / 4, data_matrix.shape[0] / 4))
+        plt.figure(figsize=(data_matrix.shape[1] / 3, data_matrix.shape[0] / 4))
         extent = (0, data_matrix.shape[1], 0, data_matrix.shape[0])
         plt.imshow(data_matrix, cmap=cmap, norm=norm, aspect="auto", extent=extent)
-        plt.colorbar(label="Error Rate in %")
+        cbar = plt.colorbar(label="Error Rate in %")
+        cbar.set_ticklabels(ticklabels=["No Imports", f'{zero}, Online', f'{low_err}, Low error rate', f'{high_err}, High error rate', f'{extr_err}, Extreme error rate', ''])
         plt.subplots_adjust(left=0.2)
 
         # Create horizontal lines and clinic labels for y axis
@@ -104,8 +111,18 @@ class HeatMapFactory:
         plt.xticks(ticks=np.arange(len(dates)), labels=dates, rotation=90, ha="left", fontsize=8)
         plt.savefig('heatmap.png')
 
-    def _order_dict(self, data: dict) -> dict:
-        return dict(sorted(data.items(), key=lambda item: sum(item[1]), reverse=True))
+    def _order_dict(self, data: dict):
+        last_week_modifier = 6  # Factor by which the values from last week are multiplied by
+        sorted_data = dict(
+            sorted(
+                data.items(),
+                key=lambda item: sum(item[1][:-7]) + sum(x * last_week_modifier for x in item[1][-7:]) if len(
+                    item[1]) > 7 else sum(
+                    item[1]),
+                reverse=True
+            )
+        )
+        return sorted_data
 
 
 class ChartManager:
@@ -180,4 +197,3 @@ class Helper:
         _error_rates = _df['daily_error_rate'].to_numpy()
 
         return _date, _error_rates
-
