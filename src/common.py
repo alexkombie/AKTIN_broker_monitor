@@ -410,9 +410,6 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         self.__space = os.getenv('CONFLUENCE.SPACE')
         self.__confluence = Confluence(url=confluence_url, token=confluence_token)
 
-    def get_confluence(self):
-        return self.__confluence
-
     def does_page_exists(self, pagename: str) -> bool:
         return self.__confluence.page_exists(self.__space, pagename)
 

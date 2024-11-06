@@ -7,69 +7,7 @@ import pandas as pd
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt
 import numpy as np
-from src.common import ConfluenceConnection, ConfluenceNodeMapper
-
-
-class DataManager:
-    """
-    This class downloads attachments from Confluence and filters them for the needed attachments,
-    as the Confluence API does not support single downloading of attachments. The correct attachment
-    will be stored in a file system, and the remaining attachments will be deleted.
-    """
-
-    def __init__(self, confluence: ConfluenceConnection):
-        self.__confluence = confluence
-        self.generic_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'),
-                                                         'download')  # Temporary working file
-        self.correct_attachment_save_path = os.path.join(os.getenv('DIR.RESOURCES'), 'stats')  # Permanent storage path
-        self.__ensure_directory_exists(self.correct_attachment_save_path)
-
-    def __del__(self):
-        self.__delete_directory(self.correct_attachment_save_path)
-
-    def get_stat_file_from_page(self, page_id: str, filename: str):
-        """
-        Downloads all available files from the page with the specified ID in Confluence.
-        The needed stats file will be moved to a permanent directory, and the temporary directory will be deleted.
-        """
-        self.__ensure_directory_exists(self.generic_attachment_save_path)
-        try:
-            self.__confluence.download_attachments_from_page(page_id, path=self.generic_attachment_save_path)
-            src = os.path.join(self.generic_attachment_save_path, filename)
-            dest = os.path.join(self.correct_attachment_save_path, filename)
-            moved_file = self.__move_file(src, dest)
-            self.__delete_directory(self.generic_attachment_save_path)
-            return moved_file
-        except atlassian.errors.ApiError:
-            print(f"Error downloading attachments for page ID: {page_id}")
-            return None
-
-    def __move_file(self, src: str, dest: str):
-        """
-        Moves files from a source to a destination path. Catches exceptions to allow the program to continue running.
-        """
-        try:
-            shutil.move(src, dest)
-            return dest
-        except Exception as e:
-            print(f"Exception: Could not move file from {src} to {dest}. Error: {e}")
-            return None
-
-    def __delete_directory(self, dir_path: str):
-        """
-        Deletes the specified directory if it exists.
-        """
-        if os.path.exists(dir_path) and os.path.isdir(dir_path):
-            shutil.rmtree(dir_path)
-        else:
-            print(f"Directory does not exist: {dir_path}")
-
-    def __ensure_directory_exists(self, dir_path: str):
-        """
-        Ensures that the specified directory exists, creating it if necessary.
-        """
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+from src.common import ConfluenceNodeMapper
 
 
 class HeatMapFactory:
@@ -142,11 +80,11 @@ class ChartManager:
 
         def process_path(path):
             try:
-                dates, error_rates = Helper.read_error_rates(path)
+                dates, error_rates = self.__read_error_rates(path)
                 error_rates = error_rates[-self.max_days:]
                 dates = dates[-self.max_days:]
 
-                clinic_id = Helper.get_clinic_num(path)
+                clinic_id = self.__get_clinic_num(path)
                 clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
                 data[clinic_name] = error_rates
                 return data, dates
@@ -159,28 +97,26 @@ class ChartManager:
             for future in as_completed(futures):
                 result = future.result()
                 if result:
+                    # data is a dictionary containing clinic names as keys and their error rates in an array as the
+                    # value. Dates is an array containing the correspondant dates, the error rates refer to, and will be
+                    # displayed on the x axis of the diagram
                     data, dates = result
-
         hm.plot(data, dates)
         plt.savefig(self.save_path)
 
-
-class Helper:
-    @staticmethod
-    def get_clinic_num(path: str):
+    def __get_clinic_num(self, path: str):
         """
         Returns a clinic number contained in a given path. Required syntax: .../{clinic num}_...
         """
         num = path.split('/')[-1].split("_")[0]
         return num
 
-    @staticmethod
-    def read_error_rates(csv_file):
+    def __read_error_rates(self, csv_file):
         """
         This method extracts error rates and date information from their respective columns in a csv file. Empty error
         rates will be marked with a negative value
         """
-        _error_rates_df = []
+        error_rates_df = []
 
         _df = pd.read_csv(csv_file, sep=';')
         try:
