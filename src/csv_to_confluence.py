@@ -25,7 +25,6 @@ Created on 22.03.2022
 import json
 import logging
 import os
-import sys
 
 from abc import ABC, abstractmethod
 
@@ -45,10 +44,14 @@ class TemplatePageLoader(ResourceLoader):
     Retrieves the confluence template page content as a string
     """
     __filename: str = 'template_page.html'
+    __summary_filename: str = 'template_summmary.html'
     __encoding: str = 'utf-8'
 
     def get_template_page(self) -> str:
         return self._get_resource_as_string(self.__filename, self.__encoding)
+
+    def get_template_summary(self) -> str:
+        return self._get_resource_as_string(self.__summary_filename, self.__encoding)
 
 
 class TemplatePageElementCreator(metaclass=SingletonMeta):
@@ -652,12 +655,12 @@ class TemplatePageMonitoringStartDateWriter(TemplatePageCSVContentWriter):
         self._page_template.find(class_='online_since').replace_with(td)
 
 
-class TemplatePageSummaryTableWriter(TemplatePageContentWriter):
+class TemplatePageSummaryTableWriter:
     """
     Adds Summary table and heatmap to parent page
     """
     def __init__(self):
-        super().__init__()
+        self._creator = TemplatePageElementCreator()
 
     def add_content_to_template(self, template_page, table, image):
         page_template = bs4.BeautifulSoup(template_page, self._creator.get_parser())
@@ -822,7 +825,7 @@ class SummaryTableCreator:
 
 class SummaryPageHandler(ConfluenceHandler):
     """
-    Creates a new Confluence page for a summary of all nodes.
+    Creates a new Confluence page template with stats of all broker nodes. Then updates the original page in Confluence
     """
 
     def __init__(self):
@@ -836,13 +839,9 @@ class SummaryPageHandler(ConfluenceHandler):
         ConfluencePageHandlerManager class that uses this class, initialises the parent page on startup. We can
         therefore assume, that the parent page always exists.
         """
-        page_template = self._confluence.get_page_content(self._confluence_parent_page)
-        page = self.__write_content_to_page_template(page_template, table, image)
+        page_template = self.__loader.get_template_summary()
+        page = self.__content_writer.add_content_to_template(page_template, table, image)
         self._confluence.update_confluence_page(self._confluence_parent_page, page)
-
-    def __write_content_to_page_template(self, page_template, table, image):
-        return self.__content_writer.add_content_to_template(page_template, table, image)
-
 
 
 class ConfluencePageHandlerManager(ConfluenceHandler):
@@ -864,9 +863,6 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
     def __init_parent_page(self):
         if not self._confluence.does_page_exists(self._confluence_parent_page):
-            content = ""
-            img_container = self.__creator.create_html_element("img", {'class': 'heatmap_img'})
-            table_container = self.__creator.create_html_element('table', {'tbody': })
             self._confluence.create_confluence_page(self._confluence_parent_page, self._confluence_root_page, "")
 
     def upload_node_information_as_confluence_pages(self):
@@ -894,8 +890,8 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
 
         table = self.__summary.create_summary_table_frame()
         table.append(tbody)
-        wrapped_content = self.__wrap_html_elements(histogram, table)
-        self._confluence.update_confluence_page(self._confluence_parent_page, str(wrapped_content))
+
+        self.__summary_creator.upload_summary_as_confluence_page(table, histogram)
 
     def __wrap_html_elements(self, *args):
         """
@@ -917,7 +913,6 @@ class ConfluencePageHandlerManager(ConfluenceHandler):
         for node_id in node_ids:
             name_csv = self.__csv_handler.generate_node_csv_name(node_id)
             path_csv = os.path.join(self.__working_dir, node_id, name_csv)
-            # node_dir = os.path.join(self.__working_dir, node_id, f"{node_id}_stats_{year}.csv")
             if os.path.exists(path_csv):
                 valid_paths.append(path_csv)
 
