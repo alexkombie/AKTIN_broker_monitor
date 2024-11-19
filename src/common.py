@@ -419,12 +419,14 @@ class ConfluenceConnection(metaclass=SingletonMeta):
         content = page['body']['storage']['value']
         return content
 
-    def upload_file_as_attachement_to_page(self, pagename: str, filepath: str):
+    def upload_file_as_attachement_to_page(self, pagename: str, filepath: str, filetype: str) -> int:
         """
         Identical named files are automatically replaced on confluence
+        filetype can be: ''text/csv', 'image/png'
         """
         page_id = self.__confluence.get_page_id(self.__space, pagename)
-        self.__confluence.attach_file(filepath, content_type='text/csv', page_id=page_id)
+        self.__confluence.attach_file(filepath, content_type=filetype, page_id=page_id)
+        return page_id
 
     def create_confluence_page(self, pagename: str, parentname: str, content: str):
         parent_id = self.__confluence.get_page_id(self.__space, parentname)

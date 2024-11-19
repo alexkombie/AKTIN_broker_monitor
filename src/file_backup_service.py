@@ -65,7 +65,7 @@ class FileBackupManager(ConfluenceHandler):
         name = self._mapper.get_node_value_from_mapping_dict(node_id, 'COMMON_NAME')
         for filename in files_list:
             filepath = os.path.join(node_dir, filename)
-            self._confluence.upload_file_as_attachement_to_page(name, filepath)
+            self._confluence.upload_file_as_attachement_to_page(name, filepath, 'text/csv')
 
     @staticmethod
     def __get_all_files_in_directory_with_line_ending(directory: str, line_ending: str) -> list:

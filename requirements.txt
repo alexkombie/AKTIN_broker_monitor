@@ -12,3 +12,6 @@ pytz~=2022.1
 # Project configuration
 packaging~=21.3
 toml~=0.10.2
+atlassian-python-api>=3.0.0
+matplotlib>=3.0.0
+numpy>=1.18.0
