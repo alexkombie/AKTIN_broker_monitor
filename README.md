@@ -1,11 +1,43 @@
 ## broker-monitor ![Python 3.10.6](https://img.shields.io/badge/python-3.10.6-blue)
 
-Simple scripts that monitor connected node activity of the [AKTIN Broker](https://github.com/aktin/broker). The whole process is divided into several scripts. All reusable components are stored in `common.py`:
+A monitoring system for the [AKTIN Broker](https://github.com/aktin/broker) that tracks node activity, generates reports, and sends automated alerts. The system consists of several specialized scripts that work together to provide comprehensive monitoring. All reusable components are stored in `common.py`:
 
-* `node_to_csv.py` retrieves information from broker connected nodes and stores them locally. Import statistics and import errors are stored in CSV files. Resource information is written into text files.
-* `csv_to_confluence.py` takes the generated files and fills a HTML template of a Confluence page with their content. The template is then uploaded to Confluence. Existing pages on Confluence are updated in the same way.
-* `email_service.py` checks the pages generated in Confluence for a specific node status and informs the node's correspondents via e-mail if there is an interruption in connection or data import.
-* `file_backup_service.py` backs up files related to broker nodes by uploading them as attachments to the node's corresponding Confluence pages
+* `node_to_csv.py` - Primary data collector:
+    - Retrieves node statistics (connections, imports, errors) from the broker
+    - Tracks software versions and configurations
+    - Stores all data in structured CSV and text files for analysis
+    - Rotates files yearly to manage storage
+  
+
+* `csv_to_confluence.py` - Reporting system:
+    - Processes collected node data into readable formats
+    - Generates individual node status pages in Confluence
+    - Creates summary dashboards with overall network health
+    - Produces visualizations like error rate heatmaps
+    - Updates pages incrementally to maintain history
+
+
+* `email_service.py` - Automated alerting system:
+    - Monitors nodes for critical states (offline, no imports, outdated)
+    - Notifies relevant stakeholders via email when issues detected
+    - Manages notification frequency to prevent alert fatigue
+    - Maintains logs of all sent communications
+
+
+* `file_backup_service.py` - Data preservation service:
+    - Backs up all node-related files to Confluence
+    - Preserves CSVs, logs, and configuration data
+    - Ensures data availability for auditing and analysis
+
+
+* `error_histogram_service.py` - Visualization component:
+    - Generates heatmaps showing error rates across all nodes
+    - Uses color-coding to indicate severity levels:
+        - Black: No imports
+        - Blue: Online (0% errors)
+        - Yellow: Low-High error rates (1-10%)
+        - Red: Extreme error rates (>10%)
+    - Helps identify patterns and problematic nodes
 
 ### Usage
 
