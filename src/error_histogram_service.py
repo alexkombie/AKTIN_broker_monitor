@@ -1,3 +1,8 @@
+"""
+@AUTHOR=William Hoy (whoy@ukaachen.de)
+@VERSION=1.33
+"""
+
 import os.path
 import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
