@@ -2,7 +2,7 @@
 """
 Created on 15.02.2022
 @AUTHOR=Alexander Kombeiz (akombeiz@ukaachen.de)
-@VERSION=1.32
+@VERSION=1.33
 """
 
 #

@@ -1,6 +1,9 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+"""
+@AUTHOR=William Hoy (whoy@ukaachen.de)
+@VERSION=1.33
+"""
 
-import atlassian.errors
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 import matplotlib.colors as mc
 import matplotlib.pyplot as plt

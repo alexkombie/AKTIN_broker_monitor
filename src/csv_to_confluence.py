@@ -2,7 +2,7 @@
 """
 Created on 22.03.2022
 @AUTHOR=Alexander Kombeiz (akombeiz@ukaachen.de)
-@VERSION=1.32
+@VERSION=1.33
 """
 #
 #      Copyright (c) 2022  AKTIN
