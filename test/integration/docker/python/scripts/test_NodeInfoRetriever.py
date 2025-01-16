@@ -189,7 +189,7 @@ class TestNodeInfoRetriever(unittest.TestCase):
 
     def __change_date_of_current_csv_to_past_days(self, days: int):
         df = self.__CSV_HANDLER.read_csv_as_df(self.__DEFAULT_CSV_PATH)
-        df.iloc[0]['date'] = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(days=days)
+        df.loc[0, 'date'] = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(days=days)
         self.__CSV_HANDLER.write_data_to_file(df, self.__DEFAULT_CSV_PATH)
 
     @staticmethod

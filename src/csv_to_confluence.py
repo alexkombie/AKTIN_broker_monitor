@@ -233,7 +233,7 @@ class TemplatePageJiraTableWriter(TemplatePageContentWriter):
         return query
 
     def __generate_jira_table_with_query(self, query: str) -> Tag:
-        server_param = self._creator.create_ac_parameter_element('server', 'Jira IMI UK Aachen')
+        server_param = self._creator.create_ac_parameter_element('server', 'Jira IMI Cloud')
         column_ids = self._creator.create_ac_parameter_element(
             'columnIds',
             'issuekey,summary,issuetype,created,updated,duedate,assignee,reporter,priority,status,resolution')
@@ -509,7 +509,7 @@ class TemplatePageStatusChecker(TemplatePageCSVContentWriter):
     status as a custom HTML element.
     Should always be the last class called in the processing pipeline!
     """
-    __default_threshold_hours_failure = 24
+    __default_threshold_hours_failure = 72
     __default_days_of_consecutive_imports = 3
 
     def __init__(self):
