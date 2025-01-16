@@ -265,6 +265,8 @@ class ConfluenceClinicContactGrabber(TemplatePageContentWriter):
         confluence_email_page = confluence.get_page_content(self.__confluence_email_list)
         email_table = pd.read_html(confluence_email_page)
         df = email_table[0]
+        df.columns=df.iloc[0]
+        df = df.iloc[1:].reset_index(drop=True)
         df['Node ID'] = pd.to_numeric(df['Node ID'])
         df = df.fillna('')
         return df
