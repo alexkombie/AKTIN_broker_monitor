@@ -89,7 +89,7 @@ class ChartManager:
                 clinic_id = self.__get_clinic_num(path)
                 clinic_name = self.mapper.get_node_value_from_mapping_dict(clinic_id, "COMMON_NAME")
 
-                // use data from last year or generate empty cells to keep diagram structure
+                #use data from last year or generate empty cells to keep diagram structure
                 if len(error_rates) < self.max_days:
                     try:
                         last_year_path = path.replace(str(datetime.today().year), str(datetime.today().year-1))
